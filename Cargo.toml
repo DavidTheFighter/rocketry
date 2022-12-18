@@ -1,0 +1,9 @@
+[workspace]
+members = [
+    "hal",
+    "mission-ctrl/mission-ctrl-server",
+]
+
+exclude = [
+    "ecu/targets/stm32f407",
+]
