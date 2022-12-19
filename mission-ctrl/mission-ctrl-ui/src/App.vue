@@ -27,21 +27,32 @@
       class="columnLeft"
       />
     </div>
+    <div class="row">
+      <HardwareDisplay class="columnLeft" :valves="valveDataset"/>
+      <RocketTerminal class="columnMiddle" id="terminal"/>
+      <SoftwareDisplay class="columnRight" :states="softwareDataset"/>
+    </div>
   </div>
 </template>
 
 <script>
-import RealtimeLineGraph from './components/RealtimeLineGraph.vue'
+import RealtimeLineGraph from './components/RealtimeLineGraph.vue';
+import RocketTerminal from './components/RocketTerminal.vue';
+import HardwareDisplay from './components/HardwareDisplay.vue';
+import SoftwareDisplay from './components/SoftwareDisplay.vue';
 
 export default {
   name: 'App',
   components: {
     RealtimeLineGraph,
+    RocketTerminal,
+    HardwareDisplay,
+    SoftwareDisplay
   },
   props: {
     refreshTimeMillis: {
       type: Number,
-      default: 33
+      default: 1000
     },
     dataDivisor: {
       type: Number,
@@ -66,7 +77,9 @@ export default {
       const data = await response.json();
 
       for (const key in data) {
-        data[key] = data[key].filter((_value, index) => index % this.dataDivisor == 0);
+        if (Array.isArray(data[key])) {
+          data[key] = data[key].filter((_value, index) => index % this.dataDivisor == 0);
+        }
       }
 
       this.dataset = data;
@@ -121,6 +134,52 @@ export default {
         },
       ];
     },
+    valveDataset() {
+      return [
+        {
+          name: 'IG Fuel Valve',
+          data: this.dataset.igniter_fuel_valve,
+        },
+        {
+          name: 'IG GOx Valve',
+          data: this.dataset.igniter_gox_valve,
+        },
+        {
+          name: 'Fuel Press Valve',
+          data: this.dataset.fuel_press_valve,
+        },
+        {
+          name: 'Fuel Vent Valve',
+          data: this.dataset.fuel_vent_valve,
+        },
+        {
+          name: 'IG Spark Plug',
+          data: this.dataset.sparking,
+        },
+      ];
+    },
+    softwareDataset() {
+      return [
+        {
+          name: 'Igniter State',
+          value: this.dataset.igniter_state,
+        },
+        {
+          name: 'Fuel Tank State',
+          value: this.dataset.tank_state,
+        },
+        {
+          name: 'Telemetry Rate',
+          value: this.dataset.telemetry_rate,
+          units: "Hz",
+        },
+        {
+          name: 'DAQ Rate',
+          value: this.dataset.daq_rate,
+          units: "Hz",
+        },
+      ];
+    },
   },
   data() {
     return {
@@ -131,17 +190,21 @@ export default {
 }
 </script>
 
-<style>
+<style scoped>
 #app {
   font-family: Helvetica, Arial;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-align: center;
   color: #2c3e50;
+}
+
+#terminal {
+  height: 25rem;
 }
 
 .row {
   display: flex;
+  margin-bottom: 20px;
 }
 
 .columnLeft {
@@ -159,6 +222,12 @@ export default {
 .columnRight {
   flex: 33%;
   max-width: 32%;
+  margin-left: auto;
+}
+
+.columnRightTwoThirds {
+  flex: 67%;
+  max-width: 66%;
   margin-left: auto;
 }
 

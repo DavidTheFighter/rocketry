@@ -1,10 +1,20 @@
+mod commands;
+
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
+use commands::testvalve;
 use rocket::serde::{json::Json, Serialize};
 use rocket::http::Header;
 use rocket::{Request, Response, State};
 use rocket::fairing::{Fairing, Info, Kind};
+
+#[derive(Debug, Serialize)]
+#[serde(crate = "rocket::serde")]
+struct HardwareState {
+    state: String,
+    in_default_state: bool,
+}
 
 #[derive(Debug, Serialize)]
 #[serde(crate = "rocket::serde")]
@@ -15,6 +25,15 @@ struct TelemetryData {
     fuel_tank_pressure: Vec<f32>,
     ecu_board_temp: Vec<f32>,
     igniter_throat_temp: Vec<f32>,
+    igniter_fuel_valve: HardwareState,
+    igniter_gox_valve: HardwareState,
+    fuel_press_valve: HardwareState,
+    fuel_vent_valve: HardwareState,
+    sparking: HardwareState,
+    igniter_state: String,
+    tank_state: String,
+    telemetry_rate: u32,
+    daq_rate: u32,
 }
 
 struct InitData {
@@ -52,10 +71,25 @@ fn telemetry(init_data: &State<InitData>) -> Json<TelemetryData> {
         fuel_tank_pressure: gen_data(3),
         ecu_board_temp: gen_data(4),
         igniter_throat_temp: gen_data(5),
+        igniter_fuel_valve: HardwareState { state: String::from("Closed"), in_default_state: true },
+        igniter_gox_valve: HardwareState { state: String::from("Closed"), in_default_state: true },
+        fuel_press_valve: HardwareState { state: String::from("Open"), in_default_state: false },
+        fuel_vent_valve: HardwareState { state: String::from("Open"), in_default_state: true },
+        sparking: HardwareState { state: String::from("Off"), in_default_state: true },
+        igniter_state: String::from("Idle"),
+        tank_state: if *gen_data(3).last().unwrap() > 100.0 { String::from("Pressurized") } else { String::from("Unpressurized") },
+        telemetry_rate: 100,
+        daq_rate: 4000,
     });
 }
 
 pub struct CORS;
+
+/// Catches all OPTION requests in order to get the CORS related Fairing triggered.
+#[options("/<_..>")]
+fn all_options() {
+    /* Intentionally left empty */
+}
 
 #[rocket::async_trait]
 impl Fairing for CORS {
@@ -93,5 +127,6 @@ fn rocket() -> _ {
     rocket::build()
         .attach(CORS)
         .manage(InitData { init_timestamp: timestamp })
-        .mount("/", routes![telemetry])
+        .mount("/", routes![all_options, telemetry])
+        .mount("/commands", routes![testvalve])
 }
