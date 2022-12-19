@@ -52,7 +52,7 @@ export default {
   props: {
     refreshTimeMillis: {
       type: Number,
-      default: 1000
+      default: 33
     },
     dataDivisor: {
       type: Number,
@@ -209,26 +209,19 @@ export default {
 
 .columnLeft {
   flex: 33%;
-  max-width: 32%;
-  margin-right: auto;
 }
 
 .columnMiddle {
   flex: 33%;
-  max-width: 32%;
-  margin-right: auto;
 }
 
 .columnRight {
   flex: 33%;
-  max-width: 32%;
-  margin-left: auto;
 }
 
 .columnRightTwoThirds {
   flex: 67%;
   max-width: 66%;
-  margin-left: auto;
 }
 
 </style>

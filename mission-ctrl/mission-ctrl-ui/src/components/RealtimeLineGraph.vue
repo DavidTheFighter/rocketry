@@ -115,6 +115,7 @@
           plugins: {
             legend: {
               position: this.justifyLegend,
+              maxWidth: 100,
               labels: {
                 usePointStyle: true,
                 pointStyle: 'rect',

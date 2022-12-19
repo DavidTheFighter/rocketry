@@ -2,7 +2,7 @@
   <div>
     <p id="title">Hardware State</p>
     <div class="row">
-      <div class="valveColumn">
+      <div class="valveColumn" style="margin-left: 5%">
         <div class="row">
           <div class="columnLeft">
             <p class="valveTitle" v-for="valve in leftColumnValves" :key="valve.name">
@@ -72,7 +72,6 @@ export default {
 
 .valveTitle {
   text-align: left;
-  margin-left: 10%;
   font-family: monospace;
   font-size: 1.25em;
 }
@@ -97,16 +96,13 @@ export default {
 
 .valveColumn {
   flex: 50%;
-  max-width: 50%;
 }
 
 .columnLeft {
-  flex: 75%;
-  max-width: 75%;
+  flex: 60%;
 }
 
 .columnRight {
-  flex: 25%;
-  max-width: 25%;
+  flex: 40%;
 }
 </style>

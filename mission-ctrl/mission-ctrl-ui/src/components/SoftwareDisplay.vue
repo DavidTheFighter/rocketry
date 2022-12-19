@@ -2,7 +2,7 @@
   <div>
     <p id="title">Software State</p>
     <div class="row">
-      <div class="stateColumn">
+      <div class="stateColumn" style="margin-left: 5%">
         <div class="row">
           <div class="columnLeft">
             <p class="stateTitle" v-for="state in leftColumnStates" :key="state.name">
@@ -89,17 +89,13 @@ export default {
 
 .stateColumn {
   flex: 50%;
-  max-width: 50%;
 }
 
 .columnLeft {
   flex: 50%;
-  max-width: 50%;
-  margin-left: 0%;
 }
 
 .columnRight {
   flex: 50%;
-  max-width: 50%;
 }
 </style>
