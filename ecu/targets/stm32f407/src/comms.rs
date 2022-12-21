@@ -1,6 +1,8 @@
+use hal::comms_hal::{Packet, NetworkAddress};
+use rtic::mutex_prelude::{TupleExt02, TupleExt03};
 use smoltcp::{wire::{self, IpEndpoint, EthernetAddress}, iface::{self, SocketStorage}, storage::PacketMetadata, socket::{UdpSocketBuffer, UdpSocket}};
 use stm32_eth::{RxRingEntry, TxRingEntry, EthernetDMA};
-use crate::now_fn;
+use crate::{app, now_fn};
 
 pub const DEVICE_MAC_ADDR: [u8; 6] = [0x00, 0x80, 0xE1, 0x00, 0x00, 0x00];
 pub const DEVICE_IP_ADDR: wire::Ipv4Address = wire::Ipv4Address::new(169, 254, 0, 6);
@@ -9,6 +11,55 @@ pub const DEVICE_PORT: u16 = 25565;
 
 pub const RX_RING_ENTRY_DEFAULT: RxRingEntry = RxRingEntry::new();
 pub const TX_RING_ENTRY_DEFAULT: TxRingEntry = TxRingEntry::new();
+
+pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
+    let iface = ctx.shared.interface;
+    let udp = ctx.shared.udp_socket_handle;
+    let packet_queue = ctx.shared.packet_queue;
+
+    (iface, udp, packet_queue).lock(|iface, udp_handle, packet_queue| {
+        iface.device_mut().interrupt_handler();
+        iface.poll(now_fn()).ok();
+
+        let buffer = ctx.local.data;
+        let udp_socket = iface.get_socket::<UdpSocket>(*udp_handle);
+
+        if !udp_socket.can_recv() {
+            return;
+        }
+
+        while let Ok((recv_bytes, _sender)) = udp_socket.recv_slice(buffer) {
+            if let Ok(packet) = Packet::deserialize(&mut buffer[0..recv_bytes]) {
+                packet_queue.enqueue(packet).unwrap();  
+            }
+        }
+
+        iface.poll(now_fn()).ok();
+    });
+}
+
+pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, _address: NetworkAddress) {
+    let iface = ctx.shared.interface;
+    let udp = ctx.shared.udp_socket_handle;
+
+    (iface, udp).lock(|iface, udp_handle| {
+        let udp_socket = iface.get_socket::<UdpSocket>(*udp_handle);
+        let buffer = ctx.local.data;
+
+        if !udp_socket.can_send() {
+            return;
+        }
+
+        let ip_addr = wire::Ipv4Address::new(169, 254, 0, 5);
+        let endpoint = wire::IpEndpoint::new(ip_addr.into(), 25565);
+
+        if let Ok(result_length) = packet.serialize(buffer) {
+            udp_socket.send_slice(&buffer[0..result_length], endpoint).ok();
+        }
+
+        iface.poll(now_fn()).ok();
+    });
+}
 
 pub fn init_comms(
     net_storage: &'static mut NetworkingStorage,

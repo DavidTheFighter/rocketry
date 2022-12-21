@@ -1,12 +1,33 @@
+use postcard::{
+    from_bytes_cobs,
+    ser_flavors::{Cobs, Slice},
+    serialize_with_flavor,
+};
 use serde::{Deserialize, Serialize};
 
-use crate::{ecu_hal::{ECUSolenoidValve, ECUSensor, IgniterState, FuelTankState, MAX_ECU_SENSORS, MAX_ECU_VALVES}, SensorConfig};
+use crate::{
+    ecu_hal::{ECUSensor, ECUSolenoidValve, ECUTelemetryFrame, ECUDAQFrame},
+    SensorConfig,
+};
+
+pub const DAQ_PACKET_FRAMES: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum NetworkAddress {
     Broadcast,
     EngineController(u8),
     MissionControl,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SerializationError {
+    Unknown,
+    PacketTooLong,
+    PostcardImplementation,
+    SerdeError,
+    UnexpectedEnd,
+    BadVar,
+    BadEncoding,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,12 +46,62 @@ pub enum Packet {
     // -- Commands -- //,
     PressurizeFuelTank,
     DepressurizeFuelTank,
-    
+    FireIgniter,
+
     // -- Data -- //
-    ECUTelemetry {
-        igniter_state: IgniterState,
-        fuel_tank_state: FuelTankState,
-        sensors: [f32; MAX_ECU_SENSORS],
-        solenoid_valves: [bool; MAX_ECU_VALVES],
-    },
+    ECUTelemetry(ECUTelemetryFrame),
+    ECUDAQ([ECUDAQFrame; DAQ_PACKET_FRAMES]),
+}
+
+impl Packet {
+    pub fn serialize(&self, buffer: &mut [u8]) -> Result<usize, SerializationError> {
+        match Cobs::try_new(Slice::new(buffer)) {
+            Ok(flavor) => {
+                let serialized =
+                    serialize_with_flavor::<Packet, Cobs<Slice>, &mut [u8]>(self, flavor);
+
+                match serialized {
+                    Ok(output_buffer) => Ok(output_buffer.len()),
+                    Err(err) => match err {
+                        postcard::Error::WontImplement
+                        | postcard::Error::NotYetImplemented
+                        | postcard::Error::SerializeSeqLengthUnknown => {
+                            Err(SerializationError::PostcardImplementation)
+                        }
+                        postcard::Error::SerializeBufferFull => {
+                            Err(SerializationError::PacketTooLong)
+                        }
+                        postcard::Error::SerdeSerCustom | postcard::Error::SerdeDeCustom => {
+                            Err(SerializationError::SerdeError)
+                        }
+                        _ => Err(SerializationError::Unknown),
+                    },
+                }
+            }
+            Err(_err) => Err(SerializationError::Unknown),
+        }
+    }
+
+    pub fn deserialize(buffer: &mut [u8]) -> Result<Packet, SerializationError> {
+        match from_bytes_cobs(buffer) {
+            Ok(packet) => Ok(packet),
+            Err(err) => match err {
+                postcard::Error::WontImplement | postcard::Error::NotYetImplemented => {
+                    Err(SerializationError::PostcardImplementation)
+                }
+                postcard::Error::SerdeSerCustom | postcard::Error::SerdeDeCustom => {
+                    Err(SerializationError::SerdeError)
+                }
+                postcard::Error::DeserializeUnexpectedEnd => Err(SerializationError::UnexpectedEnd),
+                postcard::Error::DeserializeBadVarint
+                | postcard::Error::DeserializeBadBool
+                | postcard::Error::DeserializeBadChar
+                | postcard::Error::DeserializeBadUtf8
+                | postcard::Error::DeserializeBadOption
+                | postcard::Error::DeserializeBadEnum => Err(SerializationError::BadVar),
+                postcard::Error::DeserializeBadEncoding => Err(SerializationError::BadEncoding),
+                _ => Err(SerializationError::Unknown),
+            },
+        }
+    }
 }

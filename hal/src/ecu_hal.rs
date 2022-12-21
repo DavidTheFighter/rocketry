@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::SensorConfig;
+
 pub const MAX_ECU_SENSORS: usize = 6;
 pub const MAX_ECU_VALVES: usize = 4;
 
@@ -40,10 +42,11 @@ pub const ECU_SOLENOID_VALVES: [ECUSolenoidValve; MAX_ECU_VALVES] = [
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IgniterState {
     Idle = 0,
-    Startup = 1,
-    Firing = 2,
-    Shutdown = 3,
-    Abort = 4,
+    StartupGOxLead = 1,
+    StartupIgnition = 2,
+    Firing = 3,
+    Shutdown = 4,
+    Abort = 5,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -52,6 +55,49 @@ pub enum FuelTankState {
     Pressurized = 1,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ECUTelemetryFrame {
+    pub igniter_state: IgniterState,
+    pub fuel_tank_state: FuelTankState,
+    pub sensors: [f32; MAX_ECU_SENSORS],
+    pub solenoid_valves: [bool; MAX_ECU_VALVES],
+    pub sparking: bool,
+}
+
+impl ECUTelemetryFrame {
+    pub const fn default() -> Self {
+        Self {
+            igniter_state: IgniterState::Idle,
+            fuel_tank_state: FuelTankState::Idle,
+            sensors: [0_f32; MAX_ECU_SENSORS],
+            solenoid_valves: [false; MAX_ECU_VALVES],
+            sparking: false,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 pub struct ECUDAQFrame {
-    pub sensors: [u16; 6],
+    pub sensor_values: [u16; MAX_ECU_SENSORS],
+}
+
+impl ECUDAQFrame {
+    pub const fn default() -> Self {
+        Self {
+            sensor_values: [0_u16; MAX_ECU_SENSORS],
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ECUConfiguration {
+    pub sensor_configs: [SensorConfig; MAX_ECU_SENSORS],
+}
+
+impl ECUConfiguration {
+    pub const fn default() -> Self {
+        Self {
+            sensor_configs: [SensorConfig::default(); MAX_ECU_SENSORS],
+        }
+    }
 }
