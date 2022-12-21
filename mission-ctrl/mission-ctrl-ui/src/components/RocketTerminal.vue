@@ -16,9 +16,11 @@ export default {
       commands: {
         "valve": (args) => this.postCommand(args),
         "testvalve": (args) => this.postCommand(args),
-        "pressurize": () => createStdout(textFormatter("Pressurizing...")),
-        "depressurize": () => createStdout(textFormatter("Depressurizing...")),
-        "fire": () => createStdout(textFormatter("Firing in T-5.0s")),
+        "press": (args) => this.postCommand(args),
+        "fp": (args) => this.commandAlias("press", args),
+        "depress": (args) => this.postCommand(args),
+        "dfp": (args) => this.commandAlias("depress", args),
+        "fire": (args) => this.postCommand(args),
       },
     };
   },
@@ -48,6 +50,10 @@ export default {
         return createStdout(textFormatter(`An error happened: ${ex}`));
       }
     },
+    async commandAlias(fullCommand, args) {
+      args[0] = fullCommand;
+      return this.postCommand(args);
+    }
   }
 };
 </script>

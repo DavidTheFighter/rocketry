@@ -54,10 +54,6 @@ export default {
       type: Number,
       default: 33
     },
-    dataDivisor: {
-      type: Number,
-      default: 3
-    },
   },
   watch: {
     timer: {
@@ -75,12 +71,6 @@ export default {
     async generateData() {
       const response = await fetch('http://localhost:8000/telemetry');
       const data = await response.json();
-
-      for (const key in data) {
-        if (Array.isArray(data[key])) {
-          data[key] = data[key].filter((_value, index) => index % this.dataDivisor == 0);
-        }
-      }
 
       this.dataset = data;
     }

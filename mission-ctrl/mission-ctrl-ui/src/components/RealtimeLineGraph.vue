@@ -99,7 +99,9 @@
         });
 
         return {
-            labels: Array(maxSize).fill(null).map((u, i) => i),
+            labels: Array(maxSize).fill(null).map((u, i) => {
+              return "T" + (-10 + (i / (maxSize / 10.0))).toFixed(1) + "s";
+            }),
             datasets: chartDatasets,
         };
       },
