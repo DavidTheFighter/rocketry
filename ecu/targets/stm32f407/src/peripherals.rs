@@ -23,7 +23,7 @@ pub fn adc_dma(mut ctx: app::adc_dma::Context) {
             adc1_buffer[1],
             adc2_buffer[0],
             adc2_buffer[1],
-            adc3_buffer[0],
+            0,
             adc3_buffer[1],
         ],
     };

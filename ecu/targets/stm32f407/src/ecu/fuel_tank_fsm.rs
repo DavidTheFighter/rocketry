@@ -1,48 +1,74 @@
-use hal::ecu_hal::FuelTankState;
+use core::marker::PhantomData;
+
+use hal::{ecu_hal::FuelTankState, comms_hal::Packet};
 
 use super::{ECUState, ECUControlPins};
 
-pub struct FuelTankStateStorage {
-    pub pressurize_command_received: bool,
-    pub depressurize_command_received: bool,
+struct Idle;
+struct Pressurized;
+
+struct FuelTankFSM<T> {
+    _m: PhantomData<T>,
 }
 
-// ------- IDLE STATE ------- //
+impl FuelTankFSM<Idle> {
+    fn update(_state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<FuelTankState> { None }
 
-fn fuel_tank_idle_update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins) {
-    if ecu_state.fuel_tank_state_storage.pressurize_command_received {
-        transition_state(ecu_state, ecu_pins, FuelTankState::Pressurized);
+    fn enter_state(_state: &mut ECUState, pins: &mut ECUControlPins) {
+        pins.sv3_ctrl.set_low();
+        pins.sv4_ctrl.set_high();
+    }
+
+    fn on_packet(_state: &mut ECUState, _pins: &mut ECUControlPins, packet: &Packet) -> Option<FuelTankState> {
+        match packet {
+            Packet::PressurizeFuelTank => return Some(FuelTankState::Pressurized),
+            _ => {}
+        }
+
+        None
     }
 }
 
-fn fuel_tank_idle_transition_into(_ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins) {
-    ecu_pins.sv3_ctrl.set_low();
-    ecu_pins.sv4_ctrl.set_high();
-}
+impl FuelTankFSM<Pressurized> {
+    fn update(_state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<FuelTankState> { None }
 
-// ------- PRESSURIZED STATE ------- //
-
-fn fuel_tank_pressurized_update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins) {
-    if ecu_state.fuel_tank_state_storage.depressurize_command_received {
-        transition_state(ecu_state, ecu_pins, FuelTankState::Idle);
+    fn enter_state(_state: &mut ECUState, pins: &mut ECUControlPins) {
+        pins.sv3_ctrl.set_high();
+        pins.sv4_ctrl.set_low();
     }
-}
 
-fn fuel_tank_pressurized_transition_into(_ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins) {
-    ecu_pins.sv3_ctrl.set_high();
-    ecu_pins.sv4_ctrl.set_low();
+    fn on_packet(_state: &mut ECUState, _pins: &mut ECUControlPins, packet: &Packet) -> Option<FuelTankState> {
+        match packet {
+            Packet::DepressurizeFuelTank => return Some(FuelTankState::Idle),
+            _ => {}
+        }
+
+        None
+    }
 }
 
 // ---------------------------- //
 
 pub fn update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, _elapsed_time: f32) {
-    match ecu_state.fuel_tank_state {
-        FuelTankState::Idle => fuel_tank_idle_update(ecu_state, ecu_pins),
-        FuelTankState::Pressurized => fuel_tank_pressurized_update(ecu_state, ecu_pins),
-    }
+    let transition = match ecu_state.fuel_tank_state {
+        FuelTankState::Idle => FuelTankFSM::<Idle>::update(ecu_state, ecu_pins),
+        FuelTankState::Pressurized => FuelTankFSM::<Pressurized>::update(ecu_state, ecu_pins),
+    };
 
-    ecu_state.fuel_tank_state_storage.pressurize_command_received = false;
-    ecu_state.fuel_tank_state_storage.depressurize_command_received = false;
+    if let Some(new_state) = transition {
+        transition_state(ecu_state, ecu_pins, new_state);
+    }
+}
+
+pub fn on_packet(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, packet: &Packet) {
+    let transition = match ecu_state.fuel_tank_state {
+        FuelTankState::Idle => FuelTankFSM::<Idle>::on_packet(ecu_state, ecu_pins, packet),
+        FuelTankState::Pressurized => FuelTankFSM::<Pressurized>::on_packet(ecu_state, ecu_pins, packet),
+    };
+
+    if let Some(new_state) = transition {
+        transition_state(ecu_state, ecu_pins, new_state);
+    }
 }
 
 pub fn transition_state(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, new_state: FuelTankState) {
@@ -53,16 +79,7 @@ pub fn transition_state(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins,
     ecu_state.fuel_tank_state = new_state;
 
     match new_state {
-        FuelTankState::Idle => fuel_tank_idle_transition_into(ecu_state, ecu_pins),
-        FuelTankState::Pressurized => fuel_tank_pressurized_transition_into(ecu_state, ecu_pins),
-    }
-}
-
-impl FuelTankStateStorage {
-    pub const fn default() -> Self {
-        Self {
-            pressurize_command_received: false,
-            depressurize_command_received: false,
-        }
+        FuelTankState::Idle => FuelTankFSM::<Idle>::enter_state(ecu_state, ecu_pins),
+        FuelTankState::Pressurized => FuelTankFSM::<Pressurized>::enter_state(ecu_state, ecu_pins),
     }
 }

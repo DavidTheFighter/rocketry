@@ -22,11 +22,10 @@ mod app {
     use crate::peripherals::adc_dma;
     use hal::comms_hal::{Packet, NetworkAddress};
     use hal::ecu_hal::{ECUDAQFrame};
-    use stm32f4xx_hal::adc::Temperature;
     use stm32f4xx_hal::{
         prelude::*,
         pac::{ADC1, ADC2, ADC3, DMA2},
-        gpio::{Output, PA12, PE5, PE9},
+        gpio::{Output, PE5},
         adc::{
             Adc,
             config::{AdcConfig, Resolution, Clock, Dma, Scan, Sequence, SampleTime},
@@ -159,7 +158,7 @@ mod app {
         let adc_in4 = gpioa.pa4.into_analog();
         let adc_in5 = gpioa.pa5.into_analog();
         let adc_in6 = gpioa.pa6.into_analog();
-        // let adc_in7 = gpiof.pf9.into_analog();
+        let adc_in7 = gpiof.pf9.into_analog();
         let adc_in8 = gpiof.pf10.into_analog();
 
         let mut spark_ctrl = p.TIM1.pwm_hz(spark_ctrl, 250.Hz(), &clocks).split();
@@ -195,7 +194,7 @@ mod app {
         adc2.configure_channel(&adc_in6, Sequence::Two, SampleTime::Cycles_480);
 
         let mut adc3 = Adc::adc3(p.ADC3, true, adc_config);
-        adc3.configure_channel(&Temperature, Sequence::One, SampleTime::Cycles_480);
+        adc3.configure_channel(&adc_in7, Sequence::One, SampleTime::Cycles_480);
         adc3.configure_channel(&adc_in8, Sequence::Two, SampleTime::Cycles_480);
 
         let adc1_buffer1 = cortex_m::singleton!(: [u16; 2] = [0;2]).unwrap();

@@ -5,22 +5,21 @@ use rtic::Mutex;
 use stm32_eth::stm32::TIM1;
 use stm32f4xx_hal::{
     prelude::*, 
-    signature::{VtempCal30, VtempCal110}, 
+    // signature::{VtempCal30, VtempCal110}, 
     gpio::{PA9, PA10, PA11, PA12, Output, PinState}, timer::PwmChannel
 };
 
-use hal::{ecu_hal::{ECUConfiguration, ECUSensor, IgniterState, FuelTankState, ECUTelemetryFrame}, comms_hal::{Packet, NetworkAddress}};
+use hal::{ecu_hal::{ECUConfiguration, ECUSensor, IgniterState, FuelTankState, ECUTelemetryFrame, ECUSolenoidValve}, comms_hal::{Packet, NetworkAddress}};
 
 use crate::app;
 
-use self::{igniter_fsm::IgniterStateStorage, fuel_tank_fsm::FuelTankStateStorage};
+use self::igniter_fsm::IgniterStateStorage;
 
 pub struct ECUState {
     config: ECUConfiguration,
     igniter_state: IgniterState,
     igniter_state_storage: IgniterStateStorage,
     fuel_tank_state: FuelTankState,
-    fuel_tank_state_storage: FuelTankStateStorage,
     igniter_fuel_injector_pressure: f32,
     igniter_gox_injector_pressure: f32,
     igniter_chamber_pressure: f32,
@@ -61,11 +60,27 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
     ctx.shared.packet_queue.lock(|packet_queue| {
         while let Some(packet) = packet_queue.dequeue() {
             match packet {
-                Packet::FireIgniter => ecu_state.igniter_state_storage.received_fire_igniter_command = true,
-                Packet::PressurizeFuelTank => ecu_state.fuel_tank_state_storage.pressurize_command_received = true,
-                Packet::DepressurizeFuelTank => ecu_state.fuel_tank_state_storage.depressurize_command_received = true,
+                Packet::ConfigureSensor { sensor, config } => ecu_state.config.sensor_configs[sensor as usize] = config,
+                Packet::SetSolenoidValve { valve, state } => match valve {
+                    ECUSolenoidValve::IgniterFuelMain => ecu_pins.sv1_ctrl.set_state(if state { PinState::High } else { PinState::Low }),
+                    ECUSolenoidValve::IgniterGOxMain => ecu_pins.sv2_ctrl.set_state(if state { PinState::High } else { PinState::Low }),
+                    ECUSolenoidValve::FuelPress => ecu_pins.sv3_ctrl.set_state(if state { PinState::High } else { PinState::Low }),
+                    ECUSolenoidValve::FuelVent => ecu_pins.sv4_ctrl.set_state(if state { PinState::High } else { PinState::Low }),
+                },
+                Packet::SetSparking(state) => {
+                    if state { 
+                        ecu_pins.spark_ctrl.enable();
+                        ecu_pins.spark_ctrl.set_duty(ecu_pins.spark_ctrl.get_duty() / 4);
+                    } else {
+                        ecu_pins.spark_ctrl.disable();
+                        ecu_pins.spark_ctrl.set_duty(0);
+                    }
+                },
                 _ => {},
             }
+
+            igniter_fsm::on_packet(ecu_state, ecu_pins, &packet);
+            fuel_tank_fsm::on_packet(ecu_state, ecu_pins, &packet);
         }
     });
 
@@ -107,7 +122,6 @@ impl ECUState {
             igniter_state: IgniterState::Idle,
             igniter_state_storage: IgniterStateStorage::default(),
             fuel_tank_state: FuelTankState::Idle,
-            fuel_tank_state_storage: FuelTankStateStorage::default(),
             igniter_fuel_injector_pressure: 0.0,
             igniter_gox_injector_pressure: 0.0,
             igniter_chamber_pressure: 0.0,
