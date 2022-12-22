@@ -1,14 +1,17 @@
 mod commands;
 mod hardware;
+mod recording;
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Mutex, Arc, mpsc};
 use std::thread;
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use commands::{testvalve, pressurize, depressurize, fire};
+use commands::{valve, testvalve, pressurize, depressurize, fire};
 use hal::comms_hal;
 use hal::ecu_hal::{ECUSolenoidValve, ECUTelemetryFrame, ECUSensor};
 use hardware::hardware_thread;
+use recording::recording_thread;
 use rocket::serde::{json::Json, Serialize};
 use rocket::http::Header;
 use rocket::{Request, Response, State};
@@ -146,18 +149,30 @@ fn rocket() -> _ {
         daq_rate: AtomicU32::new(0),
     });
 
-    let (send_tx, send_rx) = mpsc::channel();
+    let (packet_tx, packet_rx) = mpsc::channel();
+    let (recording_tx, recording_rx) = mpsc::channel();
 
     let packet_queue_ref = packet_queue.clone();
     thread::spawn(move || {
-        hardware_thread(packet_queue_ref, send_rx);
+        hardware_thread(packet_queue_ref, packet_rx, recording_tx);
+    });
+
+    thread::spawn(move || {
+        recording_thread(recording_rx);
     });
     
     rocket::build()
         .attach(CORS)
         .manage(InitData { })
         .manage(packet_queue.clone())
-        .manage(Arc::new(Mutex::new(send_tx)))
+        .manage(Arc::new(Mutex::new(packet_tx)))
         .mount("/", routes![all_options, telemetry])
-        .mount("/commands", routes![testvalve, pressurize, depressurize, fire])
+        .mount("/commands", routes![valve, testvalve, pressurize, depressurize, fire])
+}
+
+pub fn timestamp() -> f64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .expect("Time went backwards")
+        .as_secs_f64()
 }

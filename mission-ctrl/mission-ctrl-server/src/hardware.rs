@@ -1,23 +1,27 @@
-use std::{net::UdpSocket, time::{Duration, SystemTime, UNIX_EPOCH}, io::ErrorKind, sync::{Arc, mpsc::{Receiver, RecvTimeoutError}, atomic::Ordering}};
-use hal::comms_hal::Packet;
+use std::{net::UdpSocket, time::Duration, io::ErrorKind, sync::{Arc, mpsc::{Receiver, RecvTimeoutError, Sender}, atomic::Ordering}};
+use hal::{comms_hal::Packet, ecu_hal::{ECUTelemetryFrame, ECU_SENSORS}, SensorConfig};
+use rocket::serde::Deserialize;
 
-use crate::TelemetryQueue;
+use crate::{TelemetryQueue, recording::RecordingFrame, timestamp};
 
 const BUFFER_SIZE: usize = 512;
 
-pub fn hardware_thread(telem_queue: Arc<TelemetryQueue>, send_rx: Receiver<Packet>) {
+pub fn hardware_thread(
+    telem_queue: Arc<TelemetryQueue>, 
+    packet_rx: Receiver<Packet>,
+    recording_tx: Sender<RecordingFrame>
+) {
     let socket = UdpSocket::bind("0.0.0.0:25565").unwrap();
     let mut buffer = [0_u8; BUFFER_SIZE];
 
     socket.set_read_timeout(Some(Duration::from_millis(1))).unwrap();
 
-    let timestamp = || -> f64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .expect("Time went backwards")
-            .as_secs_f64()
-    };
+    for config_packet in read_hardware_config() {
+        let size = config_packet.serialize(&mut buffer).unwrap();
+        socket.send_to(&buffer[0..size], "169.254.0.6:25565").unwrap();
+    }
 
+    let mut last_telemetry_frame = ECUTelemetryFrame::default();
     let mut data_skip = 0_usize;
 
     let mut last_freq_time = timestamp();
@@ -31,19 +35,26 @@ pub fn hardware_thread(telem_queue: Arc<TelemetryQueue>, send_rx: Receiver<Packe
 
                 match packet {
                     Ok(packet) => {
-                        match packet {
-                            Packet::ECUTelemetry(_) => {
+                        match &packet {
+                            Packet::ECUTelemetry(frame) => {
                                 if data_skip % 3 == 0 {
                                     let mut queue = telem_queue.packets.lock().unwrap();
                                     queue.drain(0..1);
-                                    queue.push(packet);
+                                    queue.push(packet.clone());
                                 }
 
                                 data_skip += 1;
                                 num_telemetry_packets += 1;
+                                last_telemetry_frame = frame.clone();
                             },
-                            Packet::ECUDAQ(_) => {
+                            Packet::ECUDAQ(daq_frames) => {
                                 num_daq_packets += 10;
+
+                                recording_tx.send(RecordingFrame {
+                                    timestamp: timestamp(),
+                                    telem: last_telemetry_frame.clone(),
+                                    daq: (*daq_frames).clone(),
+                                }).unwrap();
                             },
                             _ => {}
                         }
@@ -59,7 +70,7 @@ pub fn hardware_thread(telem_queue: Arc<TelemetryQueue>, send_rx: Receiver<Packe
             },
         }
 
-        match send_rx.recv_timeout(Duration::from_millis(0)) {
+        match packet_rx.recv_timeout(Duration::from_millis(0)) {
             Ok(packet) => {
                 let size = packet.serialize(&mut buffer).unwrap();
 
@@ -80,4 +91,40 @@ pub fn hardware_thread(telem_queue: Arc<TelemetryQueue>, send_rx: Receiver<Packe
             num_daq_packets = 0;
         }
     }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct HardwareConfigSensorMap {
+    index: usize,
+    premin: f32,
+    premax: f32,
+    postmin: f32,
+    postmax: f32,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(crate = "rocket::serde")]
+struct HardwareConfig {
+    sensor_mappings: Vec<HardwareConfigSensorMap>,
+}
+
+fn read_hardware_config() -> Vec<Packet> {
+    let hardware_config = std::fs::read_to_string("hardware.json").expect("Couldn't load hardware config file!");
+    let config: HardwareConfig = rocket::serde::json::from_str(&hardware_config).unwrap();
+    let mut config_packets = Vec::new();
+
+    for sensor_config in config.sensor_mappings.iter() {
+        config_packets.push(Packet::ConfigureSensor { 
+            sensor: ECU_SENSORS[sensor_config.index], 
+            config: SensorConfig {
+                premin: sensor_config.premin,
+                premax: sensor_config.premax,
+                postmin: sensor_config.postmin,
+                postmax: sensor_config.postmax,
+            },
+        });
+    }
+
+    config_packets
 }
