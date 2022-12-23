@@ -100,7 +100,7 @@ fn now_str() -> String {
     let tz_offset = FixedOffset::west_opt(5 * 60 * 60).unwrap();
     let now = tz_offset.from_utc_datetime(&Utc::now().naive_utc());
 
-    format!("{:02}:{:02}:{:02}", 
+    format!("{:02}_{:02}_{:02}", 
         now.hour(), 
         now.minute(), 
         now.second(),
