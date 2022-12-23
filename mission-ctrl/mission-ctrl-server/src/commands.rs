@@ -105,6 +105,19 @@ pub fn testvalve(packet_sender: &State<Arc<Mutex<Sender<Packet>>>>, args: Json<V
     return_val
 }
 
+#[post("/testspark")]
+pub fn testspark(packet_sender: &State<Arc<Mutex<Sender<Packet>>>>) -> Json<CommandResponse> {
+    let return_val = send_command(packet_sender, Packet::SetSparking(true));
+
+    let packet_sender = packet_sender.lock().unwrap().clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(1000));
+        packet_sender.send(Packet::SetSparking(false)).unwrap();
+    });
+
+    return_val
+}
+
 #[post("/fire")]
 pub fn fire(packet_sender: &State<Arc<Mutex<Sender<Packet>>>>) -> Json<CommandResponse> {    
     send_command(packet_sender, Packet::FireIgniter)
