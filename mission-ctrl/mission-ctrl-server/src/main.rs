@@ -7,7 +7,7 @@ use std::sync::{Mutex, Arc, mpsc};
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use commands::{valve, testvalve, pressurize, depressurize, fire};
+use commands::{valve, testvalve, testspark, pressurize, depressurize, fire};
 use hal::comms_hal;
 use hal::ecu_hal::{ECUSolenoidValve, ECUTelemetryFrame, ECUSensor};
 use hardware::hardware_thread;
@@ -167,7 +167,7 @@ fn rocket() -> _ {
         .manage(packet_queue.clone())
         .manage(Arc::new(Mutex::new(packet_tx)))
         .mount("/", routes![all_options, telemetry])
-        .mount("/commands", routes![valve, testvalve, pressurize, depressurize, fire])
+        .mount("/commands", routes![valve, testvalve, testspark, pressurize, depressurize, fire])
 }
 
 pub fn timestamp() -> f64 {
