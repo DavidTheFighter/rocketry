@@ -6,7 +6,7 @@ use postcard::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ecu_hal::{ECUSensor, ECUSolenoidValve, ECUTelemetryFrame, ECUDAQFrame},
+    ecu_hal::{ECUDAQFrame, ECUSensor, ECUSolenoidValve, ECUTelemetryFrame},
     SensorConfig,
 };
 
@@ -38,6 +38,7 @@ pub enum Packet {
         state: bool,
     },
     SetSparking(bool),
+    DeviceBooted,
     ConfigureSensor {
         sensor: ECUSensor,
         config: SensorConfig,

@@ -1,8 +1,13 @@
-use hal::comms_hal::{Packet, NetworkAddress};
-use rtic::mutex_prelude::{TupleExt02, TupleExt03};
-use smoltcp::{wire::{self, IpEndpoint, EthernetAddress}, iface::{self, SocketStorage}, storage::PacketMetadata, socket::{UdpSocketBuffer, UdpSocket}};
-use stm32_eth::{RxRingEntry, TxRingEntry, EthernetDMA};
 use crate::{app, now_fn};
+use hal::comms_hal::{NetworkAddress, Packet};
+use rtic::mutex_prelude::{TupleExt02, TupleExt03};
+use smoltcp::{
+    iface::{self, SocketStorage},
+    socket::{UdpSocket, UdpSocketBuffer},
+    storage::PacketMetadata,
+    wire::{self, EthernetAddress, IpEndpoint},
+};
+use stm32_eth::{EthernetDMA, RxRingEntry, TxRingEntry};
 
 pub const DEVICE_MAC_ADDR: [u8; 6] = [0x00, 0x80, 0xE1, 0x00, 0x00, 0x00];
 pub const DEVICE_IP_ADDR: wire::Ipv4Address = wire::Ipv4Address::new(169, 254, 0, 6);
@@ -30,7 +35,7 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
 
         while let Ok((recv_bytes, _sender)) = udp_socket.recv_slice(buffer) {
             if let Ok(packet) = Packet::deserialize(&mut buffer[0..recv_bytes]) {
-                packet_queue.enqueue(packet).unwrap();  
+                packet_queue.enqueue(packet).unwrap();
             }
         }
 
@@ -54,7 +59,9 @@ pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, _address: Net
         let endpoint = wire::IpEndpoint::new(ip_addr.into(), 25565);
 
         if let Ok(result_length) = packet.serialize(buffer) {
-            udp_socket.send_slice(&buffer[0..result_length], endpoint).ok();
+            udp_socket
+                .send_slice(&buffer[0..result_length], endpoint)
+                .ok();
         }
 
         iface.poll(now_fn()).ok();
@@ -64,7 +71,10 @@ pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, _address: Net
 pub fn init_comms(
     net_storage: &'static mut NetworkingStorage,
     eth_dma: &'static mut EthernetDMA<'static, 'static>,
-) -> (iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>, iface::SocketHandle) {
+) -> (
+    iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>,
+    iface::SocketHandle,
+) {
     let neighbor_cache = smoltcp::iface::NeighborCache::new(&mut net_storage.neighbor_cache[..]);
     let routes = smoltcp::iface::Routes::new(&mut net_storage.routes_cache[..]);
 

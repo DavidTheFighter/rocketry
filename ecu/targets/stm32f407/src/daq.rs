@@ -1,4 +1,3 @@
-
 use hal::ecu_hal::ECUDAQFrame;
 
 pub struct DAQHandler {
@@ -10,7 +9,7 @@ pub struct DAQHandler {
 
 impl DAQHandler {
     pub const fn new() -> Self {
-        Self { 
+        Self {
             first_buffer: [ECUDAQFrame::default(); 10],
             second_buffer: [ECUDAQFrame::default(); 10],
             second_buffer_selected: false,
@@ -31,7 +30,7 @@ impl DAQHandler {
             self.second_buffer_selected = !self.second_buffer_selected;
             self.counter = 0;
 
-            return true
+            return true;
         }
 
         false

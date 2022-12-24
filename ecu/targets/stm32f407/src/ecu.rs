@@ -1,15 +1,22 @@
-mod igniter_fsm;
 mod fuel_tank_fsm;
+mod igniter_fsm;
 
 use rtic::Mutex;
 use stm32_eth::stm32::TIM1;
 use stm32f4xx_hal::{
-    prelude::*, 
-    // signature::{VtempCal30, VtempCal110}, 
-    gpio::{PA9, PA10, PA11, PA12, Output, PinState}, timer::PwmChannel
+    gpio::{Output, PinState, PA10, PA11, PA12, PA9},
+    prelude::*,
+    signature::{VtempCal110, VtempCal30},
+    timer::PwmChannel,
 };
 
-use hal::{ecu_hal::{ECUConfiguration, ECUSensor, IgniterState, FuelTankState, ECUTelemetryFrame, ECUSolenoidValve}, comms_hal::{Packet, NetworkAddress}};
+use hal::{
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{
+        ECUConfiguration, ECUSensor, ECUSolenoidValve, ECUTelemetryFrame, FuelTankState,
+        IgniterState,
+    },
+};
 
 use crate::app;
 
@@ -44,39 +51,61 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
 
     ctx.shared.current_daq_frame.lock(|daq| {
         let apply_sensor_value = |sensor: ECUSensor| -> f32 {
-            ecu_state.config
-                .sensor_configs[sensor as usize]
+            ecu_state.config.sensor_configs[sensor as usize]
                 .apply(daq.sensor_values[sensor as usize] as f32)
         };
 
-        ecu_state.igniter_fuel_injector_pressure = apply_sensor_value(ECUSensor::IgniterFuelInjectorPressure);
-        ecu_state.igniter_gox_injector_pressure = apply_sensor_value(ECUSensor::IgniterGOxInjectorPressure);
+        ecu_state.igniter_fuel_injector_pressure =
+            apply_sensor_value(ECUSensor::IgniterFuelInjectorPressure);
+        ecu_state.igniter_gox_injector_pressure =
+            apply_sensor_value(ECUSensor::IgniterGOxInjectorPressure);
         ecu_state.igniter_chamber_pressure = apply_sensor_value(ECUSensor::IgniterChamberPressure);
         ecu_state.fuel_tank_pressure = apply_sensor_value(ECUSensor::FuelTankPressure);
         ecu_state.igniter_throat_temp = apply_sensor_value(ECUSensor::IgniterThroatTemp);
-        ecu_state.ecu_board_temp = raw_board_temp_to_celsius(daq.sensor_values[ECUSensor::ECUBoardTemp as usize]);
+        ecu_state.ecu_board_temp =
+            raw_board_temp_to_celsius(daq.sensor_values[ECUSensor::ECUBoardTemp as usize]);
     });
 
     ctx.shared.packet_queue.lock(|packet_queue| {
         while let Some(packet) = packet_queue.dequeue() {
             match packet {
-                Packet::ConfigureSensor { sensor, config } => ecu_state.config.sensor_configs[sensor as usize] = config,
-                Packet::SetSolenoidValve { valve, state } => match valve {
-                    ECUSolenoidValve::IgniterFuelMain => ecu_pins.sv1_ctrl.set_state(if state { PinState::High } else { PinState::Low }),
-                    ECUSolenoidValve::IgniterGOxMain => ecu_pins.sv2_ctrl.set_state(if state { PinState::High } else { PinState::Low }),
-                    ECUSolenoidValve::FuelPress => ecu_pins.sv3_ctrl.set_state(if state { PinState::High } else { PinState::Low }),
-                    ECUSolenoidValve::FuelVent => ecu_pins.sv4_ctrl.set_state(if state { PinState::High } else { PinState::Low }),
-                },
+                Packet::ConfigureSensor { sensor, config } => {
+                    ecu_state.config.sensor_configs[sensor as usize] = config
+                }
+                Packet::SetSolenoidValve { valve, state } => {
+                    match valve {
+                        ECUSolenoidValve::IgniterFuelMain => ecu_pins
+                            .sv1_ctrl
+                            .set_state(if state { PinState::High } else { PinState::Low }),
+                        ECUSolenoidValve::IgniterGOxMain => ecu_pins.sv2_ctrl.set_state(if state {
+                            PinState::High
+                        } else {
+                            PinState::Low
+                        }),
+                        ECUSolenoidValve::FuelPress => ecu_pins.sv3_ctrl.set_state(if state {
+                            PinState::High
+                        } else {
+                            PinState::Low
+                        }),
+                        ECUSolenoidValve::FuelVent => ecu_pins.sv4_ctrl.set_state(if state {
+                            PinState::High
+                        } else {
+                            PinState::Low
+                        }),
+                    }
+                }
                 Packet::SetSparking(state) => {
-                    if state { 
+                    if state {
                         ecu_pins.spark_ctrl.enable();
-                        ecu_pins.spark_ctrl.set_duty(ecu_pins.spark_ctrl.get_duty() / 4);
+                        ecu_pins
+                            .spark_ctrl
+                            .set_duty(ecu_pins.spark_ctrl.get_duty() / 4);
                     } else {
                         ecu_pins.spark_ctrl.disable();
                         ecu_pins.spark_ctrl.set_duty(0);
                     }
-                },
-                _ => {},
+                }
+                _ => {}
             }
 
             igniter_fsm::on_packet(ecu_state, ecu_pins, &packet);
@@ -107,7 +136,11 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
         sparking: ecu_pins.spark_ctrl.get_duty() != 0,
     };
 
-    app::send_packet::spawn(Packet::ECUTelemetry(telem_frame), NetworkAddress::MissionControl).ok();
+    app::send_packet::spawn(
+        Packet::ECUTelemetry(telem_frame),
+        NetworkAddress::MissionControl,
+    )
+    .ok();
 }
 
 pub fn ecu_init(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins) {
@@ -133,8 +166,8 @@ impl ECUState {
 }
 
 fn raw_board_temp_to_celsius(sample: u16) -> f32 {
-    // let cal30 = VtempCal30::get().read() as f32;
-    // let cal110 = VtempCal110::get().read() as f32;
+    let cal30 = VtempCal30::get().read() as f32;
+    let cal110 = VtempCal110::get().read() as f32;
 
-    sample as f32 // (110.0 - 30.0) * ((sample as f32) - cal30) / (cal110 - cal30) + 30.0
+    (110.0 - 30.0) * ((sample as f32) - cal30) / (cal110 - cal30) + 30.0
 }

@@ -7,7 +7,7 @@ mod ecu;
 mod peripherals;
 
 use core::panic::PanicInfo;
-use cortex_m_rt::{ExceptionFrame, exception};
+use cortex_m_rt::{exception, ExceptionFrame};
 use stm32f4xx_hal::{pac, prelude::*};
 
 fn now_fn() -> smoltcp::time::Instant {
@@ -15,57 +15,48 @@ fn now_fn() -> smoltcp::time::Instant {
     smoltcp::time::Instant::from_millis(time as i64)
 }
 
-#[rtic::app(device = stm32f4xx_hal::pac, dispatchers = [EXTI0, EXTI1, EXTI2, EXTI3, EXTI4])]
+#[rtic::app(device = stm32f4xx_hal::pac, dispatchers = [EXTI0, EXTI1, EXTI2])]
 mod app {
     use crate::comms::{eth_interrupt, send_packet};
-    use crate::ecu::{ECUState, ECUControlPins, ecu_update, ecu_init};
-    use crate::peripherals::adc_dma;
-    use hal::comms_hal::{Packet, NetworkAddress};
-    use hal::ecu_hal::{ECUDAQFrame};
-    use stm32f4xx_hal::{
-        prelude::*,
-        pac::{ADC1, ADC2, ADC3, DMA2},
-        gpio::{Output, PE5},
-        adc::{
-            Adc,
-            config::{AdcConfig, Resolution, Clock, Dma, Scan, Sequence, SampleTime},
-        }, 
-        dma::{Transfer, Stream0, Stream1, Stream2, StreamsTuple, PeripheralToMemory, config::DmaConfig},
+    use crate::ecu::{ecu_init, ecu_update, ECUControlPins, ECUState};
+    use crate::peripherals::{adc_dma, ADCStorage};
+    use core::{
+        mem::MaybeUninit,
+        sync::atomic::{compiler_fence, Ordering},
     };
-    use stm32_eth::{
-        RxRingEntry,
-        TxRingEntry,
-        EthPins,
-        EthernetDMA,
-    };
-    use smoltcp::iface;
-    use systick_monotonic::Systick;
-    use core::sync::atomic::compiler_fence;
-    use core::sync::atomic::Ordering;
+    use hal::comms_hal::{NetworkAddress, Packet};
+    use hal::ecu_hal::ECUDAQFrame;
     use rtic::export::Queue;
+    use smoltcp::iface;
+    use stm32_eth::{EthPins, EthernetDMA, RxRingEntry, TxRingEntry};
+    use stm32f4xx_hal::{
+        adc::{
+            config::{AdcConfig, Clock, Dma, Resolution, SampleTime, Scan, Sequence},
+            Adc, Temperature,
+        },
+        dma::{config::DmaConfig, StreamsTuple, Transfer},
+        gpio::{Output, PE5},
+        prelude::*,
+    };
+    use systick_monotonic::Systick;
 
-    use crate::{comms::{
-        NetworkingStorage, 
-        RX_RING_ENTRY_DEFAULT, 
-        TX_RING_ENTRY_DEFAULT, 
-        init_comms,
-    }, daq::DAQHandler};
+    use crate::{
+        comms::{init_comms, NetworkingStorage, RX_RING_ENTRY_DEFAULT, TX_RING_ENTRY_DEFAULT},
+        daq::DAQHandler,
+    };
 
     const CRYSTAL_FREQ: u32 = 25_000_000;
     const MPU_FREQ: u32 = 150_000_000;
     const PCLK1_FREQ: u32 = 37_500_000;
     const PCLK2_FREQ: u32 = 37_500_000;
 
+    const PACKET_QUEUE_SIZE: usize = 16;
+
     #[local]
     struct Local {
         blue_led: PE5<Output>,
         ecu_control_pins: ECUControlPins,
-        adc1_transfer: Transfer<Stream0<DMA2>, 0, Adc<ADC1>, PeripheralToMemory, &'static mut [u16; 2]>,
-        adc1_buffer: Option<&'static mut [u16; 2]>,
-        adc2_transfer: Transfer<Stream2<DMA2>, 1, Adc<ADC2>, PeripheralToMemory, &'static mut [u16; 2]>,
-        adc2_buffer: Option<&'static mut [u16; 2]>,
-        adc3_transfer: Transfer<Stream1<DMA2>, 2, Adc<ADC3>, PeripheralToMemory, &'static mut [u16; 2]>,
-        adc3_buffer: Option<&'static mut [u16; 2]>,
+        adc: ADCStorage,
         daq: DAQHandler,
         ecu_state: ECUState,
     }
@@ -75,10 +66,10 @@ mod app {
         interface: iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>,
         udp_socket_handle: iface::SocketHandle,
         current_daq_frame: ECUDAQFrame,
-        packet_queue: Queue<Packet, 16>,
+        packet_queue: Queue<Packet, PACKET_QUEUE_SIZE>,
     }
 
-    #[task(local = [blue_led], priority=1)]
+    #[task(local = [blue_led], priority = 1)]
     fn heartbeat_blink_led(ctx: heartbeat_blink_led::Context) {
         heartbeat_blink_led::spawn_after(1000.millis().into()).unwrap();
         ctx.local.blue_led.toggle();
@@ -101,15 +92,15 @@ mod app {
         )]
         fn send_packet(ctx: send_packet::Context, packet: Packet, address: NetworkAddress);
 
-        #[task(binds = DMA2_STREAM1, 
-            local = [daq, adc1_transfer, adc1_buffer, adc2_transfer, adc2_buffer, adc3_transfer, adc3_buffer], 
-            shared = [current_daq_frame, interface, udp_socket_handle], 
+        #[task(binds = DMA2_STREAM0,
+            local = [daq, adc],
+            shared = [current_daq_frame, interface, udp_socket_handle],
             priority = 10
         )]
         fn adc_dma(mut ctx: adc_dma::Context);
 
         #[task(
-            binds = ETH, 
+            binds = ETH,
             local = [data: [u8; 512] = [0u8; 512]],
             shared = [interface, udp_socket_handle, packet_queue],
             priority = 12,
@@ -124,14 +115,15 @@ mod app {
         rx_ring: [RxRingEntry; 16] = [RX_RING_ENTRY_DEFAULT; 16],
         tx_ring: [TxRingEntry; 16] = [TX_RING_ENTRY_DEFAULT; 16],
         net_storage: NetworkingStorage = NetworkingStorage::new(),
-        dma: core::mem::MaybeUninit<EthernetDMA<'static, 'static>> = core::mem::MaybeUninit::uninit(),
+        dma: MaybeUninit<EthernetDMA<'static, 'static>> = MaybeUninit::uninit(),
     ])]
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let core = ctx.core;
         let p = ctx.device;
 
         let rcc = p.RCC.constrain();
-        let clocks = rcc.cfgr
+        let clocks = rcc
+            .cfgr
             .use_hse(CRYSTAL_FREQ.Hz())
             .require_pll48clk()
             .sysclk(MPU_FREQ.Hz())
@@ -141,7 +133,7 @@ mod app {
             .freeze();
 
         let mono = Systick::new(core.SYST, clocks.hclk().raw());
-        
+
         let gpioa = p.GPIOA.split();
         let gpiob = p.GPIOB.split();
         let gpioc = p.GPIOC.split();
@@ -149,7 +141,7 @@ mod app {
         let gpiof = p.GPIOF.split();
 
         let blue_led = gpioe.pe5.into_push_pull_output();
-        let spark_ctrl = gpioe.pe9.into_alternate();
+        let spark_ctrl = gpioe.pe9.into_alternate().internal_pull_down(true);
         let sv1_ctrl = gpioa.pa12.into_push_pull_output();
         let sv2_ctrl = gpioa.pa11.into_push_pull_output();
         let sv3_ctrl = gpioa.pa10.into_push_pull_output();
@@ -158,7 +150,7 @@ mod app {
         let adc_in4 = gpioa.pa4.into_analog();
         let adc_in5 = gpioa.pa5.into_analog();
         let adc_in6 = gpioa.pa6.into_analog();
-        let adc_in7 = gpiof.pf9.into_analog();
+        // let adc_in7 = gpiof.pf9.into_analog();
         let adc_in8 = gpiof.pf10.into_analog();
 
         let mut spark_ctrl = p.TIM1.pwm_hz(spark_ctrl, 250.Hz(), &clocks).split();
@@ -185,16 +177,17 @@ mod app {
             .scan(Scan::Enabled);
 
         let mut adc1 = Adc::adc1(p.ADC1, true, adc_config);
+        let mut adc2 = Adc::adc2(p.ADC2, false, adc_config);
+        let mut adc3 = Adc::adc3(p.ADC3, false, adc_config);
+
         adc1.enable_temperature_and_vref();
-        adc1.configure_channel(&adc_in3, Sequence::One, SampleTime::Cycles_480);
+        adc1.configure_channel(&Temperature, Sequence::One, SampleTime::Cycles_480);
         adc1.configure_channel(&adc_in4, Sequence::Two, SampleTime::Cycles_480);
 
-        let mut adc2 = Adc::adc2(p.ADC2, true, adc_config);
         adc2.configure_channel(&adc_in5, Sequence::One, SampleTime::Cycles_480);
         adc2.configure_channel(&adc_in6, Sequence::Two, SampleTime::Cycles_480);
 
-        let mut adc3 = Adc::adc3(p.ADC3, true, adc_config);
-        adc3.configure_channel(&adc_in7, Sequence::One, SampleTime::Cycles_480);
+        adc3.configure_channel(&adc_in3, Sequence::One, SampleTime::Cycles_480);
         adc3.configure_channel(&adc_in8, Sequence::Two, SampleTime::Cycles_480);
 
         let adc1_buffer1 = cortex_m::singleton!(: [u16; 2] = [0;2]).unwrap();
@@ -211,29 +204,14 @@ mod app {
             .memory_increment(true)
             .double_buffer(false);
 
-        let mut adc1_transfer = Transfer::init_peripheral_to_memory(
-            dma2.0, 
-            adc1, 
-            adc1_buffer1, 
-            None, 
-            dma_config,
-        );
+        let mut adc1_transfer =
+            Transfer::init_peripheral_to_memory(dma2.0, adc1, adc1_buffer1, None, dma_config);
 
-        let mut adc2_transfer = Transfer::init_peripheral_to_memory(
-            dma2.2, 
-            adc2, 
-            adc2_buffer1, 
-            None, 
-            dma_config,
-        );
+        let mut adc2_transfer =
+            Transfer::init_peripheral_to_memory(dma2.2, adc2, adc2_buffer1, None, dma_config);
 
-        let mut adc3_transfer = Transfer::init_peripheral_to_memory(
-            dma2.1, 
-            adc3, 
-            adc3_buffer1, 
-            None, 
-            dma_config,
-        );
+        let mut adc3_transfer =
+            Transfer::init_peripheral_to_memory(dma2.1, adc3, adc3_buffer1, None, dma_config);
 
         let eth_pins = EthPins {
             ref_clk: gpioa.pa1,
@@ -262,12 +240,13 @@ mod app {
 
         heartbeat_blink_led::spawn().unwrap();
         ecu_update::spawn().unwrap();
-        // spark_toggle::spawn().unwrap();
 
-        adc1_transfer.start(|adc| adc.start_conversion());
+        adc3_transfer.start(|adc| adc.start_conversion());
         adc2_transfer.start(|adc| adc.start_conversion());
         compiler_fence(Ordering::SeqCst);
-        adc3_transfer.start(|adc| adc.start_conversion());
+        adc1_transfer.start(|adc| adc.start_conversion());
+
+        send_packet::spawn(Packet::DeviceBooted, NetworkAddress::MissionControl).unwrap();
 
         (
             Shared {
@@ -279,16 +258,18 @@ mod app {
             Local {
                 blue_led,
                 ecu_control_pins,
-                adc1_transfer,
-                adc1_buffer: adc1_buffer2,
-                adc2_transfer,
-                adc2_buffer: adc2_buffer2,
-                adc3_transfer,
-                adc3_buffer: adc3_buffer2,
+                adc: ADCStorage {
+                    adc1_transfer,
+                    adc1_buffer: adc1_buffer2,
+                    adc2_transfer,
+                    adc2_buffer: adc2_buffer2,
+                    adc3_transfer,
+                    adc3_buffer: adc3_buffer2,
+                },
                 daq: DAQHandler::new(),
                 ecu_state,
             },
-            init::Monotonics(mono)
+            init::Monotonics(mono),
         )
     }
 
@@ -298,12 +279,6 @@ mod app {
             cortex_m::asm::wfi();
         }
     }
-
-    // #[task(local = [spark_ctrl])]
-    // fn spark_toggle(ctx: spark_toggle::Context) {
-    //     spark_toggle::spawn_after(2.millis().into()).unwrap();
-    //     ctx.local.spark_ctrl.toggle();
-    // }
 }
 
 #[exception]

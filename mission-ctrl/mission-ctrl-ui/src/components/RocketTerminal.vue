@@ -16,6 +16,7 @@ export default {
       commands: {
         "valve": (args) => this.postCommand(args),
         "testvalve": (args) => this.postCommand(args),
+        "testspark": (args) => this.postCommand(args),
         "press": (args) => this.postCommand(args),
         "fp": (args) => this.commandAlias("press", args),
         "depress": (args) => this.postCommand(args),
@@ -29,7 +30,7 @@ export default {
       try {
         const response = await fetch(`http://localhost:8000/commands/${args[0]}`, {
           method: "POST",
-          headers: { 
+          headers: {
             "Accept": "application/json",
             "Content-Type": "application/json" ,
             "Access-Control-Allow-Origin": "*",
@@ -43,7 +44,7 @@ export default {
         }
 
         const data = await response.json();
-        
+
         return createStdout(textFormatter(data.text_response));
       } catch (ex) {
         console.error(ex);

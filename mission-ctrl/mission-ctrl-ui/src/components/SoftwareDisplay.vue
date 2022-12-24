@@ -10,7 +10,7 @@
             </p>
           </div>
           <div class="columnRight">
-            <p class="stateValue" v-for="state in leftColumnStates" :key="state.name">
+            <p v-for="state in leftColumnStates" :key="state.name" :class="stateStyleClass(state)">
               {{ stateValueText(state) }}
             </p>
           </div>
@@ -24,7 +24,7 @@
             </p>
           </div>
           <div class="columnRight">
-            <p class="stateValue" v-for="state in rightColumnStates" :key="state.name">
+            <p v-for="state in rightColumnStates" :key="state.name" :class="stateStyleClass(state)">
               {{ stateValueText(state) }}
             </p>
           </div>
@@ -59,6 +59,13 @@ export default {
         return state.value;
       }
     },
+    stateStyleClass(state) {
+      if (state.value == 0) {
+        return "stateValue bad";
+      } else {
+        return "stateValue";
+      }
+    }
   }
 };
 </script>
@@ -81,6 +88,13 @@ export default {
   font-family: monospace;
   font-size: 1.25em;
   color: dodgerblue
+}
+
+.stateValue.bad {
+  text-align: center;
+  font-family: monospace;
+  font-size: 1.25em;
+  color: red;
 }
 
 .row {
