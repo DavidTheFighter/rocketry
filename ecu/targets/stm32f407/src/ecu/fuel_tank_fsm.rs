@@ -1,17 +1,16 @@
-use core::marker::PhantomData;
-
 use hal::{comms_hal::Packet, ecu_hal::FuelTankState};
 
 use super::{ECUControlPins, ECUState};
 
-struct Idle;
-struct Pressurized;
+struct Fsm<const T: usize>;
 
-struct FSM<T> {
-    _m: PhantomData<T>,
+macro_rules! state {
+    ($state: ident) => {
+        FuelTankState::$state as usize
+    };
 }
 
-impl FSM<Idle> {
+impl Fsm<{ state!(Idle) }> {
     fn update(_state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<FuelTankState> {
         None
     }
@@ -26,16 +25,15 @@ impl FSM<Idle> {
         _pins: &mut ECUControlPins,
         packet: &Packet,
     ) -> Option<FuelTankState> {
-        match packet {
-            Packet::PressurizeFuelTank => return Some(FuelTankState::Pressurized),
-            _ => {}
+        if let Packet::PressurizeFuelTank = packet {
+            Some(FuelTankState::Pressurized)
+        } else {
+            None
         }
-
-        None
     }
 }
 
-impl FSM<Pressurized> {
+impl Fsm<{ state!(Pressurized) }> {
     fn update(_state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<FuelTankState> {
         None
     }
@@ -50,12 +48,11 @@ impl FSM<Pressurized> {
         _pins: &mut ECUControlPins,
         packet: &Packet,
     ) -> Option<FuelTankState> {
-        match packet {
-            Packet::DepressurizeFuelTank => return Some(FuelTankState::Idle),
-            _ => {}
+        if let Packet::DepressurizeFuelTank = packet {
+            Some(FuelTankState::Idle)
+        } else {
+            None
         }
-
-        None
     }
 }
 
@@ -63,8 +60,8 @@ impl FSM<Pressurized> {
 
 pub fn update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, _elapsed_time: f32) {
     let transition = match ecu_state.fuel_tank_state {
-        FuelTankState::Idle => FSM::<Idle>::update(ecu_state, ecu_pins),
-        FuelTankState::Pressurized => FSM::<Pressurized>::update(ecu_state, ecu_pins),
+        FuelTankState::Idle => Fsm::<{ state!(Idle) }>::update(ecu_state, ecu_pins),
+        FuelTankState::Pressurized => Fsm::<{ state!(Pressurized) }>::update(ecu_state, ecu_pins),
     };
 
     if let Some(new_state) = transition {
@@ -74,8 +71,10 @@ pub fn update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, _elapsed_
 
 pub fn on_packet(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, packet: &Packet) {
     let transition = match ecu_state.fuel_tank_state {
-        FuelTankState::Idle => FSM::<Idle>::on_packet(ecu_state, ecu_pins, packet),
-        FuelTankState::Pressurized => FSM::<Pressurized>::on_packet(ecu_state, ecu_pins, packet),
+        FuelTankState::Idle => Fsm::<{ state!(Idle) }>::on_packet(ecu_state, ecu_pins, packet),
+        FuelTankState::Pressurized => {
+            Fsm::<{ state!(Pressurized) }>::on_packet(ecu_state, ecu_pins, packet)
+        }
     };
 
     if let Some(new_state) = transition {
@@ -95,7 +94,9 @@ pub fn transition_state(
     ecu_state.fuel_tank_state = new_state;
 
     match new_state {
-        FuelTankState::Idle => FSM::<Idle>::enter_state(ecu_state, ecu_pins),
-        FuelTankState::Pressurized => FSM::<Pressurized>::enter_state(ecu_state, ecu_pins),
+        FuelTankState::Idle => Fsm::<{ state!(Idle) }>::enter_state(ecu_state, ecu_pins),
+        FuelTankState::Pressurized => {
+            Fsm::<{ state!(Pressurized) }>::enter_state(ecu_state, ecu_pins)
+        }
     }
 }
