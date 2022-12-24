@@ -1,4 +1,4 @@
-use crate::{app, now_fn};
+use crate::app;
 use hal::comms_hal::{NetworkAddress, Packet};
 use rtic::mutex_prelude::{TupleExt02, TupleExt03};
 use smoltcp::{
@@ -24,7 +24,7 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
 
     (iface, udp, packet_queue).lock(|iface, udp_handle, packet_queue| {
         iface.device_mut().interrupt_handler();
-        iface.poll(now_fn()).ok();
+        iface.poll(smoltcp_now()).ok();
 
         let buffer = ctx.local.data;
         let udp_socket = iface.get_socket::<UdpSocket>(*udp_handle);
@@ -39,7 +39,7 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
             }
         }
 
-        iface.poll(now_fn()).ok();
+        iface.poll(smoltcp_now()).ok();
     });
 }
 
@@ -64,7 +64,7 @@ pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, _address: Net
                 .ok();
         }
 
-        iface.poll(now_fn()).ok();
+        iface.poll(smoltcp_now()).ok();
     });
 }
 
@@ -92,9 +92,14 @@ pub fn init_comms(
     let udp_socket = interface.get_socket::<UdpSocket>(udp_socket_handle);
 
     udp_socket.bind(DEVICE_PORT).unwrap();
-    interface.poll(now_fn()).unwrap();
+    interface.poll(smoltcp_now()).unwrap();
 
     (interface, udp_socket_handle)
+}
+
+fn smoltcp_now() -> smoltcp::time::Instant {
+    let time = app::monotonics::now().duration_since_epoch().ticks();
+    smoltcp::time::Instant::from_millis(time as i64)
 }
 
 #[derive(Copy, Clone)]

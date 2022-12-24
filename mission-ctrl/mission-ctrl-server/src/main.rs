@@ -41,6 +41,7 @@ struct TelemetryData {
     igniter_state: String,
     tank_state: String,
     telemetry_rate: u32,
+    cpu_utilization: u32,
     daq_rate: u32,
 }
 
@@ -91,6 +92,7 @@ fn telemetry(packets: &State<Arc<TelemetryQueue>>) -> Json<TelemetryData> {
         tank_state: String::new(),
         telemetry_rate: packets.telem_rate.load(Ordering::Relaxed),
         daq_rate: packets.daq_rate.load(Ordering::Relaxed),
+        cpu_utilization: 0,
     };
 
     let valve_state = |valve: bool, flipped: bool| -> HardwareState {
@@ -123,6 +125,7 @@ fn telemetry(packets: &State<Arc<TelemetryQueue>>) -> Json<TelemetryData> {
         };
         telem.igniter_state = format!("{:?}", frame.igniter_state);
         telem.tank_state = format!("{:?}", frame.fuel_tank_state);
+        telem.cpu_utilization = frame.cpu_utilization;
     } else {
         panic!(
             "Got incorrect packet in last index of telemetry packet queue: {:?}",

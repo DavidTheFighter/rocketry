@@ -168,6 +168,11 @@ export default {
           value: this.dataset.daq_rate,
           units: "Hz",
         },
+        {
+          name: 'CPU Usage',
+          value: this.dataset.cpu_utilization,
+          units: "%",
+        },
       ];
     },
   },

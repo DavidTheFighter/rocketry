@@ -10,9 +10,8 @@ use core::panic::PanicInfo;
 use cortex_m_rt::{exception, ExceptionFrame};
 use stm32f4xx_hal::{pac, prelude::*};
 
-fn now_fn() -> smoltcp::time::Instant {
-    let time = app::monotonics::now().duration_since_epoch().ticks();
-    smoltcp::time::Instant::from_millis(time as i64)
+pub(crate) fn now() -> u64 {
+    app::monotonics::now().duration_since_epoch().ticks()
 }
 
 #[rtic::app(device = stm32f4xx_hal::pac, dispatchers = [EXTI0, EXTI1, EXTI2])]
@@ -22,8 +21,9 @@ mod app {
     use crate::peripherals::{adc_dma, ADCStorage};
     use core::{
         mem::MaybeUninit,
-        sync::atomic::{compiler_fence, Ordering},
+        sync::atomic::{compiler_fence, AtomicU32, Ordering},
     };
+    use cortex_m::peripheral::DWT;
     use hal::comms_hal::{NetworkAddress, Packet};
     use hal::ecu_hal::ECUDAQFrame;
     use rtic::export::Queue;
@@ -46,10 +46,11 @@ mod app {
     };
 
     const CRYSTAL_FREQ: u32 = 25_000_000;
-    const MPU_FREQ: u32 = 150_000_000;
+    const MCU_FREQ: u32 = 37_500_000;
     const PCLK1_FREQ: u32 = 37_500_000;
     const PCLK2_FREQ: u32 = 37_500_000;
 
+    const CPU_USAGE_RATE_MS: u64 = 250;
     const PACKET_QUEUE_SIZE: usize = 16;
 
     #[local]
@@ -59,6 +60,7 @@ mod app {
         adc: ADCStorage,
         daq: DAQHandler,
         ecu_state: ECUState,
+        dwt: DWT,
     }
 
     #[shared]
@@ -67,6 +69,7 @@ mod app {
         udp_socket_handle: iface::SocketHandle,
         current_daq_frame: ECUDAQFrame,
         packet_queue: Queue<Packet, PACKET_QUEUE_SIZE>,
+        cpu_utilization: AtomicU32,
     }
 
     #[task(local = [blue_led], priority = 1)]
@@ -77,7 +80,7 @@ mod app {
 
     extern "Rust" {
         #[task(
-            shared = [current_daq_frame, packet_queue],
+            shared = [current_daq_frame, packet_queue, &cpu_utilization],
             local = [ecu_state, ecu_control_pins],
             capacity = 8,
             priority = 7,
@@ -112,13 +115,13 @@ mod app {
     type Monotonic = Systick<1000>;
 
     #[init(local = [
-        rx_ring: [RxRingEntry; 16] = [RX_RING_ENTRY_DEFAULT; 16],
-        tx_ring: [TxRingEntry; 16] = [TX_RING_ENTRY_DEFAULT; 16],
+        rx_ring: [RxRingEntry; 4] = [RX_RING_ENTRY_DEFAULT; 4],
+        tx_ring: [TxRingEntry; 4] = [TX_RING_ENTRY_DEFAULT; 4],
         net_storage: NetworkingStorage = NetworkingStorage::new(),
         dma: MaybeUninit<EthernetDMA<'static, 'static>> = MaybeUninit::uninit(),
     ])]
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
-        let core = ctx.core;
+        let mut core = ctx.core;
         let p = ctx.device;
 
         let rcc = p.RCC.constrain();
@@ -126,13 +129,15 @@ mod app {
             .cfgr
             .use_hse(CRYSTAL_FREQ.Hz())
             .require_pll48clk()
-            .sysclk(MPU_FREQ.Hz())
-            .hclk(MPU_FREQ.Hz())
+            .sysclk(MCU_FREQ.Hz())
+            .hclk(MCU_FREQ.Hz())
             .pclk1(PCLK1_FREQ.Hz())
             .pclk2(PCLK2_FREQ.Hz())
             .freeze();
 
         let mono = Systick::new(core.SYST, clocks.hclk().raw());
+
+        core.DWT.enable_cycle_counter();
 
         let gpioa = p.GPIOA.split();
         let gpiob = p.GPIOB.split();
@@ -171,7 +176,7 @@ mod app {
         let dma2 = StreamsTuple::new(p.DMA2);
 
         let adc_config = AdcConfig::default()
-            .clock(Clock::Pclk2_div_8)
+            .clock(Clock::Pclk2_div_6)
             .resolution(Resolution::Twelve)
             .dma(Dma::Continuous)
             .scan(Scan::Enabled);
@@ -180,9 +185,9 @@ mod app {
         let mut adc2 = Adc::adc2(p.ADC2, false, adc_config);
         let mut adc3 = Adc::adc3(p.ADC3, false, adc_config);
 
-        adc1.enable_temperature_and_vref();
         adc1.configure_channel(&Temperature, Sequence::One, SampleTime::Cycles_480);
         adc1.configure_channel(&adc_in4, Sequence::Two, SampleTime::Cycles_480);
+        adc1.enable_temperature_and_vref();
 
         adc2.configure_channel(&adc_in5, Sequence::One, SampleTime::Cycles_480);
         adc2.configure_channel(&adc_in6, Sequence::Two, SampleTime::Cycles_480);
@@ -254,6 +259,7 @@ mod app {
                 udp_socket_handle,
                 current_daq_frame: ECUDAQFrame::default(),
                 packet_queue: Queue::new(),
+                cpu_utilization: AtomicU32::new(0),
             },
             Local {
                 blue_led,
@@ -268,15 +274,36 @@ mod app {
                 },
                 daq: DAQHandler::new(),
                 ecu_state,
+                dwt: core.DWT,
             },
             init::Monotonics(mono),
         )
     }
 
-    #[idle]
-    fn idle(_: idle::Context) -> ! {
+    #[idle(local = [dwt], shared = [&cpu_utilization])]
+    fn idle(ctx: idle::Context) -> ! {
+        let mut last_report_time = crate::now();
+        let mut accum_cycles = 0;
+
         loop {
-            cortex_m::asm::wfi();
+            rtic::export::interrupt::free(|_cs| {
+                let before = ctx.local.dwt.cyccnt.read();
+                rtic::export::wfi();
+                let after = ctx.local.dwt.cyccnt.read();
+
+                let elapsed = after.wrapping_sub(before);
+                accum_cycles += elapsed;
+
+                let current_time = crate::now();
+                if current_time - last_report_time >= CPU_USAGE_RATE_MS {
+                    let total_cycles = ((current_time - last_report_time) as u32) * (MCU_FREQ / 1000);
+                    let cpu_util = (100 * (total_cycles - accum_cycles)) / total_cycles;
+
+                    ctx.shared.cpu_utilization.store(cpu_util, Ordering::Relaxed);
+                    last_report_time = current_time;
+                    accum_cycles = 0;
+                }
+            });
         }
     }
 }

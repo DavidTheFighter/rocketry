@@ -1,6 +1,8 @@
 mod fuel_tank_fsm;
 mod igniter_fsm;
 
+use core::sync::atomic::Ordering;
+
 use rtic::Mutex;
 use stm32_eth::stm32::TIM1;
 use stm32f4xx_hal::{
@@ -18,7 +20,7 @@ use hal::{
     },
 };
 
-use crate::app;
+use crate::{app, now};
 
 use self::igniter_fsm::IgniterStateStorage;
 
@@ -27,6 +29,7 @@ pub struct ECUState {
     igniter_state: IgniterState,
     igniter_state_storage: IgniterStateStorage,
     fuel_tank_state: FuelTankState,
+    last_update_time: u64,
     igniter_fuel_injector_pressure: f32,
     igniter_gox_injector_pressure: f32,
     igniter_chamber_pressure: f32,
@@ -48,6 +51,10 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
 
     let ecu_state = ctx.local.ecu_state;
     let ecu_pins = ctx.local.ecu_control_pins;
+
+    let current_time = now();
+    let elapsed_time = ((current_time - ecu_state.last_update_time) as f32) * 1e-3;
+    ecu_state.last_update_time = current_time;
 
     ctx.shared.current_daq_frame.lock(|daq| {
         let apply_sensor_value = |sensor: ECUSensor| -> f32 {
@@ -113,8 +120,8 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
         }
     });
 
-    igniter_fsm::update(ecu_state, ecu_pins, 0.01);
-    fuel_tank_fsm::update(ecu_state, ecu_pins, 0.01);
+    igniter_fsm::update(ecu_state, ecu_pins, elapsed_time);
+    fuel_tank_fsm::update(ecu_state, ecu_pins, elapsed_time);
 
     let telem_frame = ECUTelemetryFrame {
         igniter_state: ecu_state.igniter_state,
@@ -134,6 +141,7 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
             ecu_pins.sv4_ctrl.get_state() == PinState::High,
         ],
         sparking: ecu_pins.spark_ctrl.get_duty() != 0,
+        cpu_utilization: ctx.shared.cpu_utilization.load(Ordering::Relaxed),
     };
 
     app::send_packet::spawn(
@@ -155,6 +163,7 @@ impl ECUState {
             igniter_state: IgniterState::Idle,
             igniter_state_storage: IgniterStateStorage::default(),
             fuel_tank_state: FuelTankState::Idle,
+            last_update_time: 0,
             igniter_fuel_injector_pressure: 0.0,
             igniter_gox_injector_pressure: 0.0,
             igniter_chamber_pressure: 0.0,

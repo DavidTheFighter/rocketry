@@ -62,6 +62,7 @@ pub struct ECUTelemetryFrame {
     pub sensors: [f32; MAX_ECU_SENSORS],
     pub solenoid_valves: [bool; MAX_ECU_VALVES],
     pub sparking: bool,
+    pub cpu_utilization: u32,
 }
 
 impl ECUTelemetryFrame {
@@ -72,6 +73,7 @@ impl ECUTelemetryFrame {
             sensors: [0_f32; MAX_ECU_SENSORS],
             solenoid_valves: [false; MAX_ECU_VALVES],
             sparking: false,
+            cpu_utilization: 0,
         }
     }
 }
