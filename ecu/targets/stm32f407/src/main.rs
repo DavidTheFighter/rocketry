@@ -155,10 +155,10 @@ mod app {
         let adc_in4 = gpioa.pa4.into_analog();
         let adc_in5 = gpioa.pa5.into_analog();
         let adc_in6 = gpioa.pa6.into_analog();
-        // let adc_in7 = gpiof.pf9.into_analog();
-        let adc_in8 = gpiof.pf10.into_analog();
+        let adc_in7 = gpiof.pf9.into_analog();
+        // let adc_in8 = gpiof.pf10.into_analog();
 
-        let mut spark_ctrl = p.TIM1.pwm_hz(spark_ctrl, 250.Hz(), &clocks).split();
+        let mut spark_ctrl = p.TIM1.pwm_hz(spark_ctrl, 400.Hz(), &clocks).split();
         spark_ctrl.disable();
         spark_ctrl.set_duty(0);
 
@@ -193,7 +193,7 @@ mod app {
         adc2.configure_channel(&adc_in6, Sequence::Two, SampleTime::Cycles_480);
 
         adc3.configure_channel(&adc_in3, Sequence::One, SampleTime::Cycles_480);
-        adc3.configure_channel(&adc_in8, Sequence::Two, SampleTime::Cycles_480);
+        adc3.configure_channel(&adc_in7, Sequence::Two, SampleTime::Cycles_480);
 
         let adc1_buffer1 = cortex_m::singleton!(: [u16; 2] = [0;2]).unwrap();
         let adc1_buffer2 = Some(cortex_m::singleton!(: [u16; 2] = [0;2]).unwrap());

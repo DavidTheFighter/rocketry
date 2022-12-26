@@ -106,7 +106,7 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
                         ecu_pins.spark_ctrl.enable();
                         ecu_pins
                             .spark_ctrl
-                            .set_duty(ecu_pins.spark_ctrl.get_duty() / 4);
+                            .set_duty(ecu_pins.spark_ctrl.get_max_duty() / 8);
                     } else {
                         ecu_pins.spark_ctrl.disable();
                         ecu_pins.spark_ctrl.set_duty(0);

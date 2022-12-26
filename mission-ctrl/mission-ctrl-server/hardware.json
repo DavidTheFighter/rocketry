@@ -2,31 +2,31 @@
     "sensor_mappings": [
         {
             "index": 0,
-            "premin": 0,
-            "premax": 4095,
+            "premin": 410,
+            "premax": 3276,
             "postmin": 0,
-            "postmax": 200
+            "postmax": 300
         },
         {
             "index": 1,
-            "premin": 0,
-            "premax": 4095,
+            "premin": 410,
+            "premax": 3276,
             "postmin": 0,
             "postmax": 200
         },
         {
             "index": 2,
-            "premin": 0,
-            "premax": 4095,
+            "premin": 410,
+            "premax": 3276,
             "postmin": 0,
             "postmax": 200
         },
         {
             "index": 3,
-            "premin": 0,
-            "premax": 4095,
+            "premin": 410,
+            "premax": 3276,
             "postmin": 0,
-            "postmax": 400
+            "postmax": 300
         },
         {
             "index": 5,
