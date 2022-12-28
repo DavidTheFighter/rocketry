@@ -52,7 +52,8 @@ pub enum IgniterState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FuelTankState {
     Idle = 0,
-    Pressurized = 1,
+    Depressurized = 1,
+    Pressurized = 2,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

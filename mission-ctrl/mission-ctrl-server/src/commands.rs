@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use hal::{comms_hal::Packet, ecu_hal::ECUSolenoidValve};
+use hal::{comms_hal::Packet, ecu_hal::{ECUSolenoidValve, FuelTankState}};
 use rocket::{
     serde::{json::Json, Serialize},
     State,
@@ -156,10 +156,15 @@ pub fn fire(packet_sender: &State<Arc<Mutex<Sender<Packet>>>>) -> Json<CommandRe
 
 #[post("/press")]
 pub fn pressurize(packet_sender: &State<Arc<Mutex<Sender<Packet>>>>) -> Json<CommandResponse> {
-    send_command(packet_sender, Packet::PressurizeFuelTank)
+    send_command(packet_sender, Packet::TransitionFuelTankState(FuelTankState::Pressurized))
 }
 
 #[post("/depress")]
 pub fn depressurize(packet_sender: &State<Arc<Mutex<Sender<Packet>>>>) -> Json<CommandResponse> {
-    send_command(packet_sender, Packet::DepressurizeFuelTank)
+    send_command(packet_sender, Packet::TransitionFuelTankState(FuelTankState::Depressurized))
+}
+
+#[post("/tankidle")]
+pub fn tankidle(packet_sender: &State<Arc<Mutex<Sender<Packet>>>>) -> Json<CommandResponse> {
+    send_command(packet_sender, Packet::TransitionFuelTankState(FuelTankState::Idle))
 }
