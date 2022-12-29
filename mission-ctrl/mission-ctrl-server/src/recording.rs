@@ -1,4 +1,4 @@
-use chrono::{FixedOffset, TimeZone, Timelike, Utc};
+use chrono::{FixedOffset, TimeZone, Timelike, Utc, Datelike};
 use hal::ecu_hal::{ECU_SENSORS, ECU_SOLENOID_VALVES};
 use hal::{
     comms_hal::DAQ_PACKET_FRAMES,
@@ -114,5 +114,12 @@ fn now_str() -> String {
     let tz_offset = FixedOffset::west_opt(5 * 60 * 60).unwrap();
     let now = tz_offset.from_utc_datetime(&Utc::now().naive_utc());
 
-    format!("{:02}_{:02}_{:02}", now.hour(), now.minute(), now.second())
+    format!("{:02}_{:02}_{:02}-{:02}_{:02}_{:02}",
+        now.year(),
+        now.month(),
+        now.day(),
+        now.hour(),
+        now.minute(),
+        now.second(),
+    )
 }

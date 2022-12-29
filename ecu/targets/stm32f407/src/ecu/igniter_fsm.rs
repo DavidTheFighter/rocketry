@@ -21,6 +21,11 @@ struct IgniterFSM<T> {
     _m: PhantomData<T>,
 }
 
+const STARTUP_GOX_TIME: f32 = 0.25;
+const STARTUP_IGNITION_TIME: f32 = 0.25;
+const FIRING_TIME: f32 = 1.0;
+const SHUTDOWN_TIME: f32 = 0.5;
+
 impl IgniterFSM<Idle> {
     fn update(_state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<IgniterState> {
         None
@@ -57,7 +62,7 @@ impl IgniterFSM<StartupGOx> {
             // Do an abort
         }
 
-        if state.igniter_state_storage.elapsed_since_state_transition > 0.250 {
+        if state.igniter_state_storage.elapsed_since_state_transition > STARTUP_GOX_TIME {
             return Some(IgniterState::StartupIgnition);
         }
 
@@ -86,7 +91,7 @@ impl IgniterFSM<StartupIgnition> {
             // Do an abort
         }
 
-        if state.igniter_state_storage.elapsed_since_state_transition > 0.250 {
+        if state.igniter_state_storage.elapsed_since_state_transition > STARTUP_IGNITION_TIME {
             return Some(IgniterState::Firing);
         }
 
@@ -97,7 +102,7 @@ impl IgniterFSM<StartupIgnition> {
         pins.sv1_ctrl.set_high();
         pins.sv2_ctrl.set_high();
         pins.spark_ctrl.enable();
-        pins.spark_ctrl.set_duty(pins.spark_ctrl.get_max_duty() / 4);
+        pins.spark_ctrl.set_duty(pins.spark_ctrl.get_max_duty() / 8);
     }
 
     fn on_packet(
@@ -115,7 +120,7 @@ impl IgniterFSM<Firing> {
             // Do an abort
         }
 
-        if state.igniter_state_storage.elapsed_since_state_transition > 1.0 {
+        if state.igniter_state_storage.elapsed_since_state_transition > FIRING_TIME {
             return Some(IgniterState::Shutdown);
         }
 
@@ -126,7 +131,7 @@ impl IgniterFSM<Firing> {
         pins.sv1_ctrl.set_high();
         pins.sv2_ctrl.set_high();
         pins.spark_ctrl.enable();
-        pins.spark_ctrl.set_duty(pins.spark_ctrl.get_max_duty() / 4);
+        pins.spark_ctrl.set_duty(pins.spark_ctrl.get_max_duty() / 8);
     }
 
     fn on_packet(
@@ -140,7 +145,7 @@ impl IgniterFSM<Firing> {
 
 impl IgniterFSM<Shutdown> {
     fn update(state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<IgniterState> {
-        if state.igniter_state_storage.elapsed_since_state_transition > 0.5 {
+        if state.igniter_state_storage.elapsed_since_state_transition > SHUTDOWN_TIME {
             return Some(IgniterState::Idle);
         }
 
