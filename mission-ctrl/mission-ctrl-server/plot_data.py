@@ -4,7 +4,7 @@ import numpy as np
 import os
 import sys
 
-sensor_pre_mappings = [[410, 3276], [410, 3276], [410, 3276], [410, 3276], [0, 4095]]
+sensor_pre_mappings = [[410, 3686], [410, 3686], [410, 3686], [410, 3686], [0, 4095]]
 sensor_post_mappings = [[0, 300], [0, 200], [0, 200], [0, 300], [-250, 410]]
 sensor_offsets = [0, 1, 2, 3, 5]
 
@@ -73,7 +73,7 @@ tempax = ax.twinx()
 handles += [tempax.plot(xpoints, sensors[-1], color=sensor_colors[-1])[0]]
 
 labels = [titles[3 + sensor_offsets[i]] for i in range(len(sensors))]
-ax.legend(handles, labels, loc=1)
+tempax.legend(handles, labels, loc=1)
 
 # Color the igniter states
 

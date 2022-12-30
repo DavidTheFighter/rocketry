@@ -47,3 +47,6 @@ Cargo.lock
 # Binary files
 *.hex
 *.bin
+
+# Python files
+venv

@@ -11,7 +11,7 @@
       />
       <RealtimeLineGraph 
       :datasets="tankDataset" 
-      :yrange="[0, 250]" 
+      :yrange="[0, 300]" 
       :xTitle="'Time (sec)'"
       :yTitle="'Pressure (PSI)'"
       :paddingFigs="3"

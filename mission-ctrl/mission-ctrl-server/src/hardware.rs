@@ -109,13 +109,13 @@ pub fn hardware_thread(
             },
         }
 
-        if timestamp() - last_freq_time >= 1.0 {
+        if timestamp() - last_freq_time >= 0.25 {
             telem_queue
                 .telem_rate
-                .store(num_telemetry_packets, Ordering::Relaxed);
+                .store(num_telemetry_packets * 4, Ordering::Relaxed);
             telem_queue
                 .daq_rate
-                .store(num_daq_packets, Ordering::Relaxed);
+                .store(num_daq_packets * 4, Ordering::Relaxed);
 
             last_freq_time = timestamp();
             num_telemetry_packets = 0;
