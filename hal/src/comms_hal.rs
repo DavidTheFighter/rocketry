@@ -6,7 +6,7 @@ use postcard::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ecu_hal::{ECUDAQFrame, ECUSensor, ECUSolenoidValve, ECUTelemetryFrame, FuelTankState},
+    ecu_hal::{ECUDAQFrame, ECUSensor, ECUSolenoidValve, ECUTelemetryFrame, FuelTankState, IgniterConfig},
     SensorConfig,
 };
 
@@ -43,6 +43,7 @@ pub enum Packet {
         sensor: ECUSensor,
         config: SensorConfig,
     },
+    ConfigureIgniter(IgniterConfig),
 
     // -- Commands -- //,
     TransitionFuelTankState(FuelTankState),

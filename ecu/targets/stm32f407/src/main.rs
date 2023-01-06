@@ -25,7 +25,6 @@ mod app {
     };
     use cortex_m::peripheral::DWT;
     use hal::comms_hal::{NetworkAddress, Packet};
-    use hal::ecu_hal::ECUDAQFrame;
     use rtic::export::Queue;
     use smoltcp::iface;
     use stm32_eth::{EthPins, EthernetDMA, RxRingEntry, TxRingEntry};
@@ -58,7 +57,6 @@ mod app {
         blue_led: PE5<Output>,
         ecu_control_pins: ECUControlPins,
         adc: ADCStorage,
-        daq: DAQHandler,
         ecu_state: ECUState,
         dwt: DWT,
     }
@@ -67,7 +65,7 @@ mod app {
     struct Shared {
         interface: iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>,
         udp_socket_handle: iface::SocketHandle,
-        current_daq_frame: ECUDAQFrame,
+        daq: DAQHandler,
         packet_queue: Queue<Packet, PACKET_QUEUE_SIZE>,
         cpu_utilization: AtomicU32,
     }
@@ -80,7 +78,7 @@ mod app {
 
     extern "Rust" {
         #[task(
-            shared = [current_daq_frame, packet_queue, &cpu_utilization],
+            shared = [daq, packet_queue, &cpu_utilization],
             local = [ecu_state, ecu_control_pins],
             capacity = 8,
             priority = 7,
@@ -96,8 +94,8 @@ mod app {
         fn send_packet(ctx: send_packet::Context, packet: Packet, address: NetworkAddress);
 
         #[task(binds = DMA2_STREAM0,
-            local = [daq, adc],
-            shared = [current_daq_frame, interface, udp_socket_handle],
+            local = [adc],
+            shared = [daq, interface, udp_socket_handle],
             priority = 10
         )]
         fn adc_dma(mut ctx: adc_dma::Context);
@@ -257,7 +255,7 @@ mod app {
             Shared {
                 interface,
                 udp_socket_handle,
-                current_daq_frame: ECUDAQFrame::default(),
+                daq: DAQHandler::new(),
                 packet_queue: Queue::new(),
                 cpu_utilization: AtomicU32::new(0),
             },
@@ -272,7 +270,6 @@ mod app {
                     adc3_transfer,
                     adc3_buffer: adc3_buffer2,
                 },
-                daq: DAQHandler::new(),
                 ecu_state,
                 dwt: core.DWT,
             },

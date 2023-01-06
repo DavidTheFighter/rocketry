@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use crate::SensorConfig;
-
 pub const MAX_ECU_SENSORS: usize = 6;
 pub const MAX_ECU_VALVES: usize = 4;
 
@@ -43,7 +41,7 @@ pub const ECU_SOLENOID_VALVES: [ECUSolenoidValve; MAX_ECU_VALVES] = [
 pub enum IgniterState {
     Idle = 0,
     StartupGOxLead = 1,
-    StartupIgnition = 2,
+    Startup = 2,
     Firing = 3,
     Shutdown = 4,
     Abort = 5,
@@ -58,6 +56,7 @@ pub enum FuelTankState {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ECUTelemetryFrame {
+    pub timestamp: u64,
     pub igniter_state: IgniterState,
     pub fuel_tank_state: FuelTankState,
     pub sensors: [f32; MAX_ECU_SENSORS],
@@ -69,6 +68,7 @@ pub struct ECUTelemetryFrame {
 impl ECUTelemetryFrame {
     pub const fn default() -> Self {
         Self {
+            timestamp: 0,
             igniter_state: IgniterState::Idle,
             fuel_tank_state: FuelTankState::Idle,
             sensors: [0_f32; MAX_ECU_SENSORS],
@@ -92,15 +92,29 @@ impl ECUDAQFrame {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ECUConfiguration {
-    pub sensor_configs: [SensorConfig; MAX_ECU_SENSORS],
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IgniterConfig {
+    pub gox_lead: bool,
+    pub gox_lead_duration: f32,
+    pub startup_timeout: f32,
+    pub startup_pressure_threshold: f32, // TODO: This is in PSI, it should be in Pascals
+    pub startup_stable_time: f32,
+    pub firing_duration: f32,
+    pub shutdown_duration: f32,
+    pub max_throat_temp: f32, // In Celsius
 }
 
-impl ECUConfiguration {
+impl IgniterConfig {
     pub const fn default() -> Self {
         Self {
-            sensor_configs: [SensorConfig::default(); MAX_ECU_SENSORS],
+            gox_lead: false,
+            gox_lead_duration: 0.25,
+            startup_timeout: 1.0,
+            startup_pressure_threshold: 30.0,
+            startup_stable_time: 0.25,
+            firing_duration: 0.75,
+            shutdown_duration: 0.5,
+            max_throat_temp: 500.0,
         }
     }
 }

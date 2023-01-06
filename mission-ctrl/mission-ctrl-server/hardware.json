@@ -1,39 +1,83 @@
 {
+    "igniter_config": {
+        "gox_lead": false,
+        "gox_lead_duration": 0.25,
+        "startup_timeout": 1.0,
+        "startup_pressure_threshold": 30.0,
+        "startup_stable_time": 0.25,
+        "firing_duration": 0.75,
+        "shutdown_duration": 0.5,
+        "max_throat_temp": 500.0
+    },
     "sensor_mappings": [
         {
             "index": 0,
-            "premin": 410,
-            "premax": 3686,
-            "postmin": 0,
-            "postmax": 300
+            "config": {
+                "premin": 410,
+                "premax": 3686,
+                "postmin": 0,
+                "postmax": 300,
+                "calibration": {
+                    "x0": -4.58,
+                    "x1": -0.0315,
+                    "x2": -0.000109,
+                    "x3": 0.00000015
+                }
+            }
         },
         {
             "index": 1,
-            "premin": 410,
-            "premax": 3686,
-            "postmin": 0,
-            "postmax": 200
+            "config": {
+                "premin": 410,
+                "premax": 3686,
+                "postmin": 0,
+                "postmax": 200,
+                "calibration": {
+                    "x0": -0.145,
+                    "x1": 0.0373,
+                    "x2": 0.000374,
+                    "x3": -0.00000144
+                }
+            }
         },
         {
             "index": 2,
-            "premin": 410,
-            "premax": 3686,
-            "postmin": 0,
-            "postmax": 200
+            "config": {
+                "premin": 410,
+                "premax": 3686,
+                "postmin": 0,
+                "postmax": 200,
+                "calibration": {
+                    "x0": -0.423,
+                    "x1": 0.0157,
+                    "x2": 0.000549,
+                    "x3": -0.00000184
+                }
+            }
         },
         {
             "index": 3,
-            "premin": 410,
-            "premax": 3686,
-            "postmin": 0,
-            "postmax": 300
+            "config": {
+                "premin": 410,
+                "premax": 3686,
+                "postmin": 0,
+                "postmax": 300,
+                "calibration": {
+                    "x0": -0.0866,
+                    "x1": -0.00812,
+                    "x2": 0.000237,
+                    "x3": -0.000000694
+                }
+            }
         },
         {
             "index": 5,
-            "premin": 0,
-            "premax": 4095,
-            "postmin": -250,
-            "postmax": 410
+            "config": {
+                "premin": 0,
+                "premax": 4095,
+                "postmin": -250,
+                "postmax": 410
+            }
         }
     ]
 }

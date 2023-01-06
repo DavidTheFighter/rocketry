@@ -1,6 +1,6 @@
 use hal::{
     comms_hal::Packet,
-    ecu_hal::{ECUTelemetryFrame, ECU_SENSORS},
+    ecu_hal::{ECUTelemetryFrame, ECU_SENSORS, IgniterConfig},
     SensorConfig,
 };
 use rocket::serde::Deserialize;
@@ -128,16 +128,14 @@ pub fn hardware_thread(
 #[serde(crate = "rocket::serde")]
 struct HardwareConfigSensorMap {
     index: usize,
-    premin: f32,
-    premax: f32,
-    postmin: f32,
-    postmax: f32,
+    config: SensorConfig,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(crate = "rocket::serde")]
 struct HardwareConfig {
     sensor_mappings: Vec<HardwareConfigSensorMap>,
+    igniter_config: IgniterConfig,
 }
 
 fn read_hardware_config() -> Vec<Packet> {
@@ -149,14 +147,11 @@ fn read_hardware_config() -> Vec<Packet> {
     for sensor_config in config.sensor_mappings.iter() {
         config_packets.push(Packet::ConfigureSensor {
             sensor: ECU_SENSORS[sensor_config.index],
-            config: SensorConfig {
-                premin: sensor_config.premin,
-                premax: sensor_config.premax,
-                postmin: sensor_config.postmin,
-                postmax: sensor_config.postmax,
-            },
+            config: sensor_config.config,
         });
     }
+
+    config_packets.push(Packet::ConfigureIgniter(config.igniter_config));
 
     config_packets
 }

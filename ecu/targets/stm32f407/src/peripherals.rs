@@ -56,19 +56,17 @@ pub fn adc_dma(mut ctx: app::adc_dma::Context) {
         ],
     };
 
-    ctx.shared.current_daq_frame.lock(|current_daq_frame| {
-        *current_daq_frame = daq_frame;
+    ctx.shared.daq.lock(|daq| {
+        if daq.add_daq_frame(daq_frame) {
+            let daq_frame = Packet::ECUDAQ(*daq.get_inactive_buffer());
+
+            app::send_packet::spawn(daq_frame, NetworkAddress::MissionControl).ok();
+        }
     });
 
     storage.adc1_buffer = Some(adc1_buffer);
     storage.adc2_buffer = Some(adc2_buffer);
     storage.adc3_buffer = Some(adc3_buffer);
-
-    if ctx.local.daq.add_daq_frame(daq_frame) {
-        let daq_frame = Packet::ECUDAQ(*ctx.local.daq.get_inactive_buffer());
-
-        app::send_packet::spawn(daq_frame, NetworkAddress::MissionControl).ok();
-    }
 
     storage.adc3_transfer.start(|adc| adc.start_conversion());
     storage.adc2_transfer.start(|adc| adc.start_conversion());

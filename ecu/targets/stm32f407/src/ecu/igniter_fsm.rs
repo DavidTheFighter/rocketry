@@ -2,29 +2,25 @@ use core::marker::PhantomData;
 
 use hal::{
     comms_hal::Packet,
-    ecu_hal::{FuelTankState, IgniterState},
+    ecu_hal::{FuelTankState, IgniterState, ECUSensor},
 };
 
 use super::{ECUControlPins, ECUState};
 
 pub struct IgniterStateStorage {
     elapsed_since_state_transition: f32,
+    stable_pressure_counter: f32,
 }
 
 struct Idle;
 struct StartupGOx;
-struct StartupIgnition;
+struct Startup;
 struct Firing;
 struct Shutdown;
 
 struct IgniterFSM<T> {
     _m: PhantomData<T>,
 }
-
-const STARTUP_GOX_TIME: f32 = 0.25;
-const STARTUP_IGNITION_TIME: f32 = 0.25;
-const FIRING_TIME: f32 = 1.0;
-const SHUTDOWN_TIME: f32 = 0.5;
 
 impl IgniterFSM<Idle> {
     fn update(_state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<IgniterState> {
@@ -46,7 +42,11 @@ impl IgniterFSM<Idle> {
         match packet {
             Packet::FireIgniter => {
                 if state.fuel_tank_state == FuelTankState::Pressurized {
-                    return Some(IgniterState::StartupGOxLead);
+                    if state.igniter_config.gox_lead {
+                        return Some(IgniterState::StartupGOxLead);
+                    } else {
+                        return Some(IgniterState::Startup);
+                    }
                 }
             }
             _ => {}
@@ -62,8 +62,8 @@ impl IgniterFSM<StartupGOx> {
             // Do an abort
         }
 
-        if state.igniter_state_storage.elapsed_since_state_transition > STARTUP_GOX_TIME {
-            return Some(IgniterState::StartupIgnition);
+        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.gox_lead_duration {
+            return Some(IgniterState::Startup);
         }
 
         None
@@ -85,24 +85,40 @@ impl IgniterFSM<StartupGOx> {
     }
 }
 
-impl IgniterFSM<StartupIgnition> {
-    fn update(state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<IgniterState> {
+impl IgniterFSM<Startup> {
+    fn update(state: &mut ECUState, _pins: &mut ECUControlPins, delta_time: f32) -> Option<IgniterState> {
         if state.fuel_tank_state != FuelTankState::Pressurized {
             // Do an abort
         }
 
-        if state.igniter_state_storage.elapsed_since_state_transition > STARTUP_IGNITION_TIME {
+        if state.sensor_maxs[ECUSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp {
+            return Some(IgniterState::Shutdown);
+        }
+
+        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.startup_timeout {
+            return Some(IgniterState::Shutdown);
+        }
+
+        if state.sensor_mins[ECUSensor::IgniterChamberPressure as usize] >= state.igniter_config.startup_pressure_threshold {
+            state.igniter_state_storage.stable_pressure_counter += delta_time;
+        } else {
+            state.igniter_state_storage.stable_pressure_counter = 0.0;
+        }
+
+        if state.igniter_state_storage.stable_pressure_counter > state.igniter_config.startup_stable_time {
             return Some(IgniterState::Firing);
         }
 
         None
     }
 
-    fn enter_state(_state: &mut ECUState, pins: &mut ECUControlPins) {
+    fn enter_state(state: &mut ECUState, pins: &mut ECUControlPins) {
         pins.sv1_ctrl.set_high();
         pins.sv2_ctrl.set_high();
         pins.spark_ctrl.enable();
         pins.spark_ctrl.set_duty(pins.spark_ctrl.get_max_duty() / 8);
+
+        state.igniter_state_storage.stable_pressure_counter = 0.0;
     }
 
     fn on_packet(
@@ -120,7 +136,11 @@ impl IgniterFSM<Firing> {
             // Do an abort
         }
 
-        if state.igniter_state_storage.elapsed_since_state_transition > FIRING_TIME {
+        if state.sensor_maxs[ECUSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp {
+            return Some(IgniterState::Shutdown);
+        }
+
+        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.firing_duration {
             return Some(IgniterState::Shutdown);
         }
 
@@ -145,7 +165,7 @@ impl IgniterFSM<Firing> {
 
 impl IgniterFSM<Shutdown> {
     fn update(state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<IgniterState> {
-        if state.igniter_state_storage.elapsed_since_state_transition > SHUTDOWN_TIME {
+        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.shutdown_duration {
             return Some(IgniterState::Idle);
         }
 
@@ -170,15 +190,15 @@ impl IgniterFSM<Shutdown> {
 
 // ---------------------------- //
 
-pub fn update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, elapsed_time: f32) {
+pub fn update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, delta_time: f32) {
     ecu_state
         .igniter_state_storage
-        .elapsed_since_state_transition += elapsed_time;
+        .elapsed_since_state_transition += delta_time;
 
     let transition = match ecu_state.igniter_state {
         IgniterState::Idle => IgniterFSM::<Idle>::update(ecu_state, ecu_pins),
         IgniterState::StartupGOxLead => IgniterFSM::<StartupGOx>::update(ecu_state, ecu_pins),
-        IgniterState::StartupIgnition => IgniterFSM::<StartupIgnition>::update(ecu_state, ecu_pins),
+        IgniterState::Startup => IgniterFSM::<Startup>::update(ecu_state, ecu_pins, delta_time),
         IgniterState::Firing => IgniterFSM::<Firing>::update(ecu_state, ecu_pins),
         IgniterState::Shutdown => IgniterFSM::<Shutdown>::update(ecu_state, ecu_pins),
         IgniterState::Abort => None,
@@ -195,8 +215,8 @@ pub fn on_packet(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, packet
         IgniterState::StartupGOxLead => {
             IgniterFSM::<StartupGOx>::on_packet(ecu_state, ecu_pins, packet)
         }
-        IgniterState::StartupIgnition => {
-            IgniterFSM::<StartupIgnition>::on_packet(ecu_state, ecu_pins, packet)
+        IgniterState::Startup => {
+            IgniterFSM::<Startup>::on_packet(ecu_state, ecu_pins, packet)
         }
         IgniterState::Firing => IgniterFSM::<Firing>::on_packet(ecu_state, ecu_pins, packet),
         IgniterState::Shutdown => IgniterFSM::<Shutdown>::on_packet(ecu_state, ecu_pins, packet),
@@ -225,9 +245,7 @@ pub fn transition_state(
     match ecu_state.igniter_state {
         IgniterState::Idle => IgniterFSM::<Idle>::enter_state(ecu_state, ecu_pins),
         IgniterState::StartupGOxLead => IgniterFSM::<StartupGOx>::enter_state(ecu_state, ecu_pins),
-        IgniterState::StartupIgnition => {
-            IgniterFSM::<StartupIgnition>::enter_state(ecu_state, ecu_pins)
-        }
+        IgniterState::Startup => IgniterFSM::<Startup>::enter_state(ecu_state, ecu_pins),
         IgniterState::Firing => IgniterFSM::<Firing>::enter_state(ecu_state, ecu_pins),
         IgniterState::Shutdown => IgniterFSM::<Shutdown>::enter_state(ecu_state, ecu_pins),
         IgniterState::Abort => {}
@@ -238,6 +256,7 @@ impl IgniterStateStorage {
     pub const fn default() -> Self {
         Self {
             elapsed_since_state_transition: 0.0,
+            stable_pressure_counter: 0.0,
         }
     }
 }
