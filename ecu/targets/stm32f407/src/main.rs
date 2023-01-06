@@ -285,6 +285,7 @@ mod app {
         loop {
             rtic::export::interrupt::free(|_cs| {
                 let before = ctx.local.dwt.cyccnt.read();
+                compiler_fence(Ordering::SeqCst);
                 rtic::export::wfi();
                 let after = ctx.local.dwt.cyccnt.read();
 
