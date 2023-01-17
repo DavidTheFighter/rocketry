@@ -125,7 +125,7 @@ for log_file_name in files_to_plot:
     ax.set_ylabel('Pressure (PSI)')
     ax.xaxis.set_major_locator(ticker.MultipleLocator(0.1))
 
-    plt.yticks(np.arange(-5, 205, 5))
+    plt.yticks(np.arange(-5, 300, 5))
     plt.grid()
 
     tempax = ax.twinx()

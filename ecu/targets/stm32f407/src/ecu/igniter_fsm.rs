@@ -150,8 +150,8 @@ impl IgniterFSM<Firing> {
     fn enter_state(_state: &mut ECUState, pins: &mut ECUControlPins) {
         pins.sv1_ctrl.set_high();
         pins.sv2_ctrl.set_high();
-        pins.spark_ctrl.enable();
-        pins.spark_ctrl.set_duty(pins.spark_ctrl.get_max_duty() / 8);
+        pins.spark_ctrl.disable();
+        pins.spark_ctrl.set_duty(0);
     }
 
     fn on_packet(
