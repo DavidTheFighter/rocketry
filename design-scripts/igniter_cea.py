@@ -5,10 +5,10 @@ import numpy as np
 
 # --- Design Constants --- #
 
-CHAMBER_PRESSURE = 65.0 # PSI
+CHAMBER_PRESSURE = 42.0 # PSI
 EXIT_PRESSURE = 10.0 # PSI
 MIX_RATIO = 0.55
-THRUST = 9 # Newtons
+THRUST = 5 # Newtons
 
 OXID_INJECTOR_PRESSURE = 85 # PSI
 OXID_DENSITY = 7.826 # kg/m^3
@@ -23,7 +23,7 @@ INJECTOR_PIPE_DIAMETER = 0.25 # in
 
 # Calculations
 
-C = CEA_Obj( oxName='GOX', fuelName='Isopropanol75')
+C = CEA_Obj( oxName='GOX', fuelName='Isopropanol70')
 
 nozzle_expansion_ratio = C.get_eps_at_PcOvPe(Pc=CHAMBER_PRESSURE, PcOvPe=EXIT_PRESSURE, MR=MIX_RATIO)
 
@@ -61,20 +61,19 @@ fuel_injector_diameter = orifice_incompressible_diameter(
     FUEL_DENSITY
 )
 
-print("C*\t{:.2f} m/s".format(c_star))
-print("Isp\t{:.2f} s".format(isp))
-print("Cf\t{:.2f}".format(cf))
-print("MR\t{:.2f}".format(MIX_RATIO))
+print("Thrust {:.2f} N".format(THRUST))
+print("Cp {:.2f} psi @ {:.2f} MR".format(CHAMBER_PRESSURE, MIX_RATIO))
+print("C* {:.2f} m/s, Isp {:.2f} s, Cf {:.2f}".format(c_star, isp, cf))
 
-print("")
-print("Total Mass Flow\t\t{:.3f} kg/s ({:.3f} g/s)".format(total_mass_flow, total_mass_flow * 1e3))
-print("Oxidizer Mass Flow\t{:.3f} kg/s ({:.3f} g/s)".format(oxid_mass_flow, oxid_mass_flow * 1e3))
-print("Fuel Mass Flow\t\t{:.3f} kg/s ({:.3f} g/s)".format(fuel_mass_flow, fuel_mass_flow * 1e3))
+# print("")
+# print("Total Mass Flow\t\t{:.3f} kg/s ({:.3f} g/s)".format(total_mass_flow, total_mass_flow * 1e3))
+# print("Oxidizer Mass Flow\t{:.3f} kg/s ({:.3f} g/s)".format(oxid_mass_flow, oxid_mass_flow * 1e3))
+# print("Fuel Mass Flow\t\t{:.3f} kg/s ({:.3f} g/s)".format(fuel_mass_flow, fuel_mass_flow * 1e3))
 
 print("Throat diameter\t\t{:.3f} m ({:.3f} mm)".format(throat_diameter, throat_diameter * 1e3))
-print("Exit diameter\t\t{:.3f} m ({:.3f} mm)".format(exit_diameter, exit_diameter * 1e3))
+# print("Exit diameter\t\t{:.3f} m ({:.3f} mm)".format(exit_diameter, exit_diameter * 1e3))
 
-print(orifice_incompressible_pressure(fuel_mass_flow, 0.016 * 0.0254, INJECTOR_PIPE_DIAMETER * 0.0254, FUEL_ORIFICE_CD, CHAMBER_PRESSURE * 6894.75729, FUEL_DENSITY) / 6894.75729)
-print(orifice_compressible_pressure(oxid_mass_flow, 0.063 * 0.0254, INJECTOR_PIPE_DIAMETER * 0.0254, OXID_ORIFICE_CD, CHAMBER_PRESSURE * 6894.75729, OXID_DENSITY * (CHAMBER_PRESSURE / OXID_INJECTOR_PRESSURE), OXID_KAPPA) / 6894.75729)
+print("Fuel Pressure\t\t{:.2f} psi".format(orifice_incompressible_pressure(fuel_mass_flow, 0.016 * 0.0254, INJECTOR_PIPE_DIAMETER * 0.0254, FUEL_ORIFICE_CD, CHAMBER_PRESSURE * 6894.75729, FUEL_DENSITY) / 6894.75729))
+print("GOx Pressure\t\t{:.2f} psi".format(orifice_compressible_pressure(oxid_mass_flow, 0.063 * 0.0254, INJECTOR_PIPE_DIAMETER * 0.0254, OXID_ORIFICE_CD, CHAMBER_PRESSURE * 6894.75729, OXID_DENSITY * (CHAMBER_PRESSURE / OXID_INJECTOR_PRESSURE), OXID_KAPPA) / 6894.75729))
 
 print()
