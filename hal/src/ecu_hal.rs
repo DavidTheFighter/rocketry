@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::SensorConfig;
+
 pub const MAX_ECU_SENSORS: usize = 6;
 pub const MAX_ECU_VALVES: usize = 4;
 
@@ -40,11 +42,9 @@ pub const ECU_SOLENOID_VALVES: [ECUSolenoidValve; MAX_ECU_VALVES] = [
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum IgniterState {
     Idle = 0,
-    StartupGOxLead = 1,
-    Startup = 2,
-    Firing = 3,
-    Shutdown = 4,
-    Abort = 5,
+    Startup = 1,
+    Firing = 2,
+    Shutdown = 3,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -117,4 +117,25 @@ impl IgniterConfig {
             max_throat_temp: 500.0,
         }
     }
+}
+
+pub trait EcuDriver {
+    fn set_solenoid_valve(&mut self, valve: ECUSolenoidValve, state: bool);
+    fn set_sparking(&mut self, state: bool);
+
+    fn get_solenoid_valve(&self, valve: ECUSolenoidValve) -> bool;
+    fn get_sensor(&self, sensor: ECUSensor) -> f32;
+    fn get_sparking(&self) -> bool;
+
+    fn generate_telemetry_frame(&self) -> ECUTelemetryFrame;
+
+    /// Collects the data the DAQ has measured since the last time this was called. This is meant
+    /// so that the DAQ can run independently of the ECU loop. Each call to this resets the stored
+    /// min/max values so the DAQ can update them until the next ECU loop.
+    ///
+    /// Returns the current sensor value, minimum value since the last call, and the maximum
+    /// value since the last call.
+    fn collect_daq_sensor_data(&self, sensor: ECUSensor) -> (f32, f32, f32);
+
+    fn configure_sensor(&mut self, sensor: ECUSensor, config: SensorConfig);
 }

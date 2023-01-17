@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "hal",
+    "ecu/engine-controller",
     "mission-ctrl/mission-ctrl-server",
 ]
 
