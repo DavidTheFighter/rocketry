@@ -6,7 +6,9 @@ use postcard::{
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ecu_hal::{ECUDAQFrame, ECUSensor, ECUSolenoidValve, ECUTelemetryFrame, FuelTankState, IgniterConfig},
+    ecu_hal::{
+        EcuDAQFrame, EcuTelemetryFrame, EcuSensor, EcuSolenoidValve, FuelTankState, IgniterConfig,
+    },
     SensorConfig,
 };
 
@@ -34,13 +36,13 @@ pub enum SerializationError {
 pub enum Packet {
     // -- Direct commands -- //
     SetSolenoidValve {
-        valve: ECUSolenoidValve,
+        valve: EcuSolenoidValve,
         state: bool,
     },
     SetSparking(bool),
     DeviceBooted,
     ConfigureSensor {
-        sensor: ECUSensor,
+        sensor: EcuSensor,
         config: SensorConfig,
     },
     ConfigureIgniter(IgniterConfig),
@@ -50,11 +52,15 @@ pub enum Packet {
     FireIgniter,
 
     // -- Data -- //
-    ECUTelemetry(ECUTelemetryFrame),
-    ECUDAQ([ECUDAQFrame; DAQ_PACKET_FRAMES]),
+    EcuTelemetry(EcuTelemetryFrame),
+    EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
 }
 
 impl Packet {
+    /// Serializes this packet and writes it to the given buffer.
+    ///
+    /// # Errors
+    /// If the buffer is too short or the packet cannot be serialized, an error is returned.
     pub fn serialize(&self, buffer: &mut [u8]) -> Result<usize, SerializationError> {
         match Cobs::try_new(Slice::new(buffer)) {
             Ok(flavor) => {
@@ -83,6 +89,10 @@ impl Packet {
         }
     }
 
+    /// Deserializes a packet from the given buffer and returns that packet.
+    ///
+    /// # Errors
+    /// If the data within the buffer is incorrect for whatever reason then an error is returned.
     pub fn deserialize(buffer: &mut [u8]) -> Result<Packet, SerializationError> {
         match from_bytes_cobs(buffer) {
             Ok(packet) => Ok(packet),

@@ -3,6 +3,7 @@
 
 pub mod comms_hal;
 pub mod ecu_hal;
+pub mod ecu_mock;
 
 use serde::{Deserialize, Serialize};
 

@@ -225,7 +225,15 @@ fn rocket() -> _ {
         .mount("/", routes![all_options, telemetry])
         .mount(
             "/commands",
-            routes![valve, testvalve, testspark, pressurize, depressurize, tankidle, fire],
+            routes![
+                valve,
+                testvalve,
+                testspark,
+                pressurize,
+                depressurize,
+                tankidle,
+                fire
+            ],
         )
 }
 

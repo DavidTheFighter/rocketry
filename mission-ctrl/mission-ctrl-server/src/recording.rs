@@ -1,11 +1,12 @@
-use chrono::{FixedOffset, TimeZone, Timelike, Utc, Datelike};
-use hal::ecu_hal::{ECU_SENSORS, ECU_SOLENOID_VALVES};
+use chrono::{Datelike, FixedOffset, TimeZone, Timelike, Utc};
+use hal::ecu_hal::{ECUSensor, ECUSolenoidValve};
 use hal::{
     comms_hal::DAQ_PACKET_FRAMES,
     ecu_hal::{ECUDAQFrame, ECUTelemetryFrame, IgniterState},
 };
 use std::io::prelude::*;
 use std::{fs::File, sync::mpsc::Receiver};
+use strum::IntoEnumIterator;
 
 use crate::timestamp;
 
@@ -74,7 +75,7 @@ fn format_frame(frame: RecordingFrame) -> String {
         ]
         .concat();
 
-        for sensor in ECU_SENSORS {
+        for sensor in ECUSensor::iter() {
             builder = [
                 builder,
                 format!(",{}", daq_frame.sensor_values[sensor as usize]),
@@ -82,7 +83,7 @@ fn format_frame(frame: RecordingFrame) -> String {
             .concat();
         }
 
-        for sv in ECU_SOLENOID_VALVES {
+        for sv in ECUSolenoidValve::iter() {
             builder = [
                 builder,
                 format!(",{}", frame.telem.solenoid_valves[sv as usize]),
@@ -99,11 +100,11 @@ fn format_frame(frame: RecordingFrame) -> String {
 fn csv_columns() -> String {
     let mut builder = String::from("igniter_state,fuel_tank_state,spark");
 
-    for sensor in ECU_SENSORS {
+    for sensor in ECUSensor::iter() {
         builder = [builder, format!(",{:?}", sensor)].concat();
     }
 
-    for sv in ECU_SOLENOID_VALVES {
+    for sv in ECUSolenoidValve::iter() {
         builder = [builder, format!(",{:?}", sv)].concat();
     }
 
@@ -114,7 +115,8 @@ fn now_str() -> String {
     let tz_offset = FixedOffset::west_opt(5 * 60 * 60).unwrap();
     let now = tz_offset.from_utc_datetime(&Utc::now().naive_utc());
 
-    format!("{:02}_{:02}_{:02}-{:02}_{:02}_{:02}",
+    format!(
+        "{:02}_{:02}_{:02}-{:02}_{:02}_{:02}",
         now.year(),
         now.month(),
         now.day(),

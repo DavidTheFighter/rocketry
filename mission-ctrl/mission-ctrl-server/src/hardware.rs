@@ -1,6 +1,6 @@
 use hal::{
     comms_hal::Packet,
-    ecu_hal::{ECUTelemetryFrame, ECU_SENSORS, IgniterConfig},
+    ecu_hal::{ECUSensor, ECUTelemetryFrame, IgniterConfig},
     SensorConfig,
 };
 use rocket::serde::Deserialize;
@@ -14,6 +14,7 @@ use std::{
     },
     time::Duration,
 };
+use strum::IntoEnumIterator;
 
 use crate::{recording::RecordingFrame, timestamp, TelemetryQueue};
 
@@ -146,7 +147,7 @@ fn read_hardware_config() -> Vec<Packet> {
 
     for sensor_config in config.sensor_mappings.iter() {
         config_packets.push(Packet::ConfigureSensor {
-            sensor: ECU_SENSORS[sensor_config.index],
+            sensor: ECUSensor::iter().nth(sensor_config.index).unwrap(),
             config: sensor_config.config,
         });
     }
