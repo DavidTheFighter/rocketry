@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
 
-use crate::SensorConfig;
+use crate::{SensorConfig, comms_hal::{Packet, NetworkAddress}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
 pub enum EcuSensor {
@@ -113,6 +113,8 @@ pub trait EcuDriver {
     // TODO - Make this an option, because sensors will not always be available (configurable!)
     fn get_sensor(&self, sensor: EcuSensor) -> f32;
     fn get_sparking(&self) -> bool;
+
+    fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
 
     fn generate_telemetry_frame(&self) -> EcuTelemetryFrame;
 

@@ -2,7 +2,7 @@ use core::any::Any;
 
 use crate::{
     ecu_hal::{EcuTelemetryFrame, EcuDriver, EcuSensor, EcuSolenoidValve},
-    SensorConfig,
+    SensorConfig, comms_hal::{Packet, NetworkAddress},
 };
 use strum::EnumCount;
 
@@ -32,6 +32,10 @@ impl EcuDriver for EcuDriverMock {
 
     fn get_sparking(&self) -> bool {
         self.sparking
+    }
+
+    fn send_packet(&mut self, _packet: Packet, _destination: NetworkAddress) {
+        todo!()
     }
 
     fn generate_telemetry_frame(&self) -> EcuTelemetryFrame {

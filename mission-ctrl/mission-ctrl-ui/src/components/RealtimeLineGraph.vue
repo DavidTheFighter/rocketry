@@ -69,6 +69,14 @@
         let maxSize = 0;
 
         this.datasets.forEach(dataset => {
+          if (dataset.data == null) {
+            dataset.data = [];
+
+            for (let i = 0; i < 100; i++) {
+              dataset.data.push(Math.sin(i / 5) * 50 + 50);
+            }
+          }
+
           chartDatasets.push({
               label: dataset.name,
               backgroundColor: dataset.color,
@@ -77,7 +85,7 @@
               data: dataset.data,
           });
 
-          maxSize = Math.max(maxSize, dataset.data.length);
+          maxSize = Math.max(maxSize, dataset.data?.length);
         });
 
         chartDatasets.push({
@@ -192,7 +200,7 @@
               radius: 0 // default to disabled in all datasets
             }
           }
-        }
+        },
       };
 
       if (this.justifyLegend == 'left') {

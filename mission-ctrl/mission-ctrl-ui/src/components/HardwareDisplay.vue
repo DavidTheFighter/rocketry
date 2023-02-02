@@ -11,7 +11,7 @@
           </div>
           <div class="columnRight">
             <p v-for="valve in leftColumnValves" :key="valve.name" :class="valveStateCSSClass(valve)">
-              {{valve.data.state}}
+              {{valve.data?.state ?? "??"}}
             </p>
           </div>
         </div>
@@ -25,7 +25,7 @@
           </div>
           <div class="columnRight">
             <p v-for="valve in rightColumnValves" :key="valve.name" :class="valveStateCSSClass(valve)">
-              {{valve.data.state}}
+              {{valve.data?.state ?? "??"}}
             </p>
           </div>
         </div>
@@ -53,7 +53,7 @@ export default {
   },
   methods: {
     valveStateCSSClass(valve) {
-      if (valve.data.in_default_state) {
+      if (valve.data?.in_default_state) {
         return "valveState normal";
       } else {
         return "valveState actuated";

@@ -2,6 +2,7 @@
 members = [
     "hal",
     "ecu/engine-controller",
+    "fcu/flight-controller",
     "mission-ctrl/mission-ctrl-server",
 ]
 

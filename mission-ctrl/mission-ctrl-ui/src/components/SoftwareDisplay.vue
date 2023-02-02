@@ -6,7 +6,7 @@
         <div class="row">
           <div class="columnLeft">
             <p class="stateTitle" v-for="state in leftColumnStates" :key="state.name">
-              {{ state.name }}
+              {{ state.name ?? "??" }}
             </p>
           </div>
           <div class="columnRight">
@@ -20,7 +20,7 @@
         <div class="row">
           <div class="columnLeft">
             <p class="stateTitle" v-for="state in rightColumnStates" :key="state.name">
-              {{ state.name }}
+              {{ state.name ?? "??" }}
             </p>
           </div>
           <div class="columnRight">
@@ -54,13 +54,13 @@ export default {
   methods: {
     stateValueText(state) {
       if (state.units) {
-        return state.value + " " + state.units;
+        return (state.value ?? "??") + " " + state.units;
       } else {
-        return state.value;
+        return state.value ?? "??";
       }
     },
     stateStyleClass(state) {
-      if (state.value == 0) {
+      if (state.value == 0 || state.value == undefined) {
         return "stateValue bad";
       } else {
         return "stateValue";

@@ -14,7 +14,7 @@ pub struct Ecu<'a> {
     pub igniter_state: IgniterState,
     pub(crate) igniter_fsm_storage: igniter_fsm::FsmStorage,
     pub fuel_tank_state: FuelTankState,
-    pub driver: &'a mut dyn EcuDriver,
+    pub(crate) driver: &'a mut dyn EcuDriver,
 }
 
 impl<'a> Ecu<'a> {
