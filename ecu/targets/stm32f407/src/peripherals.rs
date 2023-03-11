@@ -3,7 +3,7 @@ use core::sync::atomic::{compiler_fence, Ordering};
 use crate::app;
 use hal::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::ECUDAQFrame,
+    ecu_hal::EcuDAQFrame,
 };
 use rtic::Mutex;
 use stm32_eth::stm32::{ADC1, ADC2, ADC3, DMA2};
@@ -45,7 +45,7 @@ pub fn adc_dma(mut ctx: app::adc_dma::Context) {
         .unwrap()
         .0;
 
-    let daq_frame = ECUDAQFrame {
+    let daq_frame = EcuDAQFrame {
         sensor_values: [
             adc3_buffer[0],
             adc1_buffer[1],
@@ -58,7 +58,7 @@ pub fn adc_dma(mut ctx: app::adc_dma::Context) {
 
     ctx.shared.daq.lock(|daq| {
         if daq.add_daq_frame(daq_frame) {
-            let daq_frame = Packet::ECUDAQ(*daq.get_inactive_buffer());
+            let daq_frame = Packet::EcuDAQ(*daq.get_inactive_buffer());
 
             app::send_packet::spawn(daq_frame, NetworkAddress::MissionControl).ok();
         }

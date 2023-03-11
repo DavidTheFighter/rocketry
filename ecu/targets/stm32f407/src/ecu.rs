@@ -15,10 +15,11 @@ use stm32f4xx_hal::{
 use hal::{
     comms_hal::{NetworkAddress, Packet},
     ecu_hal::{
-        IgniterConfig, ECUSensor, ECUSolenoidValve, ECUTelemetryFrame, FuelTankState,
-        IgniterState, MAX_ECU_SENSORS, ECU_SENSORS, ECUDAQFrame,
+        IgniterConfig, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame, FuelTankState,
+        IgniterState, EcuDAQFrame,
     }, SensorConfig,
 };
+use strum::{IntoEnumIterator, EnumCount};
 
 use crate::{app, now};
 
@@ -26,14 +27,14 @@ use self::igniter_fsm::IgniterStateStorage;
 
 pub struct ECUState {
     igniter_config: IgniterConfig,
-    sensor_configs: [SensorConfig; MAX_ECU_SENSORS],
+    sensor_configs: [SensorConfig; EcuSensor::COUNT],
     igniter_state: IgniterState,
     igniter_state_storage: IgniterStateStorage,
     fuel_tank_state: FuelTankState,
     last_update_time: u64,
-    sensor_values: [f32; MAX_ECU_SENSORS],
-    sensor_mins: [f32; MAX_ECU_SENSORS],
-    sensor_maxs: [f32; MAX_ECU_SENSORS],
+    sensor_values: [f32; EcuSensor::COUNT],
+    sensor_mins: [f32; EcuSensor::COUNT],
+    sensor_maxs: [f32; EcuSensor::COUNT],
 }
 
 pub struct ECUControlPins {
@@ -61,23 +62,23 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
         (frame, mins, maxs)
     });
 
-    let apply_sensor_value = |sensor: ECUSensor, frame: ECUDAQFrame| -> f32 {
+    let apply_sensor_value = |sensor: EcuSensor, frame: EcuDAQFrame| -> f32 {
         ecu_state.sensor_configs[sensor as usize]
             .apply(frame.sensor_values[sensor as usize] as f32)
     };
 
-    for sensor in ECU_SENSORS {
+    for sensor in EcuSensor::iter() {
         ecu_state.sensor_values[sensor as usize] = apply_sensor_value(sensor, frame);
         ecu_state.sensor_mins[sensor as usize] = apply_sensor_value(sensor, mins);
         ecu_state.sensor_maxs[sensor as usize] = apply_sensor_value(sensor, maxs);
     }
 
-    ecu_state.sensor_values[ECUSensor::ECUBoardTemp as usize] =
-        raw_board_temp_to_celsius(frame.sensor_values[ECUSensor::ECUBoardTemp as usize]);
-    ecu_state.sensor_mins[ECUSensor::ECUBoardTemp as usize] =
-        raw_board_temp_to_celsius(mins.sensor_values[ECUSensor::ECUBoardTemp as usize]);
-    ecu_state.sensor_maxs[ECUSensor::ECUBoardTemp as usize] =
-        raw_board_temp_to_celsius(maxs.sensor_values[ECUSensor::ECUBoardTemp as usize]);
+    ecu_state.sensor_values[EcuSensor::ECUBoardTemp as usize] =
+        raw_board_temp_to_celsius(frame.sensor_values[EcuSensor::ECUBoardTemp as usize]);
+    ecu_state.sensor_mins[EcuSensor::ECUBoardTemp as usize] =
+        raw_board_temp_to_celsius(mins.sensor_values[EcuSensor::ECUBoardTemp as usize]);
+    ecu_state.sensor_maxs[EcuSensor::ECUBoardTemp as usize] =
+        raw_board_temp_to_celsius(maxs.sensor_values[EcuSensor::ECUBoardTemp as usize]);
 
     ctx.shared.packet_queue.lock(|packet_queue| {
         while let Some(packet) = packet_queue.dequeue() {
@@ -89,10 +90,10 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
                     let pin_state = if state { PinState::High } else { PinState::Low };
 
                     match valve {
-                        ECUSolenoidValve::IgniterFuelMain => ecu_pins.sv1_ctrl.set_state(pin_state),
-                        ECUSolenoidValve::IgniterGOxMain => ecu_pins.sv2_ctrl.set_state(pin_state),
-                        ECUSolenoidValve::FuelPress => ecu_pins.sv3_ctrl.set_state(pin_state),
-                        ECUSolenoidValve::FuelVent => ecu_pins.sv4_ctrl.set_state(pin_state),
+                        EcuSolenoidValve::IgniterFuelMain => ecu_pins.sv1_ctrl.set_state(pin_state),
+                        EcuSolenoidValve::IgniterGOxMain => ecu_pins.sv2_ctrl.set_state(pin_state),
+                        EcuSolenoidValve::FuelPress => ecu_pins.sv3_ctrl.set_state(pin_state),
+                        EcuSolenoidValve::FuelVent => ecu_pins.sv4_ctrl.set_state(pin_state),
                     }
                 }
                 Packet::SetSparking(state) => {
@@ -117,7 +118,7 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
     igniter_fsm::update(ecu_state, ecu_pins, elapsed_time);
     fuel_tank_fsm::update(ecu_state, ecu_pins, elapsed_time);
 
-    let telem_frame = ECUTelemetryFrame {
+    let telem_frame = EcuTelemetryFrame {
         timestamp: now(),
         igniter_state: ecu_state.igniter_state,
         fuel_tank_state: ecu_state.fuel_tank_state,
@@ -133,7 +134,7 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
     };
 
     app::send_packet::spawn(
-        Packet::ECUTelemetry(telem_frame),
+        Packet::EcuTelemetry(telem_frame),
         NetworkAddress::MissionControl,
     )
     .ok();
@@ -148,14 +149,14 @@ impl ECUState {
     pub const fn default() -> Self {
         Self {
             igniter_config: IgniterConfig::default(),
-            sensor_configs: [SensorConfig::default(); MAX_ECU_SENSORS],
+            sensor_configs: [SensorConfig::default(); EcuSensor::COUNT],
             igniter_state: IgniterState::Idle,
             igniter_state_storage: IgniterStateStorage::default(),
             fuel_tank_state: FuelTankState::Idle,
             last_update_time: 0,
-            sensor_values: [0.0; MAX_ECU_SENSORS],
-            sensor_mins: [0.0; MAX_ECU_SENSORS],
-            sensor_maxs: [0.0; MAX_ECU_SENSORS],
+            sensor_values: [0.0; EcuSensor::COUNT],
+            sensor_mins: [0.0; EcuSensor::COUNT],
+            sensor_maxs: [0.0; EcuSensor::COUNT],
         }
     }
 }

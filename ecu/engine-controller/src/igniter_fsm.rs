@@ -122,7 +122,7 @@ mod tests {
 
                 assert_eq!(
                     daq_collection, dummy_collection,
-                    "Mock DAQ collection not setup correctly"
+                    "Mock DAQ collection not setup correctly for state {:?}", state,
                 );
             }
 

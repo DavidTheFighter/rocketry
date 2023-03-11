@@ -1,29 +1,29 @@
-use hal::ecu_hal::ECUDAQFrame;
+use hal::ecu_hal::EcuDAQFrame;
 
 pub struct DAQHandler {
-    first_buffer: [ECUDAQFrame; 10],
-    second_buffer: [ECUDAQFrame; 10],
+    first_buffer: [EcuDAQFrame; 10],
+    second_buffer: [EcuDAQFrame; 10],
     second_buffer_selected: bool,
     counter: usize,
-    current_values: ECUDAQFrame,
-    min_values: Option<ECUDAQFrame>,
-    max_values: Option<ECUDAQFrame>,
+    current_values: EcuDAQFrame,
+    min_values: Option<EcuDAQFrame>,
+    max_values: Option<EcuDAQFrame>,
 }
 
 impl DAQHandler {
     pub const fn new() -> Self {
         Self {
-            first_buffer: [ECUDAQFrame::default(); 10],
-            second_buffer: [ECUDAQFrame::default(); 10],
+            first_buffer: [EcuDAQFrame::default(); 10],
+            second_buffer: [EcuDAQFrame::default(); 10],
             second_buffer_selected: false,
             counter: 0,
-            current_values: ECUDAQFrame::default(),
+            current_values: EcuDAQFrame::default(),
             min_values: None,
             max_values: None,
         }
     }
 
-    pub fn add_daq_frame(&mut self, daq_frame: ECUDAQFrame) -> bool {
+    pub fn add_daq_frame(&mut self, daq_frame: EcuDAQFrame) -> bool {
         if self.second_buffer_selected {
             self.second_buffer[self.counter] = daq_frame;
         } else {
@@ -66,7 +66,7 @@ impl DAQHandler {
         false
     }
 
-    pub fn get_inactive_buffer<'a>(&'a self) -> &'a [ECUDAQFrame; 10] {
+    pub fn get_inactive_buffer<'a>(&'a self) -> &'a [EcuDAQFrame; 10] {
         if self.second_buffer_selected {
             &self.first_buffer
         } else {
@@ -74,7 +74,7 @@ impl DAQHandler {
         }
     }
 
-    pub fn get_values(&mut self) -> (ECUDAQFrame, ECUDAQFrame, ECUDAQFrame) {
+    pub fn get_values(&mut self) -> (EcuDAQFrame, EcuDAQFrame, EcuDAQFrame) {
         let mins = match self.min_values {
             Some(mins) => mins,
             None => self.current_values,

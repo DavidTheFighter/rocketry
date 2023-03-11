@@ -2,7 +2,7 @@ use core::marker::PhantomData;
 
 use hal::{
     comms_hal::Packet,
-    ecu_hal::{FuelTankState, IgniterState, ECUSensor},
+    ecu_hal::{FuelTankState, IgniterState, EcuSensor},
 };
 
 use super::{ECUControlPins, ECUState};
@@ -42,11 +42,7 @@ impl IgniterFSM<Idle> {
         match packet {
             Packet::FireIgniter => {
                 if state.fuel_tank_state == FuelTankState::Pressurized {
-                    if state.igniter_config.gox_lead {
-                        return Some(IgniterState::StartupGOxLead);
-                    } else {
-                        return Some(IgniterState::Startup);
-                    }
+                    return Some(IgniterState::Startup);
                 }
             }
             _ => {}
@@ -91,7 +87,7 @@ impl IgniterFSM<Startup> {
             // Do an abort
         }
 
-        if state.sensor_maxs[ECUSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp {
+        if state.sensor_maxs[EcuSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp {
             return Some(IgniterState::Shutdown);
         }
 
@@ -99,7 +95,7 @@ impl IgniterFSM<Startup> {
             return Some(IgniterState::Shutdown);
         }
 
-        if state.sensor_mins[ECUSensor::IgniterChamberPressure as usize] >= state.igniter_config.startup_pressure_threshold {
+        if state.sensor_mins[EcuSensor::IgniterChamberPressure as usize] >= state.igniter_config.startup_pressure_threshold {
             state.igniter_state_storage.stable_pressure_counter += delta_time;
         } else {
             state.igniter_state_storage.stable_pressure_counter = 0.0;
@@ -136,7 +132,7 @@ impl IgniterFSM<Firing> {
             // Do an abort
         }
 
-        if state.sensor_maxs[ECUSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp {
+        if state.sensor_maxs[EcuSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp {
             return Some(IgniterState::Shutdown);
         }
 
@@ -197,11 +193,9 @@ pub fn update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, delta_tim
 
     let transition = match ecu_state.igniter_state {
         IgniterState::Idle => IgniterFSM::<Idle>::update(ecu_state, ecu_pins),
-        IgniterState::StartupGOxLead => IgniterFSM::<StartupGOx>::update(ecu_state, ecu_pins),
         IgniterState::Startup => IgniterFSM::<Startup>::update(ecu_state, ecu_pins, delta_time),
         IgniterState::Firing => IgniterFSM::<Firing>::update(ecu_state, ecu_pins),
         IgniterState::Shutdown => IgniterFSM::<Shutdown>::update(ecu_state, ecu_pins),
-        IgniterState::Abort => None,
     };
 
     if let Some(new_state) = transition {
@@ -212,15 +206,11 @@ pub fn update(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, delta_tim
 pub fn on_packet(ecu_state: &mut ECUState, ecu_pins: &mut ECUControlPins, packet: &Packet) {
     let transition = match ecu_state.igniter_state {
         IgniterState::Idle => IgniterFSM::<Idle>::on_packet(ecu_state, ecu_pins, packet),
-        IgniterState::StartupGOxLead => {
-            IgniterFSM::<StartupGOx>::on_packet(ecu_state, ecu_pins, packet)
-        }
         IgniterState::Startup => {
             IgniterFSM::<Startup>::on_packet(ecu_state, ecu_pins, packet)
         }
         IgniterState::Firing => IgniterFSM::<Firing>::on_packet(ecu_state, ecu_pins, packet),
         IgniterState::Shutdown => IgniterFSM::<Shutdown>::on_packet(ecu_state, ecu_pins, packet),
-        IgniterState::Abort => None,
     };
 
     if let Some(new_state) = transition {
@@ -244,11 +234,9 @@ pub fn transition_state(
 
     match ecu_state.igniter_state {
         IgniterState::Idle => IgniterFSM::<Idle>::enter_state(ecu_state, ecu_pins),
-        IgniterState::StartupGOxLead => IgniterFSM::<StartupGOx>::enter_state(ecu_state, ecu_pins),
         IgniterState::Startup => IgniterFSM::<Startup>::enter_state(ecu_state, ecu_pins),
         IgniterState::Firing => IgniterFSM::<Firing>::enter_state(ecu_state, ecu_pins),
         IgniterState::Shutdown => IgniterFSM::<Shutdown>::enter_state(ecu_state, ecu_pins),
-        IgniterState::Abort => {}
     }
 }
 
