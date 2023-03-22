@@ -170,7 +170,7 @@ export default {
   },
   methods: {
     async generateData() {
-      const response = await fetch('http://localhost:8000/telemetry');
+      const response = await fetch('http://localhost:8000/ecu-telemetry');
       const data = await response.json();
 
       this.dataset = data;

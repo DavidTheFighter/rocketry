@@ -14,16 +14,18 @@ export default {
   data () {
     return {
       commands: {
-        "valve": (args) => this.postCommand(args),
-        "testvalve": (args) => this.postCommand(args),
-        "testspark": (args) => this.postCommand(args),
-        "fire": (args) => this.postCommand(args),
-        "press": (args) => this.postCommand(args),
-        "fp": (args) => this.commandAlias("press", args),
-        "depress": (args) => this.postCommand(args),
-        "dfp": (args) => this.commandAlias("depress", args),
-        "tankidle": (args) => this.postCommand(args),
-        "fi": (args) => this.commandAlias("tankidle", args),
+        "sv-valve": (args) => this.postCommand(args),
+        "sv" : (args) => this.commandAlias("sv-valve", args),
+        "test-sv-valve": (args) => this.postCommand(args),
+        "test-sv": (args) => this.commandAlias("test-sv-valve", args),
+        "test-spark": (args) => this.postCommand(args),
+        "test-fire-igniter": (args) => this.postCommand(args),
+        "fuel-press": (args) => this.postCommand(args),
+        "fp": (args) => this.commandAlias("fuel-press", args),
+        "fuel-depress": (args) => this.postCommand(args),
+        "dfp": (args) => this.commandAlias("fuel-depress", args),
+        "fuel-idle": (args) => this.postCommand(args),
+        "fi": (args) => this.commandAlias("fuel-idle", args),
       },
     };
   },

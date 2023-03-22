@@ -14,10 +14,11 @@ use crate::{
 
 pub const DAQ_PACKET_FRAMES: usize = 10;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum NetworkAddress {
     Broadcast,
     EngineController(u8),
+    FlightController,
     MissionControl,
 }
 

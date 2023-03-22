@@ -1,167 +1,71 @@
 mod commands;
-mod hardware;
-mod recording;
+mod comms;
+mod input;
+pub(crate) mod observer;
+mod telemetry;
 
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use commands::{depressurize, fire, pressurize, tankidle, testspark, testvalve, valve};
-use hal::comms_hal;
-use hal::ecu_hal::{ECUSensor, ECUSolenoidValve, ECUTelemetryFrame};
-use hardware::hardware_thread;
-use recording::recording_thread;
+use input::input_thread;
+use observer::ObserverHandler;
+use comms::recv::recv_thread;
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
-use rocket::serde::{json::Json, Serialize};
-use rocket::{Request, Response, State};
-
-#[derive(Debug, Serialize)]
-#[serde(crate = "rocket::serde")]
-struct HardwareState {
-    state: String,
-    in_default_state: bool,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(crate = "rocket::serde")]
-struct TelemetryData {
-    igniter_fuel_pressure: Vec<f32>,
-    igniter_gox_pressure: Vec<f32>,
-    igniter_chamber_pressure: Vec<f32>,
-    fuel_tank_pressure: Vec<f32>,
-    ecu_board_temp: Vec<f32>,
-    igniter_throat_temp: Vec<f32>,
-    igniter_fuel_valve: HardwareState,
-    igniter_gox_valve: HardwareState,
-    fuel_press_valve: HardwareState,
-    fuel_vent_valve: HardwareState,
-    sparking: HardwareState,
-    igniter_state: String,
-    tank_state: String,
-    telemetry_rate: u32,
-    cpu_utilization: u32,
-    daq_rate: u32,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(crate = "rocket::serde")]
-pub struct TelemetryQueue {
-    packets: Mutex<Vec<comms_hal::Packet>>,
-    telem_rate: AtomicU32,
-    daq_rate: AtomicU32,
-}
-
-pub struct InitData {}
+// use rocket::serde::{json::Json, Serialize};
+use rocket::{Request, Response, Rocket, Build};
+use comms::send::send_thread;
+use telemetry::{telemetry_thread, ecu_telemetry_endpoint};
 
 #[macro_use]
 extern crate rocket;
 
-#[get("/telemetry")]
-fn telemetry(packets: &State<Arc<TelemetryQueue>>) -> Json<TelemetryData> {
-    let packet_queue = packets.packets.lock().unwrap();
-    let mut telem = TelemetryData {
-        igniter_gox_pressure: Vec::new(),
-        igniter_fuel_pressure: Vec::new(),
-        igniter_chamber_pressure: Vec::new(),
-        fuel_tank_pressure: Vec::new(),
-        ecu_board_temp: Vec::new(),
-        igniter_throat_temp: Vec::new(),
-        igniter_fuel_valve: HardwareState {
-            state: String::new(),
-            in_default_state: false,
-        },
-        igniter_gox_valve: HardwareState {
-            state: String::new(),
-            in_default_state: false,
-        },
-        fuel_press_valve: HardwareState {
-            state: String::new(),
-            in_default_state: false,
-        },
-        fuel_vent_valve: HardwareState {
-            state: String::new(),
-            in_default_state: false,
-        },
-        sparking: HardwareState {
-            state: String::new(),
-            in_default_state: false,
-        },
-        igniter_state: String::new(),
-        tank_state: String::new(),
-        telemetry_rate: packets.telem_rate.load(Ordering::Relaxed),
-        daq_rate: packets.daq_rate.load(Ordering::Relaxed),
-        cpu_utilization: 0,
-    };
+static PROCESS_RUNNING: AtomicBool = AtomicBool::new(true);
 
-    let valve_state = |valve: bool, flipped: bool| -> HardwareState {
-        HardwareState {
-            state: String::from(if valve { "Open" } else { "Closed" }),
-            in_default_state: if flipped { valve } else { !valve },
-        }
-    };
+fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
+    rocket::build()
+        .attach(CORS)
+        .manage(observer_handler)
+        .mount("/", routes![
+            all_options,
+            ecu_telemetry_endpoint,
+        ])
+        .mount("/commands", commands::get_routes())
+}
 
-    if let comms_hal::Packet::ECUTelemetry(frame) = packet_queue.last().unwrap() {
-        telem.igniter_fuel_valve = valve_state(
-            frame.solenoid_valves[ECUSolenoidValve::IgniterFuelMain as usize],
-            false,
-        );
-        telem.igniter_gox_valve = valve_state(
-            frame.solenoid_valves[ECUSolenoidValve::IgniterGOxMain as usize],
-            false,
-        );
-        telem.fuel_press_valve = valve_state(
-            frame.solenoid_valves[ECUSolenoidValve::FuelPress as usize],
-            false,
-        );
-        telem.fuel_vent_valve = valve_state(
-            frame.solenoid_valves[ECUSolenoidValve::FuelVent as usize],
-            true,
-        );
-        telem.sparking = HardwareState {
-            state: String::from(if frame.sparking { "On" } else { "Off" }),
-            in_default_state: !frame.sparking,
-        };
-        telem.igniter_state = format!("{:?}", frame.igniter_state);
-        telem.tank_state = format!("{:?}", frame.fuel_tank_state);
-        telem.cpu_utilization = frame.cpu_utilization;
-    } else {
-        panic!(
-            "Got incorrect packet in last index of telemetry packet queue: {:?}",
-            packet_queue.last().unwrap()
-        );
-    }
+#[rocket::main]
+async fn main() {
+    let observer_handler = Arc::new(ObserverHandler::new());
+    let rocket = rocket(observer_handler.clone()).ignite().await.unwrap();
+    let shutdown_handle = rocket.shutdown();
+    rocket::tokio::spawn(rocket.launch());
 
-    for packet in packet_queue.iter() {
-        if let comms_hal::Packet::ECUTelemetry(frame) = packet {
-            telem
-                .igniter_fuel_pressure
-                .push(frame.sensors[ECUSensor::IgniterFuelInjectorPressure as usize]);
-            telem
-                .igniter_gox_pressure
-                .push(frame.sensors[ECUSensor::IgniterGOxInjectorPressure as usize]);
-            telem
-                .igniter_chamber_pressure
-                .push(frame.sensors[ECUSensor::IgniterChamberPressure as usize]);
-            telem
-                .fuel_tank_pressure
-                .push(frame.sensors[ECUSensor::FuelTankPressure as usize]);
-            telem
-                .ecu_board_temp
-                .push(frame.sensors[ECUSensor::ECUBoardTemp as usize]);
-            telem
-                .igniter_throat_temp
-                .push(frame.sensors[ECUSensor::IgniterThroatTemp as usize]);
-        } else {
-            panic!(
-                "Got incorrect packet in telemetry packet queue: {:?}",
-                packet_queue.last().unwrap()
-            );
-        }
-    }
+    let observer_handler_ref = observer_handler.clone();
+    thread::spawn(move || {
+        recv_thread(observer_handler_ref);
+    });
 
-    Json(telem)
+    let observer_handler_ref = observer_handler.clone();
+    thread::spawn(move || {
+        send_thread(observer_handler_ref);
+    });
+
+    let observer_handler_ref = observer_handler.clone();
+    thread::spawn(move || {
+        telemetry_thread(observer_handler_ref);
+    });
+
+    let shutdown_handle_ref = shutdown_handle.clone();
+    thread::spawn(move || {
+        input_thread(shutdown_handle_ref);
+    });
+
+    // Wait for the server to shut down before exiting
+    shutdown_handle.await;
+
+    println!("Shut down gracefully!");
 }
 
 pub struct CORS;
@@ -192,54 +96,17 @@ impl Fairing for CORS {
     }
 }
 
-#[launch]
-fn rocket() -> _ {
-    let packet_queue = Arc::new(TelemetryQueue {
-        packets: Mutex::new(vec![
-            comms_hal::Packet::ECUTelemetry(
-                ECUTelemetryFrame::default()
-            );
-            333
-        ]),
-        telem_rate: AtomicU32::new(0),
-        daq_rate: AtomicU32::new(0),
-    });
-
-    let (packet_tx, packet_rx) = mpsc::channel();
-    let (recording_tx, recording_rx) = mpsc::channel();
-
-    let packet_queue_ref = packet_queue.clone();
-    thread::spawn(move || {
-        hardware_thread(packet_queue_ref, packet_rx, recording_tx);
-    });
-
-    thread::spawn(move || {
-        recording_thread(recording_rx);
-    });
-
-    rocket::build()
-        .attach(CORS)
-        .manage(InitData {})
-        .manage(packet_queue)
-        .manage(Arc::new(Mutex::new(packet_tx)))
-        .mount("/", routes![all_options, telemetry])
-        .mount(
-            "/commands",
-            routes![
-                valve,
-                testvalve,
-                testspark,
-                pressurize,
-                depressurize,
-                tankidle,
-                fire
-            ],
-        )
-}
-
 pub fn timestamp() -> f64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("Time went backwards")
         .as_secs_f64()
+}
+
+pub(crate) fn process_is_running() -> bool {
+    PROCESS_RUNNING.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub(crate) fn stop_process() {
+    PROCESS_RUNNING.store(false, std::sync::atomic::Ordering::Relaxed)
 }
