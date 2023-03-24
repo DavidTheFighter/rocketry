@@ -37,22 +37,14 @@ pub struct ECUState {
     sensor_maxs: [f32; EcuSensor::COUNT],
 }
 
-pub struct ECUControlPins {
-    pub sv1_ctrl: PA12<Output>,
-    pub sv2_ctrl: PA11<Output>,
-    pub sv3_ctrl: PA10<Output>,
-    pub sv4_ctrl: PA9<Output>,
-    pub spark_ctrl: PwmChannel<TIM1, 0>,
-}
-
 pub fn ecu_update(mut ctx: app::ecu_update::Context) {
     app::ecu_update::spawn_after(10.millis().into()).unwrap();
+    let ecu = ctx.local.ecu_module;
 
-    let ecu_state = ctx.local.ecu_state;
-    let ecu_pins = ctx.local.ecu_control_pins;
+    ctx.local.ecu_module.update(0.01, None);
 
     let current_time = now();
-    let elapsed_time = ((current_time - ecu_state.last_update_time) as f32) * 1e-3;
+    let elapsed_time = ((current_time - ecu.driver().last_update_time) as f32) * 1e-3;
     ecu_state.last_update_time = current_time;
 
     let (frame, mins, maxs) = ctx.shared.daq.lock(|daq| {

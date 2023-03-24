@@ -2,7 +2,7 @@ use core::borrow::BorrowMut;
 
 use hal::{
     comms_hal::Packet,
-    ecu_hal::{EcuSensor, EcuSolenoidValve, FuelTankState, IgniterState},
+    ecu_hal::{EcuSensor, EcuSolenoidValve, FuelTankState, IgniterState, EcuDriver},
 };
 
 use crate::{Ecu, FiniteStateMachine};
@@ -10,7 +10,7 @@ use crate::{Ecu, FiniteStateMachine};
 use super::{Firing, FsmStorage};
 
 impl FiniteStateMachine<IgniterState> for Firing {
-    fn update(ecu: &mut Ecu, dt: f32, _packet: Option<Packet>) -> Option<IgniterState> {
+    fn update<D: EcuDriver>(ecu: &mut Ecu<D>, dt: f32, _packet: &Option<Packet>) -> Option<IgniterState> {
         Firing::update_firing_duration(ecu, dt);
 
         let invalid_fsm_dependencies = Firing::check_fsm_dependencies(ecu);
@@ -24,7 +24,7 @@ impl FiniteStateMachine<IgniterState> for Firing {
         None
     }
 
-    fn setup_state(ecu: &mut Ecu) {
+    fn setup_state<D: EcuDriver>(ecu: &mut Ecu<D>) {
         let driver = ecu.driver.borrow_mut();
 
         driver.set_solenoid_valve(EcuSolenoidValve::IgniterFuelMain, true);
@@ -38,19 +38,19 @@ impl FiniteStateMachine<IgniterState> for Firing {
 }
 
 impl Firing {
-    fn check_fsm_dependencies(ecu: &Ecu) -> bool {
+    fn check_fsm_dependencies<D: EcuDriver>(ecu: &Ecu<D>) -> bool {
         ecu.fuel_tank_state == FuelTankState::Pressurized
     }
 
-    fn update_firing_duration(ecu: &mut Ecu, dt: f32) {
+    fn update_firing_duration<D: EcuDriver>(ecu: &mut Ecu<D>, dt: f32) {
         Firing::get_storage(ecu).elapsed_time += dt;
     }
 
-    fn firing_ended(ecu: &mut Ecu) -> bool {
+    fn firing_ended<D: EcuDriver>(ecu: &mut Ecu<D>) -> bool {
         Firing::get_storage(ecu).elapsed_time >= ecu.igniter_config.firing_duration
     }
 
-    fn throat_too_hot(ecu: &mut Ecu) -> bool {
+    fn throat_too_hot<D: EcuDriver>(ecu: &mut Ecu<D>) -> bool {
         let (_, _, igniter_throat_temp_max) = ecu
             .driver
             .collect_daq_sensor_data(EcuSensor::IgniterThroatTemp);
@@ -58,7 +58,7 @@ impl Firing {
         igniter_throat_temp_max >= ecu.igniter_config.max_throat_temp
     }
 
-    fn get_storage<'a>(ecu: &'a mut Ecu) -> &'a mut Firing {
+    fn get_storage<'a, D: EcuDriver>(ecu: &'a mut Ecu<D>) -> &'a mut Firing {
         match &mut ecu.igniter_fsm_storage {
             FsmStorage::Firing(storage) => storage,
             _ => unreachable!(),

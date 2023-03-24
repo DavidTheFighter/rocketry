@@ -11,13 +11,16 @@ mod shutdown;
 mod startup;
 
 pub struct Idle;
+
 pub struct Startup {
     startup_elapsed_time: f32,
     stable_pressure_time: f32,
 }
+
 pub struct Firing {
     elapsed_time: f32,
 }
+
 pub struct Shutdown {
     elapsed_time: f32,
 }
@@ -37,8 +40,14 @@ pub const IGNITER_SENSORS: [EcuSensor; 4] = [
     EcuSensor::IgniterThroatTemp,
 ];
 
-impl<'a> Ecu<'a> {
-    pub fn update_igniter_fsm(&mut self, dt: f32, packet: Option<Packet>) {
+impl<'a, D: EcuDriver> Ecu<'a, D> {
+    pub fn update_igniter_fsm(&mut self, dt: f32, packet: &Option<Packet>) {
+        if let Some(packet) = packet {
+            if let Packet::ConfigureIgniter(config) = packet {
+                self.igniter_config = config.clone();
+            }
+        }
+
         let new_state = match self.igniter_state {
             IgniterState::Idle => Idle::update(self, dt, packet),
             IgniterState::Startup => Startup::update(self, dt, packet),
@@ -122,7 +131,8 @@ mod tests {
 
                 assert_eq!(
                     daq_collection, dummy_collection,
-                    "Mock DAQ collection not setup correctly for state {:?}", state,
+                    "Mock DAQ collection not setup correctly for state {:?}",
+                    state,
                 );
             }
 

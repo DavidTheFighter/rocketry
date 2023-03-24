@@ -16,6 +16,9 @@ strum = { version = "0.24", default-features = false, features = ["derive"] }
 [dependencies.hal]
 path = "../../../hal"
 
+[dependencies.engine-controller]
+path = "../../engine-controller"
+
 [dependencies.stm32f4]
 version = "0.15.1"
 features = ["rt", "stm32f407"]

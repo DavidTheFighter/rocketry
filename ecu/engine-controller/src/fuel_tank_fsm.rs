@@ -2,7 +2,7 @@ use core::borrow::BorrowMut;
 
 use hal::{
     comms_hal::Packet,
-    ecu_hal::{EcuSolenoidValve, FuelTankState},
+    ecu_hal::{EcuSolenoidValve, FuelTankState, EcuDriver},
 };
 
 use crate::{Ecu, FiniteStateMachine};
@@ -12,15 +12,15 @@ struct Pressurized;
 struct Depressurized;
 
 impl FiniteStateMachine<FuelTankState> for Idle {
-    fn update(_ecu: &mut Ecu, _dt: f32, packet: Option<Packet>) -> Option<FuelTankState> {
+    fn update<D: EcuDriver>(_ecu: &mut Ecu<D>, _dt: f32, packet: &Option<Packet>) -> Option<FuelTankState> {
         if let Some(Packet::TransitionFuelTankState(new_state)) = packet {
-            Some(new_state)
+            Some(*new_state)
         } else {
             None
         }
     }
 
-    fn setup_state(ecu: &mut Ecu) {
+    fn setup_state<D: EcuDriver>(ecu: &mut Ecu<D>) {
         let driver = ecu.driver.borrow_mut();
 
         driver.set_solenoid_valve(EcuSolenoidValve::FuelPress, false);
@@ -29,15 +29,15 @@ impl FiniteStateMachine<FuelTankState> for Idle {
 }
 
 impl FiniteStateMachine<FuelTankState> for Depressurized {
-    fn update(_ecu: &mut Ecu, _dt: f32, packet: Option<Packet>) -> Option<FuelTankState> {
+    fn update<D: EcuDriver>(_ecu: &mut Ecu<D>, _dt: f32, packet: &Option<Packet>) -> Option<FuelTankState> {
         if let Some(Packet::TransitionFuelTankState(new_state)) = packet {
-            Some(new_state)
+            Some(*new_state)
         } else {
             None
         }
     }
 
-    fn setup_state(ecu: &mut Ecu) {
+    fn setup_state<D: EcuDriver>(ecu: &mut Ecu<D>) {
         let driver = ecu.driver.borrow_mut();
 
         driver.set_solenoid_valve(EcuSolenoidValve::FuelPress, true);
@@ -46,15 +46,15 @@ impl FiniteStateMachine<FuelTankState> for Depressurized {
 }
 
 impl FiniteStateMachine<FuelTankState> for Pressurized {
-    fn update(_ecu: &mut Ecu, _dt: f32, packet: Option<Packet>) -> Option<FuelTankState> {
+    fn update<D: EcuDriver>(_ecu: &mut Ecu<D>, _dt: f32, packet: &Option<Packet>) -> Option<FuelTankState> {
         if let Some(Packet::TransitionFuelTankState(new_state)) = packet {
-            Some(new_state)
+            Some(*new_state)
         } else {
             None
         }
     }
 
-    fn setup_state(ecu: &mut Ecu) {
+    fn setup_state<D: EcuDriver>(ecu: &mut Ecu<D>) {
         let driver = ecu.driver.borrow_mut();
 
         driver.set_solenoid_valve(EcuSolenoidValve::FuelPress, false);
@@ -62,8 +62,8 @@ impl FiniteStateMachine<FuelTankState> for Pressurized {
     }
 }
 
-impl<'a> Ecu<'a> {
-    pub(crate) fn update_fuel_tank_fsm(&mut self, dt: f32, packet: Option<Packet>) {
+impl<'a, D: EcuDriver> Ecu<'a, D> {
+    pub(crate) fn update_fuel_tank_fsm(&mut self, dt: f32, packet: &Option<Packet>) {
         let new_state = match self.fuel_tank_state {
             FuelTankState::Idle => Idle::update(self, dt, packet),
             FuelTankState::Depressurized => Depressurized::update(self, dt, packet),

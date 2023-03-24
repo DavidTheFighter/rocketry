@@ -1,9 +1,9 @@
 #![no_main]
 #![no_std]
 
+pub mod ecu_driver;
 mod comms;
 mod daq;
-mod ecu;
 mod peripherals;
 
 use core::panic::PanicInfo;
@@ -17,8 +17,8 @@ pub(crate) fn now() -> u64 {
 #[rtic::app(device = stm32f4xx_hal::pac, dispatchers = [EXTI0, EXTI1, EXTI2])]
 mod app {
     use crate::comms::{eth_interrupt, send_packet};
-    use crate::ecu::{ecu_init, ecu_update, ECUControlPins, ECUState};
     use crate::peripherals::{adc_dma, ADCStorage};
+    use crate::ecu_driver::{Stm32F407EcuDriver, EcuControlPins, ecu_update};
     use core::{
         mem::MaybeUninit,
         sync::atomic::{compiler_fence, AtomicU32, Ordering},
@@ -55,10 +55,9 @@ mod app {
     #[local]
     struct Local {
         blue_led: PE5<Output>,
-        ecu_control_pins: ECUControlPins,
         adc: ADCStorage,
-        ecu_state: ECUState,
         dwt: DWT,
+        ecu_module: engine_controller::Ecu<'static, Stm32F407EcuDriver>,
     }
 
     #[shared]
@@ -79,7 +78,7 @@ mod app {
     extern "Rust" {
         #[task(
             shared = [daq, packet_queue, &cpu_utilization],
-            local = [ecu_state, ecu_control_pins],
+            local = [ecu_module],
             capacity = 8,
             priority = 7,
         )]
@@ -117,6 +116,7 @@ mod app {
         tx_ring: [TxRingEntry; 4] = [TX_RING_ENTRY_DEFAULT; 4],
         net_storage: NetworkingStorage = NetworkingStorage::new(),
         dma: MaybeUninit<EthernetDMA<'static, 'static>> = MaybeUninit::uninit(),
+        ecu_driver: MaybeUninit<Stm32F407EcuDriver> = MaybeUninit::uninit(),
     ])]
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let mut core = ctx.core;
@@ -160,16 +160,13 @@ mod app {
         spark_ctrl.disable();
         spark_ctrl.set_duty(0);
 
-        let mut ecu_state = ECUState::default();
-        let mut ecu_control_pins = ECUControlPins {
+        let ecu_control_pins = EcuControlPins {
             sv1_ctrl,
             sv2_ctrl,
             sv3_ctrl,
             sv4_ctrl,
             spark_ctrl,
         };
-
-        ecu_init(&mut ecu_state, &mut ecu_control_pins);
 
         let dma2 = StreamsTuple::new(p.DMA2);
 
@@ -251,6 +248,10 @@ mod app {
 
         send_packet::spawn(Packet::DeviceBooted, NetworkAddress::MissionControl).unwrap();
 
+        let ecu_driver = ctx.local.ecu_driver.write(
+            Stm32F407EcuDriver::new(ecu_control_pins),
+        );
+
         (
             Shared {
                 interface,
@@ -261,7 +262,6 @@ mod app {
             },
             Local {
                 blue_led,
-                ecu_control_pins,
                 adc: ADCStorage {
                     adc1_transfer,
                     adc1_buffer: adc1_buffer2,
@@ -270,8 +270,8 @@ mod app {
                     adc3_transfer,
                     adc3_buffer: adc3_buffer2,
                 },
-                ecu_state,
                 dwt: core.DWT,
+                ecu_module: engine_controller::Ecu::new(ecu_driver),
             },
             init::Monotonics(mono),
         )
@@ -287,6 +287,7 @@ mod app {
                 let before = ctx.local.dwt.cyccnt.read();
                 compiler_fence(Ordering::SeqCst);
                 rtic::export::wfi();
+                compiler_fence(Ordering::SeqCst);
                 let after = ctx.local.dwt.cyccnt.read();
 
                 let elapsed = after.wrapping_sub(before);

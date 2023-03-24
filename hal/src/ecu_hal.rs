@@ -118,8 +118,8 @@ pub trait EcuDriver {
 
     fn generate_telemetry_frame(&self) -> EcuTelemetryFrame;
 
-    /// Collects the data the DAQ has measured since the last time this was called. This is meant
-    /// so that the DAQ can run independently of the ECU loop. Each call to this resets the stored
+    /// Collects the data the DAQ has measured since the last update loop. This is meant
+    /// so that the DAQ can run independently of the ECU loop. Each update resets the stored
     /// min/max values for this particular sensor so the DAQ can update them until the next ECU loop.
     ///
     /// Returns the current sensor value, minimum value since the last call, and the maximum
