@@ -109,7 +109,7 @@ pub fn test_solenoid_valve(
         let observer_handler_clone = observer_handler.inner().clone();
         thread::spawn(move || {
             thread::sleep(Duration::from_millis(1000));
-            observer_handler_clone.notify_global(ObserverEvent::SendPacket {
+            observer_handler_clone.notify(ObserverEvent::SendPacket {
                 address: NetworkAddress::EngineController(0),
                 packet: Packet::SetSolenoidValve { valve, state: false },
             });
@@ -131,7 +131,7 @@ pub fn test_spark(observer_handler: &State<Arc<ObserverHandler>>) -> Json<Comman
         let observer_handler_clone = observer_handler.inner().clone();
         thread::spawn(move || {
             thread::sleep(Duration::from_millis(1000));
-            observer_handler_clone.notify_global(ObserverEvent::SendPacket {
+            observer_handler_clone.notify(ObserverEvent::SendPacket {
                 address: NetworkAddress::EngineController(0),
                 packet: Packet::SetSparking(false),
             });

@@ -40,8 +40,9 @@ static LATEST_TELEMETRY_STATE: Mutex<Option<TelemetryData>> = Mutex::new(None);
 
 struct TelemetryHandler {
     observer_handler: Arc<ObserverHandler>,
+    last_ecu_telem_frame: EcuTelemetryFrame,
     packet_queue: Vec<EcuTelemetryFrame>,
-    data_skip_count: u32,
+    data_refresh_time: f64,
     telemetry_rate_record_time: f64,
     current_telemetry_rate_hz: u32,
     current_daq_rate_hz: u32,
@@ -51,8 +52,9 @@ impl TelemetryHandler {
     pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
         Self {
             observer_handler,
+            last_ecu_telem_frame: EcuTelemetryFrame::default(),
             packet_queue: vec![EcuTelemetryFrame::default(); 333],
-            data_skip_count: 3,
+            data_refresh_time: 0.0333333334,
             telemetry_rate_record_time: 0.25,
             current_telemetry_rate_hz: 0,
             current_daq_rate_hz: 0,
@@ -60,26 +62,17 @@ impl TelemetryHandler {
     }
 
     pub fn run(&mut self) {
-        let mut data_skip_counter = 0;
         let mut telemetry_counter = 0;
         let mut daq_counter = 0;
+        let mut last_refresh_time = timestamp();
         let mut last_rate_record_time = timestamp();
 
         while process_is_running() {
             if let Some(packet) = self.get_packet() {
                 match packet {
                     Packet::EcuTelemetry(frame) => {
-                        if data_skip_counter >= self.data_skip_count {
-                            data_skip_counter = 0;
-
-                            self.packet_queue.drain(0..1);
-                            self.packet_queue.push(frame);
-
-                            self.update_telemetry_queue();
-                        }
-
+                        self.last_ecu_telem_frame = frame;
                         telemetry_counter += 1;
-                        data_skip_counter += 1;
                     },
                     Packet::EcuDAQ(_) => {
                         daq_counter += DAQ_PACKET_FRAMES;
@@ -89,6 +82,16 @@ impl TelemetryHandler {
             }
 
             let now = timestamp();
+            if now - last_refresh_time >= self.data_refresh_time {
+                last_refresh_time = now;
+
+                self.packet_queue.drain(0..1);
+                self.packet_queue.push(self.last_ecu_telem_frame.clone());
+                self.last_ecu_telem_frame = EcuTelemetryFrame::default();
+
+                self.update_telemetry_queue();
+            }
+
             if now - last_rate_record_time >= self.telemetry_rate_record_time {
                 last_rate_record_time = now;
 
@@ -169,10 +172,10 @@ impl TelemetryHandler {
     }
 
     fn get_packet(&self) -> Option<Packet> {
-        let timeout = Duration::from_millis(10);
+        let timeout = Duration::from_millis(1);
 
         if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
-            if let ObserverEvent::PacketReceived(packet) = event {
+            if let ObserverEvent::PacketReceived { address: _, packet } = event {
                 return Some(packet);
             }
         }

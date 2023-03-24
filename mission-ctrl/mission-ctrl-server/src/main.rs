@@ -1,5 +1,6 @@
 mod commands;
 mod comms;
+mod config;
 mod input;
 pub(crate) mod observer;
 mod telemetry;
@@ -7,7 +8,7 @@ mod telemetry;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::thread;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 use input::input_thread;
 use observer::ObserverHandler;
@@ -18,6 +19,8 @@ use rocket::http::Header;
 use rocket::{Request, Response, Rocket, Build};
 use comms::send::send_thread;
 use telemetry::{telemetry_thread, ecu_telemetry_endpoint};
+
+use crate::config::config_thread;
 
 #[macro_use]
 extern crate rocket;
@@ -52,9 +55,19 @@ async fn main() {
         send_thread(observer_handler_ref);
     });
 
+    // Ensure that the recv and send threads are running so we can send and receive data
+    while observer_handler.get_num_observers() < 2 {
+        thread::sleep(Duration::from_millis(10));
+    }
+
     let observer_handler_ref = observer_handler.clone();
     thread::spawn(move || {
         telemetry_thread(observer_handler_ref);
+    });
+
+    let observer_handler_ref = observer_handler.clone();
+    thread::spawn(move || {
+        config_thread(observer_handler_ref);
     });
 
     let shutdown_handle_ref = shutdown_handle.clone();

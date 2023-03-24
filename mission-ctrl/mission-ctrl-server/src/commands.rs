@@ -47,7 +47,6 @@ fn send_command(
     address: NetworkAddress,
     packet: Packet,
 ) -> Json<CommandResponse> {
-    observer_handler.register_observer_thread();
     let event_id = observer_handler.notify(ObserverEvent::SendPacket{
         address,
         packet: packet.clone(),
