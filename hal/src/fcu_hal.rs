@@ -1,4 +1,6 @@
+use mint::{Quaternion, Vector3};
 use serde::{Serialize, Deserialize};
+use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
 
 use crate::comms_hal::{Packet, NetworkAddress};
@@ -12,15 +14,54 @@ pub enum VehicleState {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
-pub enum PyroChannel {
-    PyroChannel0 = 0,
-    PyroChannel1 = 1,
-    PyroChannel2 = 2,
-    PyroChannel3 = 3,
+pub enum OutputChannel {
+    OutputChannel0 = 0,
+    OutputChannel1 = 1,
+    OutputChannel2 = 2,
+    OutputChannel3 = 3,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
+pub enum PwmChannel {
+    PwmChannel0 = 0,
+    PwmChannel1 = 1,
+    PwmChannel2 = 2,
+    PwmChannel3 = 3,
+    PwmChannel4 = 4,
+    PwmChannel5 = 5,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FcuTelemetryFrame {
+    pub timestamp: u64,
+    pub vehicle_state: VehicleState,
+    pub position: Vector3<f32>,
+    pub velocity: Vector3<f32>,
+    pub acceleration: Vector3<f32>,
+    pub orientation: Quaternion<f32>,
+    pub angular_velocity: Vector3<f32>,
+    pub angular_acceleration: Vector3<f32>,
+    pub output_channels: [bool; OutputChannel::COUNT],
+    pub pwm_channels: [f32; PwmChannel::COUNT],
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FcuConfig {
+
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FlightConfig {
+
 }
 
 pub trait FcuDriver {
-    fn set_pyro_channel(&mut self, channel: PyroChannel, state: bool);
+    fn set_output_channel(&mut self, channel: OutputChannel, state: bool);
+    fn set_pwm_channel(&mut self, channel: PwmChannel, duty_cycle: f32);
+
+    fn get_output_channel(&self, channel: OutputChannel) -> bool;
+    fn get_output_channel_continuity(&self, channel: OutputChannel) -> bool;
+    fn get_pwm_channel(&self, channel: PwmChannel) -> f32;
 
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
 }

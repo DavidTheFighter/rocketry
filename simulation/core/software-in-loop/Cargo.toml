@@ -1,0 +1,16 @@
+[package]
+name = "software-in-loop"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "software_in_loop"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+hal = { path = "../../../hal" }
+flight-controller = { path = "../../../fcu/flight-controller" }
+pyo3 = { version = "0.18.2", features = ["extension-module"] }
+static-alloc = "0.2.4"
+mint = "0.5"

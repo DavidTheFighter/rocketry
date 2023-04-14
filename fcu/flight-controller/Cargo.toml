@@ -6,7 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-strum = "0.24"
+strum = { version = "0.24", default-features = false, features = ["derive"] }
+generic-array = "0.14"
+nalgebra = { version = "0.32", default-features = false, features = ["libm"] }
+num-traits = { version = "0.2", default-features = false, features = ["libm"] }
+libm = "0.2"
+mint = "0.5.9"
 
 [dependencies.hal]
 path = "../../hal"

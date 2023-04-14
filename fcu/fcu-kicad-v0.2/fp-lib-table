@@ -1,0 +1,5 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "fcu-kicad-v0")(type "KiCad")(uri "${KIPRJMOD}/fcu-kicad-v0.pretty")(options "")(descr ""))
+  (lib (name "CustomFootprints")(type "KiCad")(uri "/home/david/AData/Projects/rocketry/kicad/CustomFootprints.pretty")(options "")(descr ""))
+)

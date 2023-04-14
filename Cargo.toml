@@ -4,8 +4,10 @@ members = [
     "ecu/engine-controller",
     "fcu/flight-controller",
     "mission-ctrl/mission-ctrl-server",
+    "simulation/core/software-in-loop",
 ]
 
 exclude = [
     "ecu/targets/stm32f407",
+    "fcu/targets/fcu-stm32f407",
 ]

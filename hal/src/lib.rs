@@ -6,6 +6,7 @@ pub mod ecu_hal;
 pub mod fcu_hal;
 
 pub mod ecu_mock;
+pub mod fcu_mock;
 
 use serde::{Deserialize, Serialize};
 

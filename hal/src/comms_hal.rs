@@ -58,6 +58,14 @@ pub enum Packet {
 }
 
 impl Packet {
+    pub fn allow_drop(&self) -> bool {
+        match self {
+            Packet::EcuTelemetry(_) => true,
+            Packet::EcuDAQ(_) => true,
+            _ => false,
+        }
+    }
+
     /// Serializes this packet and writes it to the given buffer.
     ///
     /// # Errors
