@@ -27,6 +27,8 @@ impl RecievingThread {
             .set_read_timeout(Some(Duration::from_millis(10)))
             .expect("recv_thread: Failed to set socket timeout");
 
+        println!("recv_thread: Listening on port {}", RECV_PORT);
+
         while process_is_running() {
             match socket.recv_from(&mut buffer) {
                 Ok((size, saddress)) => {

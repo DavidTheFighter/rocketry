@@ -1,6 +1,6 @@
 <template>
-    <Line :data="chartData" :options="chartOptions" />
-  </template>
+  <Line :data="chartData" :options="chartOptions" />
+</template>
   
   <script>
   import { Line } from 'vue-chartjs';
@@ -61,7 +61,15 @@
       realtimeNumberRefreshMillis: {
         type: Number,
         default: 250,
-      }
+      },
+      numXTicks: {
+        type: Number,
+        default: 10.0,
+      },
+      scaleXTicks: {
+        type: Number,
+        default: 1.0,
+      },
     },
     computed: {
       chartData() {
@@ -156,10 +164,10 @@
                 minRotation: 0,
                 maxRotation: 0,
                 autoSkip: false,
-                sampleSize: 11,
                 callback: (_value, index, ticks) => {
-                  if (Math.fmod(index, (ticks.length - 1.0) / 10.0) < 1.0) {
-                    return Math.floor(index / ((ticks.length - 1) / 10.0)) - 10.0;
+                  if (Math.fmod(index, (ticks.length - 1.0) / this.numXTicks) < 1.0) {
+                    const val =  Math.floor(index / ((ticks.length - 1) / this.numXTicks));
+                    return (val - this.numXTicks) * this.scaleXTicks;
                   } else {
                     return null;
                   }

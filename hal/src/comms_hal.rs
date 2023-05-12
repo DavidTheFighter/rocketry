@@ -9,7 +9,7 @@ use crate::{
     ecu_hal::{
         EcuDAQFrame, EcuTelemetryFrame, EcuSensor, EcuSolenoidValve, FuelTankState, IgniterConfig,
     },
-    SensorConfig,
+    SensorConfig, fcu_hal::FcuTelemetryFrame,
 };
 
 pub const DAQ_PACKET_FRAMES: usize = 10;
@@ -53,6 +53,7 @@ pub enum Packet {
     FireIgniter,
 
     // -- Data -- //
+    FcuTelemetry(FcuTelemetryFrame),
     EcuTelemetry(EcuTelemetryFrame),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
 }

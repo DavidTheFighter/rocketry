@@ -3,7 +3,8 @@ mod comms;
 mod config;
 mod input;
 pub(crate) mod observer;
-mod telemetry;
+mod ecu_telemetry;
+mod fcu_telemetry;
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -18,7 +19,8 @@ use rocket::http::Header;
 // use rocket::serde::{json::Json, Serialize};
 use rocket::{Request, Response, Rocket, Build};
 use comms::send::send_thread;
-use telemetry::{telemetry_thread, ecu_telemetry_endpoint};
+use ecu_telemetry::{telemetry_thread, ecu_telemetry_endpoint};
+use fcu_telemetry::{fcu_telemetry_thread, fcu_telemetry_endpoint};
 
 use crate::config::config_thread;
 
@@ -34,6 +36,7 @@ fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
         .mount("/", routes![
             all_options,
             ecu_telemetry_endpoint,
+            fcu_telemetry_endpoint,
         ])
         .mount("/commands", commands::get_routes())
 }
@@ -63,6 +66,11 @@ async fn main() {
     let observer_handler_ref = observer_handler.clone();
     thread::spawn(move || {
         telemetry_thread(observer_handler_ref);
+    });
+
+    let observer_handler_ref = observer_handler.clone();
+    thread::spawn(move || {
+        fcu_telemetry_thread(observer_handler_ref);
     });
 
     let observer_handler_ref = observer_handler.clone();

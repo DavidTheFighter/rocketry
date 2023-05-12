@@ -14,3 +14,5 @@ flight-controller = { path = "../../../fcu/flight-controller" }
 pyo3 = { version = "0.18.2", features = ["extension-module"] }
 static-alloc = "0.2.4"
 mint = "0.5"
+strum = { version = "0.24", default-features = false, features = ["derive"] }
+strum_macros = "0.24"

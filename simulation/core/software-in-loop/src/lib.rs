@@ -1,11 +1,14 @@
+use driver::FcuDriverSim;
 use flight_controller::Fcu;
-use hal::{fcu_mock::FcuDriverMock};
+use hal::comms_hal::{Packet, NetworkAddress};
+use hal::fcu_hal::FcuTelemetryFrame;
 use mint::Vector3;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
-use static_alloc::Bump;
 
-static mut MOCK: FcuDriverMock = FcuDriverMock::new();
+pub mod driver;
+
+static mut MOCK: FcuDriverSim = FcuDriverSim::new();
 
 #[pyclass]
 pub struct SoftwareInLoop {
@@ -19,6 +22,7 @@ impl SoftwareInLoop {
     #[new]
     pub fn new() -> Self {
         let mock = unsafe { &mut MOCK };
+        mock.init();
         Self {
             name: "FCU".to_string(),
             fcu: Fcu::new(mock),
@@ -26,7 +30,7 @@ impl SoftwareInLoop {
     }
 
     pub fn update(&mut self, dt: f32) {
-        // something
+        self.fcu.update(dt, None);
     }
 
     pub fn update_acceleration(&mut self, accel: &PyList) {
@@ -41,6 +45,18 @@ impl SoftwareInLoop {
         });
     }
 
+    pub fn update_angular_velocity(&mut self, ang_vel: &PyList) {
+        if ang_vel.len() != 3 {
+            panic!("angular velocity must be a list of length 3");
+        }
+
+        self.fcu.update_angular_velocity(Vector3 {
+            x: ang_vel.get_item(0).unwrap().extract::<f32>().unwrap(),
+            y: ang_vel.get_item(1).unwrap().extract::<f32>().unwrap(),
+            z: ang_vel.get_item(2).unwrap().extract::<f32>().unwrap(),
+        });
+    }
+
     pub fn update_gps(&mut self, gps: &PyList) {
         if gps.len() != 3 {
             panic!("gps must be a list of length 3");
@@ -51,6 +67,13 @@ impl SoftwareInLoop {
             y: gps.get_item(1).unwrap().extract::<f32>().unwrap(),
             z: gps.get_item(2).unwrap().extract::<f32>().unwrap(),
         });
+    }
+
+    pub fn reset_telemetry(&mut self) {
+        self.fcu.driver.send_packet(
+            Packet::FcuTelemetry(FcuTelemetryFrame::default()),
+            NetworkAddress::MissionControl,
+        );
     }
 }
 

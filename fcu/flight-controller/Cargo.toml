@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 strum = { version = "0.24", default-features = false, features = ["derive"] }
+strum_macros = "0.24"
 generic-array = "0.14"
 nalgebra = { version = "0.32", default-features = false, features = ["libm"] }
 num-traits = { version = "0.2", default-features = false, features = ["libm"] }

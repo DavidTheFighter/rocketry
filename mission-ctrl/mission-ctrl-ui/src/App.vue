@@ -1,10 +1,12 @@
 <script>
 import IgniterPage from './pages/IgniterPage.vue'
 import NotFound from './pages/NotFound.vue'
+import RocketPage from './pages/RocketPage.vue'
 
 const routes = {
   '/': IgniterPage,
   '/igniter': IgniterPage,
+  '/rocket': RocketPage,
   '/notfound': NotFound,
 };
 

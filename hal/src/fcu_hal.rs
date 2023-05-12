@@ -43,6 +43,7 @@ pub struct FcuTelemetryFrame {
     pub angular_acceleration: Vector3<f32>,
     pub output_channels: [bool; OutputChannel::COUNT],
     pub pwm_channels: [f32; PwmChannel::COUNT],
+    pub battery_voltage: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,4 +65,22 @@ pub trait FcuDriver {
     fn get_pwm_channel(&self, channel: PwmChannel) -> f32;
 
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
+}
+
+impl FcuTelemetryFrame {
+    pub const fn default() -> Self {
+        Self {
+            timestamp: 0,
+            vehicle_state: VehicleState::Idle,
+            position: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            orientation: Quaternion { s: 0.0, v: Vector3 { x: 0.0, y: 0.0, z: 0.0 } },
+            angular_velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            angular_acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            output_channels: [false; OutputChannel::COUNT],
+            pwm_channels: [0.0; PwmChannel::COUNT],
+            battery_voltage: 0.0,
+        }
+    }
 }

@@ -1,3 +1,5 @@
+FCU_UPDATE_RATE = 0.01 # Seconds
+
 VEHICLE_MASS    = 1 # Kilograms
 
 THRUST          = 25 # Newtons
