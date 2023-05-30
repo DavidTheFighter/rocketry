@@ -1,4 +1,4 @@
-#![cfg_attr(all(not(test), arcref), no_std)]
+#![cfg_attr(not(test), no_std)]
 #![deny(unsafe_code)]
 
 pub mod kalman;
@@ -6,6 +6,8 @@ pub mod kalman;
 use hal::{fcu_hal::{FcuDriver, VehicleState, FcuTelemetryFrame, OutputChannel, PwmChannel}, comms_hal::{Packet, NetworkAddress}};
 use mint::{Vector3, Quaternion};
 use strum::EnumCount;
+
+use num_traits::float::Float;
 
 pub struct Fcu<'a> {
     pub vehicle_state: VehicleState,
@@ -15,7 +17,9 @@ pub struct Fcu<'a> {
     pub acceleration: Vector3<f32>,
     pub orientation: Quaternion<f32>,
     pub angular_velocity: Vector3<f32>,
+    pub mangetic_field: Vector3<f32>,
     time_since_last_telemetry: f32,
+    data_logged_bytes: u32,
 }
 
 impl<'a> Fcu<'a> {
@@ -28,48 +32,72 @@ impl<'a> Fcu<'a> {
             acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             orientation: Quaternion { s: 1.0, v: Vector3 { x: 0.0, y: 0.0, z: 0.0 } },
             angular_velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            mangetic_field: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             time_since_last_telemetry: 0.0,
+            data_logged_bytes: 0,
         }
     }
 
-    pub fn update(&mut self, dt: f32, _packet: Option<Packet>) {
-        self.velocity.x += self.acceleration.x * dt;
-        self.velocity.y += self.acceleration.y * dt;
-        self.velocity.z += self.acceleration.z * dt;
-        self.position.x += self.velocity.x * dt;
-        self.position.y += self.velocity.y * dt;
-        self.position.z += self.velocity.z * dt;
+    pub fn update(&mut self, dt: f32, packet: Option<Packet>) {
+        if dt > 1e-4 {
+            self.velocity.x += self.acceleration.x * dt;
+            self.velocity.y += self.acceleration.y * dt;
+            self.velocity.z += self.acceleration.z * dt;
+            self.position.x += self.velocity.x * dt;
+            self.position.y += self.velocity.y * dt;
+            self.position.z += self.velocity.z * dt;
 
-        if self.vehicle_state == VehicleState::Idle && self.acceleration.y > 1e-1 {
-            self.vehicle_state = VehicleState::Ascent;
-        } else if self.vehicle_state == VehicleState::Ascent && self.velocity.y < 0.0 {
-            self.vehicle_state = VehicleState::Descent;
+            if self.vehicle_state == VehicleState::Idle && self.acceleration.y > 1e-1 {
+                self.vehicle_state = VehicleState::Ascent;
+            } else if self.vehicle_state == VehicleState::Ascent && self.velocity.y < 0.0 {
+                self.vehicle_state = VehicleState::Descent;
+            }
+
+            self.timestep_orientation(dt);
+
+            self.time_since_last_telemetry += dt;
+            if self.time_since_last_telemetry >= 0.02 {
+                let telem_frame = FcuTelemetryFrame {
+                    timestamp: 0,
+                    vehicle_state: self.vehicle_state,
+                    position: self.position,
+                    velocity: self.velocity,
+                    acceleration: self.acceleration,
+                    orientation: self.orientation,
+                    angular_velocity: self.angular_velocity,
+                    angular_acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+                    magnetometer: self.mangetic_field,
+                    output_channels: [false; OutputChannel::COUNT],
+                    pwm_channels: [0.0; PwmChannel::COUNT],
+                    battery_voltage: 11.1169875,
+                    data_logged_bytes: self.data_logged_bytes,
+                };
+
+                self.driver.send_packet(
+                    Packet::FcuTelemetry(telem_frame),
+                    NetworkAddress::MissionControl,
+                );
+                self.time_since_last_telemetry = 0.0;
+            }
         }
 
-        self.timestep_orientation(dt);
-
-        self.time_since_last_telemetry += dt;
-
-        if self.time_since_last_telemetry >= 0.02 {
-            let telem_frame = FcuTelemetryFrame {
-                timestamp: 0,
-                vehicle_state: self.vehicle_state,
-                position: self.position,
-                velocity: self.velocity,
-                acceleration: self.acceleration,
-                orientation: self.orientation,
-                angular_velocity: self.angular_velocity,
-                angular_acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-                output_channels: [false; OutputChannel::COUNT],
-                pwm_channels: [0.0; PwmChannel::COUNT],
-                battery_voltage: 11.1169875,
-            };
-
-            self.driver.send_packet(
-                Packet::FcuTelemetry(telem_frame),
-                NetworkAddress::MissionControl,
-            );
-            self.time_since_last_telemetry = 0.0;
+        if let Some(packet) = packet {
+            match packet {
+                Packet::EraseDataLogFlash => {
+                    self.driver.erase_flash_chip();
+                },
+                Packet::EnableDataLogging(state) => {
+                    if state {
+                        self.driver.enable_logging_to_flash();
+                    } else {
+                        self.driver.disable_logging_to_flash();
+                    }
+                },
+                Packet::RetrieveDataLogPage(addr) => {
+                    self.driver.retrieve_log_flash_page(addr);
+                },
+                _ => {}
+            }
         }
     }
 
@@ -82,7 +110,7 @@ impl<'a> Fcu<'a> {
     }
 
     pub fn update_magnetic_field(&mut self, magnetic_field: Vector3<f32>) {
-        // something
+        self.mangetic_field = magnetic_field;
     }
 
     pub fn update_barometric_pressure(&mut self, barometric_pressure: f32) {
@@ -91,6 +119,10 @@ impl<'a> Fcu<'a> {
 
     pub fn update_gps(&mut self, gps: Vector3<f32>) {
         // something
+    }
+
+    pub fn update_data_logged_bytes(&mut self, bytes: u32) {
+        self.data_logged_bytes = bytes;
     }
 
     fn timestep_orientation(&mut self, dt: f32) {

@@ -9,7 +9,7 @@ use crate::{
     ecu_hal::{
         EcuDAQFrame, EcuTelemetryFrame, EcuSensor, EcuSolenoidValve, FuelTankState, IgniterConfig,
     },
-    SensorConfig, fcu_hal::FcuTelemetryFrame,
+    SensorConfig, fcu_hal::FcuTelemetryFrame, fcu_log::DataLogBuffer,
 };
 
 pub const DAQ_PACKET_FRAMES: usize = 10;
@@ -47,6 +47,9 @@ pub enum Packet {
         config: SensorConfig,
     },
     ConfigureIgniter(IgniterConfig),
+    EraseDataLogFlash,
+    EnableDataLogging(bool),
+    RetrieveDataLogPage(u32),
 
     // -- Commands -- //,
     TransitionFuelTankState(FuelTankState),
@@ -56,6 +59,10 @@ pub enum Packet {
     FcuTelemetry(FcuTelemetryFrame),
     EcuTelemetry(EcuTelemetryFrame),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
+    // FcuDataLogPage(DataLogBuffer),
+
+    // -- Misc -- //
+    DoNothing,
 }
 
 impl Packet {

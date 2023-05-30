@@ -1,4 +1,5 @@
 pub mod components;
+pub mod logging;
 pub mod sequence;
 pub mod tanks;
 
@@ -17,6 +18,7 @@ use rocket::{
 
 use crate::{observer::{ObserverHandler, ObserverEvent}};
 use components::{set_solenoid_valve, test_solenoid_valve, test_spark};
+use logging::{erase_flash, set_logging, retrieve_logs};
 use sequence::{test_fire_igniter};
 use tanks::{fuel_pressurize, fuel_idle, fuel_depressurize};
 
@@ -32,6 +34,10 @@ pub fn get_routes() -> Vec<rocket::Route> {
         fuel_pressurize,
         fuel_idle,
         fuel_depressurize,
+        // Logging
+        erase_flash,
+        set_logging,
+        retrieve_logs,
     ]
 }
 

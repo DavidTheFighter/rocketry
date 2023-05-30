@@ -26,6 +26,12 @@ export default {
         "dfp": (args) => this.commandAlias("fuel-depress", args),
         "fuel-idle": (args) => this.postCommand(args),
         "fi": (args) => this.commandAlias("fuel-idle", args),
+        "erase-flash": (args) => this.postCommand(args),
+        "ef": (args) => this.commandAlias("erase-flash", args),
+        "set-logging": (args) => this.postCommand(args),
+        "setlog": (args) => this.commandAlias("set-logging", args),
+        "retrieve-logs": (args) => this.postCommand(args),
+        "getlogs": (args) => this.commandAlias("retrieve-logs", args),
       },
     };
   },

@@ -1,14 +1,17 @@
-use crate::{fcu_hal::{OutputChannel, PwmChannel, FcuDriver}, comms_hal::{Packet, NetworkAddress}};
+use hal::fcu_hal::{OutputChannel, PwmChannel, FcuDriver};
+use hal::comms_hal::{Packet, NetworkAddress};
 use strum::EnumCount;
 
+use crate::app;
+
 #[derive(Debug)]
-pub struct FcuDriverMock {
+pub struct Stm32F407FcuDriver {
     outputs: [bool; OutputChannel::COUNT],
     pwm: [f32; PwmChannel::COUNT],
     continuities: [bool; OutputChannel::COUNT],
 }
 
-impl FcuDriver for FcuDriverMock {
+impl FcuDriver for Stm32F407FcuDriver {
     fn set_output_channel(&mut self, channel: OutputChannel, state: bool) {
         self.outputs[channel as usize] = state;
     }
@@ -29,27 +32,29 @@ impl FcuDriver for FcuDriverMock {
         self.pwm[channel as usize]
     }
 
-    fn send_packet(&mut self, _packet: Packet, _destination: NetworkAddress) {
-    }
-
     fn erase_flash_chip(&mut self) {
-        todo!()
+        app::erase_data_log_flash::spawn().unwrap();
     }
 
     fn enable_logging_to_flash(&mut self) {
-        todo!()
+        app::set_data_logging_state::spawn(true).unwrap();
     }
 
     fn disable_logging_to_flash(&mut self) {
-        todo!()
+        app::set_data_logging_state::spawn(false).unwrap();
     }
 
-    fn retrieve_log_flash_page(&mut self, _addr: u32)  {
-        todo!()
+    fn retrieve_log_flash_page(&mut self, addr: u32) {
+        defmt::info!("Retrieving log flash page {}", addr);
+        // app::read_log_page_and_transfer::spawn(addr).unwrap();
+    }
+
+    fn send_packet(&mut self, packet: Packet, destination: NetworkAddress) {
+        app::send_packet::spawn(packet, destination).unwrap();
     }
 }
 
-impl FcuDriverMock {
+impl Stm32F407FcuDriver {
     pub const fn new() -> Self {
         Self {
             outputs: [false; OutputChannel::COUNT],

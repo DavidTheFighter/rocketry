@@ -1,1 +1,1 @@
-cargo objcopy --target thumbv7em-none-eabihf --release -- -O ihex fcu-stm32f407.hex
+cargo objcopy --release -- -O ihex fcu-stm32f407.hex

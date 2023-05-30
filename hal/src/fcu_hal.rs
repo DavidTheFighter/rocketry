@@ -41,9 +41,21 @@ pub struct FcuTelemetryFrame {
     pub orientation: Quaternion<f32>,
     pub angular_velocity: Vector3<f32>,
     pub angular_acceleration: Vector3<f32>,
+    pub magnetometer: Vector3<f32>,
     pub output_channels: [bool; OutputChannel::COUNT],
     pub pwm_channels: [f32; PwmChannel::COUNT],
     pub battery_voltage: f32,
+    pub data_logged_bytes: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FcuStatsTelemetryFrame {
+    pub timestamp: u64,
+    pub cpu_utilization: u32,
+    pub fcu_update_latency_avg: f32,
+    pub fcu_update_latency_max: f32,
+    pub packet_queue_length_avg: f32,
+    pub packet_queue_length_max: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,6 +76,11 @@ pub trait FcuDriver {
     fn get_output_channel_continuity(&self, channel: OutputChannel) -> bool;
     fn get_pwm_channel(&self, channel: PwmChannel) -> f32;
 
+    fn erase_flash_chip(&mut self);
+    fn enable_logging_to_flash(&mut self);
+    fn disable_logging_to_flash(&mut self);
+    fn retrieve_log_flash_page(&mut self, addr: u32);
+
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
 }
 
@@ -78,9 +95,11 @@ impl FcuTelemetryFrame {
             orientation: Quaternion { s: 0.0, v: Vector3 { x: 0.0, y: 0.0, z: 0.0 } },
             angular_velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             angular_acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            magnetometer: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             output_channels: [false; OutputChannel::COUNT],
             pwm_channels: [0.0; PwmChannel::COUNT],
             battery_voltage: 0.0,
+            data_logged_bytes: 0,
         }
     }
 }

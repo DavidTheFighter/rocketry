@@ -24,10 +24,14 @@ pub struct FcuTelemetryData<'a> {
     altitude: Vec<f32>,
     y_velocity: Vec<f32>,
     orientation: Vec<f32>,
+    acceleration: Vec<f32>,
+    angular_velocity: Vec<f32>,
+    magnetic_field: Vec<f32>,
     speed: f32,
     output_channels: Vec<bool>,
     pwm_channels: Vec<f32>,
     battery_voltage: f32,
+    bytes_logged: u32,
     problems: Vec<DatasetEntry<'a>>,
 }
 
@@ -104,6 +108,7 @@ impl FcuTelemetryHandler {
         telem.output_channels = Vec::from(last_frame.output_channels);
         telem.pwm_channels = Vec::from(last_frame.pwm_channels);
         telem.battery_voltage = last_frame.battery_voltage;
+        telem.bytes_logged = last_frame.data_logged_bytes;
         telem.speed = (
             last_frame.velocity.x.powi(2) +
             last_frame.velocity.y.powi(2) +
@@ -114,6 +119,21 @@ impl FcuTelemetryHandler {
             last_frame.orientation.v.y,
             last_frame.orientation.v.z,
             last_frame.orientation.s,
+        ];
+        telem.acceleration = vec![
+            last_frame.acceleration.x,
+            last_frame.acceleration.y,
+            last_frame.acceleration.z,
+        ];
+        telem.angular_velocity = vec![
+            last_frame.angular_velocity.x,
+            last_frame.angular_velocity.y,
+            last_frame.angular_velocity.z,
+        ];
+        telem.magnetic_field = vec![
+            last_frame.magnetometer.x,
+            last_frame.magnetometer.y,
+            last_frame.magnetometer.z,
         ];
 
         for frame in self.packet_queue.iter() {

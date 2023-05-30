@@ -5,7 +5,7 @@ use smoltcp::{
     iface::{self, SocketStorage},
     socket::{UdpSocket, UdpSocketBuffer},
     storage::PacketMetadata,
-    wire::{self, EthernetAddress, IpEndpoint},
+    wire::{self, EthernetAddress, IpEndpoint}, time::Duration,
 };
 use stm32_eth::{EthernetDMA, RxRingEntry, TxRingEntry};
 
@@ -43,7 +43,9 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
     });
 }
 
-pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, _address: NetworkAddress) {
+use stm32f4xx_hal::prelude::*;
+
+pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, address: NetworkAddress) {
     let iface = ctx.shared.interface;
     let udp = ctx.shared.udp_socket_handle;
 
@@ -59,12 +61,35 @@ pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, _address: Net
         let endpoint = wire::IpEndpoint::new(ip_addr.into(), 25565);
 
         if let Ok(result_length) = packet.serialize(buffer) {
-            udp_socket
-                .send_slice(&buffer[0..result_length], endpoint)
-                .ok();
+            let send_result = udp_socket
+                .send_slice(&buffer[0..result_length], endpoint);
+
+            if let Err(err) = send_result {
+                // defmt::error!("Failed to send packet: {:?}", err);
+                match err {
+                    smoltcp::Error::Exhausted => {
+                        defmt::error!("Failed to send packet: Exhausted");
+                        // app::send_packet::spawn_after(5.millis().into(), packet, address).unwrap();
+                        return;
+                    },
+                    smoltcp::Error::Illegal => defmt::error!("Failed to send packet: Illegal"),
+                    smoltcp::Error::Unaddressable => defmt::error!("Failed to send packet: Unaddressable"),
+                    smoltcp::Error::Finished => defmt::error!("Failed to send packet: Finished"),
+                    smoltcp::Error::Truncated => defmt::error!("Failed to send packet: Truncated"),
+                    smoltcp::Error::Checksum => defmt::error!("Failed to send packet: Checksum"),
+                    smoltcp::Error::Unrecognized => defmt::error!("Failed to send packet: Unrecognized"),
+                    smoltcp::Error::Fragmented => defmt::error!("Failed to send packet: Fragmented"),
+                    smoltcp::Error::Malformed => defmt::error!("Failed to send packet: Malformed"),
+                    smoltcp::Error::Dropped => defmt::error!("Failed to send packet: Dropped"),
+                    smoltcp::Error::NotSupported => defmt::error!("Failed to send packet: NotSupported"),
+                    _ => defmt::error!("Failed to send packet: Unknown"),
+                }
+            }
         }
 
-        iface.poll(smoltcp_now()).ok();
+        if let Err(err) = iface.poll(smoltcp_now()) {
+            defmt::error!("Failed to poll interface");
+        }
     });
 }
 

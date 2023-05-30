@@ -120,6 +120,32 @@ export default {
           value: this.nzero(this.dataset.speed).toFixed(1),
           units: "m/s",
         },
+        {
+          name: 'Acceleration',
+          value: this.accelerationStr(),
+          // units: "m/s^2",
+        },
+        {
+          name: 'Angular Velocity',
+          value: this.angularVelocityStr(),
+          // units: "m/s^2",
+        },
+        {
+          name: 'Magnetic Field',
+          value: this.magneticFieldStr(),
+          // units: "m/s^2",
+        },
+        {
+          name: '|Magnetic Field|',
+          value: this.magneticFieldLStr(),
+          // units: "m/s^2",
+        },
+        {
+          name: "Bytes logged",
+          value: Math.floor(this.nzero(this.dataset.bytes_logged) / 1024),
+          units: "KiB",
+          badValue: false,
+        }
       ];
     },
     rocketOrientation() {
@@ -159,18 +185,63 @@ export default {
       }
     },
     nzero(value) {
-      if (value) {
+      if (value != null && value != undefined) {
         return value;
       } else {
         return 0;
       }
     },
     toFixedOrZero(value, precision) {
-      if (value) {
+      if (value != null && value != undefined) {
         return value.toFixed(precision);
       } else {
-        return 0;
+        return "0";
       }
+    },
+    accelerationStr() {
+      if (this.dataset.acceleration) {
+        const x = this.toFixedOrZero(this.dataset.acceleration[0], 2);
+        const y = this.toFixedOrZero(this.dataset.acceleration[1], 2);
+        const z = this.toFixedOrZero(this.dataset.acceleration[2], 2);
+
+        return `(${x}, ${y}, ${z})`;
+      }
+
+      return "(0.0, 0.0, 0.0)";
+    },
+    angularVelocityStr() {
+      if (this.dataset.angular_velocity) {
+        const x = this.toFixedOrZero(this.dataset.angular_velocity[0], 3);
+        const y = this.toFixedOrZero(this.dataset.angular_velocity[1], 3);
+        const z = this.toFixedOrZero(this.dataset.angular_velocity[2], 3);
+
+        return `(${x}, ${y}, ${z})`;
+      }
+
+      return "(0.0, 0.0, 0.0)";
+    },
+    magneticFieldStr() {
+      if (this.dataset.magnetic_field) {
+        const x = this.dataset.magnetic_field[0].toFixed(3);
+        const y = this.dataset.magnetic_field[1].toFixed(3);
+        const z = this.dataset.magnetic_field[2].toFixed(3);
+
+        return `(${x}, ${y}, ${z})`;
+      }
+
+      return "(?, ?, ?)";
+    },
+    magneticFieldLStr() {
+      if (this.dataset.magnetic_field) {
+        const x = this.dataset.magnetic_field[0];
+        const y = this.dataset.magnetic_field[1];
+        const z = this.dataset.magnetic_field[2];
+        const length = Math.sqrt(x * x + y * y + z * z);
+
+        return length.toFixed(3);
+      }
+
+      return "?";
     },
   },
   data() {
