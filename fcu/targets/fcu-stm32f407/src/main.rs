@@ -40,7 +40,7 @@ mod app {
     };
     use systick_monotonic::Systick;
 
-    use crate::fcu_driver::Stm32F407FcuDriver;
+    use crate::fcu_driver::{Stm32F407FcuDriver, FcuControlPins, fcu_update};
     use crate::drivers::{bmi088, bmm150, w25x05};
     use crate::comms::{send_packet, eth_interrupt, init_comms, NetworkingStorage, RX_RING_ENTRY_DEFAULT, TX_RING_ENTRY_DEFAULT};
     use crate::logging::{DataLogger, log_data_to_flash, erase_data_log_flash, set_data_logging_state, read_log_page_and_transfer, usart2_interrupt};
@@ -92,28 +92,13 @@ mod app {
         ctx.local.blue_led.toggle();
     }
 
-    #[task(shared = [fcu, packet_queue, data_logger], priority = 7)]
-    fn fcu_update(ctx: fcu_update::Context) {
-        fcu_update::spawn_after(10.millis().into()).unwrap();
-
-        let fcu = ctx.shared.fcu;
-        let packet_queue = ctx.shared.packet_queue;
-        let data_logger = ctx.shared.data_logger;
-
-        (fcu, packet_queue, data_logger).lock(|fcu, packet_queue, data_logger| {
-            fcu.update_data_logged_bytes(data_logger.get_bytes_logged());
-            fcu.update(0.01, None);
-
-            while let Some(packet) = packet_queue.dequeue() {
-                if let Packet::RetrieveDataLogPage(page) = packet {
-                    defmt::info!("Received request for data log page {}", page);
-                }
-                fcu.update(0.0, Some(packet));
-            }
-        });
-    }
-
     extern "Rust" {
+        #[task(
+            shared = [fcu, packet_queue, data_logger],
+            priority = 7,
+        )]
+        fn fcu_update(ctx: fcu_update::Context);
+
         #[task(
             local = [data: [u8; 512] = [0u8; 512]],
             shared = [interface, udp_socket_handle],
@@ -220,6 +205,11 @@ mod app {
         let blue_led = gpioc.pc14.into_push_pull_output();
         let red_led = gpioc.pc15.into_push_pull_output();
 
+        let output1_ctrl = gpioe.pe0.into_push_pull_output_in_state(PinState::Low);
+        let output2_ctrl = gpioe.pe1.into_push_pull_output_in_state(PinState::Low);
+        let output3_ctrl = gpioe.pe2.into_push_pull_output_in_state(PinState::Low);
+        let output4_ctrl = gpioe.pe3.into_push_pull_output_in_state(PinState::Low);
+
         let i2c1_scl = gpiob.pb6.into_alternate_open_drain();
         let i2c1_sda = gpiob.pb7.into_alternate_open_drain();
 
@@ -232,6 +222,13 @@ mod app {
 
         let usart2_tx = gpiod.pd5.into_alternate();
         let usart2_rx = gpiod.pd6.into_alternate();
+
+        let fcu_control_pins = FcuControlPins {
+            output1_ctrl,
+            output2_ctrl,
+            output3_ctrl,
+            output4_ctrl,
+        };
 
         let mut i2c1 = p.I2C1.i2c(
             (i2c1_scl, i2c1_sda),
@@ -331,7 +328,7 @@ mod app {
         heartbeat_blink_led::spawn().unwrap();
 
         let fcu_driver = ctx.local.fcu_driver.write(
-            Stm32F407FcuDriver::new(),
+            Stm32F407FcuDriver::new(fcu_control_pins),
         );
 
         send_packet::spawn(Packet::DeviceBooted, NetworkAddress::MissionControl).unwrap();

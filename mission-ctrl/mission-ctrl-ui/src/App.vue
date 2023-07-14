@@ -1,13 +1,15 @@
 <script>
-import IgniterPage from './pages/IgniterPage.vue'
-import NotFound from './pages/NotFound.vue'
-import RocketPage from './pages/RocketPage.vue'
+import IgniterPage from './pages/IgniterPage.vue';
+import NotFound from './pages/NotFound.vue';
+import RocketPage from './pages/RocketPage.vue';
+import RocketSimPage from './pages/RocketSimPage.vue';
 
 const routes = {
   '/': IgniterPage,
+  '/notfound': NotFound,
   '/igniter': IgniterPage,
   '/rocket': RocketPage,
-  '/notfound': NotFound,
+  '/rocketsim': RocketSimPage,
 };
 
 export default {
@@ -32,3 +34,28 @@ export default {
 <template>
   <component :is="currentView" />
 </template>
+
+<style>
+body {
+	background-color: #222;
+	color: #ddd;
+}
+
+a[href] {
+	color: #1e8ad6;
+}
+
+a[href]:hover {
+	color: #3ba0e6;
+}
+
+aside,
+[class *= "sidebar"],
+[id *= "sidebar"] {
+	max-width: 90%;
+	margin: 0 auto;
+	border: 1px solid lightgrey;
+	padding: 5px 15px;
+}
+
+</style>

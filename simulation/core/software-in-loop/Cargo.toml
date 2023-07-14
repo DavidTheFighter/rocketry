@@ -11,8 +11,13 @@ name = "software_in_loop"
 [dependencies]
 hal = { path = "../../../hal" }
 flight-controller = { path = "../../../fcu/flight-controller" }
-pyo3 = { version = "0.18.2", features = ["extension-module"] }
+pyo3 = { version = "0.18.2", features = ["abi3-py38"] }
 static-alloc = "0.2.4"
+nalgebra = { version = "0.32", default-features = false, features = ["mint", "libm"] }
+num-traits = { version = "0.2", default-features = false, features = ["libm"] }
+libm = "0.2"
 mint = "0.5"
 strum = { version = "0.24", default-features = false, features = ["derive"] }
 strum_macros = "0.24"
+serde = "1.0"
+serde_json = "1.0"

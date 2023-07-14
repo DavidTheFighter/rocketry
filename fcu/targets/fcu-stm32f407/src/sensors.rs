@@ -1,5 +1,3 @@
-use core::sync::atomic::Ordering;
-
 use crate::app;
 use hal::fcu_log;
 use mint::Vector3;
@@ -37,7 +35,7 @@ pub fn bmi088_interrupt(mut ctx: app::bmi088_interrupt::Context) {
                 data_logger.log_data_point(data_point);
             });
 
-            let (x, y, z) = bmi088.convert_raw_to_dps((x, y, z));
+            let (x, y, z) = bmi088.convert_raw_to_rps((x, y, z));
             fcu.update_angular_velocity(Vector3 { x, y, z });
         }
     });

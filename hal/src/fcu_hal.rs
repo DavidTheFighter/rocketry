@@ -1,3 +1,5 @@
+use core::any::Any;
+
 use mint::{Quaternion, Vector3};
 use serde::{Serialize, Deserialize};
 use strum::EnumCount;
@@ -40,10 +42,35 @@ pub struct FcuTelemetryFrame {
     pub acceleration: Vector3<f32>,
     pub orientation: Quaternion<f32>,
     pub angular_velocity: Vector3<f32>,
-    pub angular_acceleration: Vector3<f32>,
-    pub magnetometer: Vector3<f32>,
+    pub position_error: f32, // Standard deviation
+    pub velocity_error: f32, // Standard deviation
+    pub acceleration_error: f32, // Standard deviation
     pub output_channels: [bool; OutputChannel::COUNT],
     pub pwm_channels: [f32; PwmChannel::COUNT],
+    pub apogee: f32,
+    pub battery_voltage: f32,
+    pub data_logged_bytes: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FcuDetailedStateFrame {
+    pub timestamp: u64,
+    pub vehicle_state: VehicleState,
+    pub position: Vector3<f32>,
+    pub velocity: Vector3<f32>,
+    pub acceleration: Vector3<f32>,
+    pub orientation: Quaternion<f32>,
+    pub angular_velocity: Vector3<f32>,
+    pub angular_acceleration: Vector3<f32>,
+    pub magnetometer: Vector3<f32>,
+    pub position_error: Vector3<f32>, // Standard deviation
+    pub velocity_error: Vector3<f32>, // Standard deviation
+    pub acceleration_error: Vector3<f32>, // Standard deviation
+    pub accelerometer_bias: Vector3<f32>,
+    pub accelerometer_bias_error: Vector3<f32>, // Standard deviation
+    pub output_channels: [bool; OutputChannel::COUNT],
+    pub pwm_channels: [f32; PwmChannel::COUNT],
+    pub apogee: f32,
     pub battery_voltage: f32,
     pub data_logged_bytes: u32,
 }
@@ -60,7 +87,12 @@ pub struct FcuStatsTelemetryFrame {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FcuConfig {
-
+    pub telemetry_rate: f32,
+    pub startup_acceleration_threshold: f32,
+    pub position_kalman_process_variance: f32,
+    pub accelerometer_noise_std_dev: Vector3<f32>,
+    pub barometer_noise_std_dev: f32,
+    pub gps_noise_std_dev: Vector3<f32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,6 +101,8 @@ pub struct FlightConfig {
 }
 
 pub trait FcuDriver {
+    fn timestamp(&self) -> f32;
+
     fn set_output_channel(&mut self, channel: OutputChannel, state: bool);
     fn set_pwm_channel(&mut self, channel: PwmChannel, duty_cycle: f32);
 
@@ -82,6 +116,8 @@ pub trait FcuDriver {
     fn retrieve_log_flash_page(&mut self, addr: u32);
 
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
+
+    fn as_mut_any(&mut self) -> &mut dyn Any;
 }
 
 impl FcuTelemetryFrame {
@@ -94,10 +130,12 @@ impl FcuTelemetryFrame {
             acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             orientation: Quaternion { s: 0.0, v: Vector3 { x: 0.0, y: 0.0, z: 0.0 } },
             angular_velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-            angular_acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-            magnetometer: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            position_error: 0.0,
+            velocity_error: 0.0,
+            acceleration_error: 0.0,
             output_channels: [false; OutputChannel::COUNT],
             pwm_channels: [0.0; PwmChannel::COUNT],
+            apogee: 0.0,
             battery_voltage: 0.0,
             data_logged_bytes: 0,
         }

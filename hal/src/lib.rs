@@ -1,5 +1,5 @@
-#![forbid(unsafe_code)]
-#![no_std]
+#![deny(unsafe_code)]
+#![cfg_attr(not(test), no_std)]
 
 pub mod comms_hal;
 pub mod ecu_hal;
@@ -9,12 +9,13 @@ pub mod fcu_log;
 pub mod ecu_mock;
 pub mod fcu_mock;
 
-use defmt::Format;
 use serde::{Deserialize, Serialize};
+
+pub const GRAVITY: f32 = 9.80665; // In m/s^2
 
 // Describes a polynomial calibration curve for a sensor.
 // Given in the form: y = x0 + x1 * x + x2 * x^2 + x3 * x^3
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Format)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SensorCalibration {
     pub x0: f32,
     pub x1: f32,
@@ -22,7 +23,7 @@ pub struct SensorCalibration {
     pub x3: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Format)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct SensorConfig {
     pub premin: f32,
     pub premax: f32,

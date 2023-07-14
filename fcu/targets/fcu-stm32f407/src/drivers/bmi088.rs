@@ -195,7 +195,8 @@ impl Bmi088 {
         (x_int16, y_int16, z_int16)
     }
 
-    pub fn convert_raw_to_dps(&self, raw_values: (i16, i16, i16)) -> (f32, f32, f32) {
+    // Radians per second
+    pub fn convert_raw_to_rps(&self, raw_values: (i16, i16, i16)) -> (f32, f32, f32) {
         let (x_int16, y_int16, z_int16) = raw_values;
 
         let range = match self.gyro_range {

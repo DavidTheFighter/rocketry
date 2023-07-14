@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="row">
-      <RealtimeLineGraph
+      <RealtimeLineGraphChartjs
         :datasets="altitudeDataset"
         :xTitle="'Time (sec)'"
         :yTitle="'Altitude AGL (meters)'"
@@ -20,7 +20,7 @@
       />
     </div>
     <div class="row">
-      <RealtimeLineGraph
+      <RealtimeLineGraphChartjs
         :datasets="verticalVelocityDataset"
         :xTitle="'Time (sec)'"
         :yTitle="'Vertical Velocity (meters / sec)'"
@@ -47,16 +47,16 @@
 
 <script>
 import EmptyComponent from '../components/EmptyComponent.vue';
-import RealtimeLineGraph from '../components/RealtimeLineGraph.vue';
+import RealtimeLineGraphChartjs from '../components/RealtimeLineGraphChartjs.vue';
 import OrientationVisualization from '@/components/OrientationVisualization.vue';
 import RocketTerminal from '../components/RocketTerminal.vue';
 import DatasetDisplay from '../components/DatasetDisplay.vue';
 
 export default {
-  name: 'IgniterPage',
+  name: 'RocketPage',
   components: {
     EmptyComponent,
-    RealtimeLineGraph,
+    RealtimeLineGraphChartjs,
     OrientationVisualization,
     RocketTerminal,
     DatasetDisplay,
@@ -73,7 +73,7 @@ export default {
         {
           name: 'Altitude',
           color: 'blue',
-          data: this.dataset.altitude,
+          data: this.dataset?.graph_data?.altitude,
           units: "m",
         },
       ];
@@ -83,7 +83,7 @@ export default {
         {
           name: 'y-Velocity',
           color: 'green',
-          data: this.dataset.y_velocity,
+          data: this.dataset?.graph_data?.y_velocity,
           units: "m/s",
         },
       ];
@@ -114,11 +114,13 @@ export default {
           name: 'Altitude AGL',
           value: this.nzero(this.lastElementOrNull(this.dataset.altitude)).toFixed(1),
           units: "m",
+          badValue: false,
         },
         {
           name: 'Speed',
           value: this.nzero(this.dataset.speed).toFixed(1),
           units: "m/s",
+          badValue: false,
         },
         {
           name: 'Acceleration',
@@ -264,6 +266,7 @@ export default {
 .row {
   display: flex;
   margin-bottom: 5px;
+  height: 33vh;
 }
 
 .columnLeft {
@@ -279,6 +282,7 @@ export default {
 
 .columnRight {
   flex: 33%;
+  max-height: 100%;
   padding-left: 10px;
 }
 

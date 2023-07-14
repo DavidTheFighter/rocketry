@@ -1,31 +1,29 @@
 <template>
   <div>
     <p v-if="this.title" id="title">{{ this.title }}</p>
-    <div v-if="!this.singleColumn" class="row">
-      <div class="stateColumn" style="margin-left: 5%">
-        <div v-for="state in leftColumnStates" :key="state.name" class="row">
+    <div v-if="!this.singleColumn">
+      <div v-for="[lstate, rstate] in splitColumnStates" :key="lstate.name" class="row">
+        <div v-if="lstate != null" class="row" style="width: 50%">
           <div class="columnLeft">
             <div class="stateTitle">
-              {{ state.name ?? "??" }}
+              {{ lstate.name ?? "??" }}
             </div>
           </div>
           <div class="columnRight">
-            <div :class="stateStyleClass(state)">
-              {{ stateValueText(state) }}
+            <div :class="stateStyleClass(lstate)">
+              {{ stateValueText(lstate) }}
             </div>
           </div>
         </div>
-      </div>
-      <div class="stateColumn">
-        <div v-for="state in rightColumnStates" :key="state.name" class="row">
+        <div v-if="rstate != null" class="row" style="width: 50%">
           <div class="columnLeft">
             <div class="stateTitle">
-              {{ state.name ?? "??" }}
+              {{ rstate.name ?? "??" }}
             </div>
           </div>
           <div class="columnRight">
-            <div :class="stateStyleClass(state)">
-              {{ stateValueText(state) }}
+            <div :class="stateStyleClass(rstate)">
+              {{ stateValueText(rstate) }}
             </div>
           </div>
         </div>
@@ -65,6 +63,19 @@ export default {
     },
   },
   computed: {
+    splitColumnStates() {
+      let arr = [];
+      for (let i = 0; i < this.states.length; i += 2) {
+        if (i >= this.states.length - 1) {
+          arr.push([this.states[i], null]);
+          break;
+        }
+
+        arr.push([this.states[i], this.states[i + 1]]);
+      }
+
+      return arr;
+    },
     leftColumnStates() {
       return this.states.filter((_value, index) => index % 2 == 0);
     },
@@ -118,7 +129,7 @@ export default {
   text-align: center;
   font-family: monospace;
   font-size: 1.25em;
-  color: dodgerblue;
+  color: #0BF;
   margin-top: 5px;
   margin-bottom: 5px;
 }
@@ -127,7 +138,7 @@ export default {
   text-align: center;
   font-family: monospace;
   font-size: 1.25em;
-  color: red;
+  color: #D00;
   margin-top: 5px;
   margin-bottom: 5px;
 }

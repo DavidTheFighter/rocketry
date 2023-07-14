@@ -17,12 +17,17 @@ pub struct DatasetEntry<'a> {
 
 #[derive(Debug, Serialize, Default, Clone)]
 #[serde(crate = "rocket::serde")]
+pub struct FcuTelemetryGraphData {
+    altitude: Vec<f32>,
+    y_velocity: Vec<f32>,
+}
+
+#[derive(Debug, Serialize, Default, Clone)]
+#[serde(crate = "rocket::serde")]
 pub struct FcuTelemetryData<'a> {
     vehicle_state: String,
     telemetry_rate: u32,
     telemetry_delta_t: f32,
-    altitude: Vec<f32>,
-    y_velocity: Vec<f32>,
     orientation: Vec<f32>,
     acceleration: Vec<f32>,
     angular_velocity: Vec<f32>,
@@ -32,6 +37,7 @@ pub struct FcuTelemetryData<'a> {
     pwm_channels: Vec<f32>,
     battery_voltage: f32,
     bytes_logged: u32,
+    graph_data: FcuTelemetryGraphData,
     problems: Vec<DatasetEntry<'a>>,
 }
 
@@ -136,9 +142,9 @@ impl FcuTelemetryHandler {
             last_frame.magnetometer.z,
         ];
 
-        for frame in self.packet_queue.iter() {
-            telem.altitude.push(frame.position.y);
-            telem.y_velocity.push(frame.velocity.y);
+        if telem.telemetry_rate > 0 {
+            telem.graph_data.altitude.push(last_frame.position.y);
+            telem.graph_data.y_velocity.push(last_frame.velocity.y);
         }
 
         telem.problems = vec![
@@ -174,10 +180,12 @@ pub fn fcu_telemetry_thread(observer_handler: Arc<ObserverHandler>) {
 
 #[get("/fcu-telemetry")]
 pub fn fcu_telemetry_endpoint<'a>() -> Json<FcuTelemetryData<'a>> {
-    let latest_telemetry = LATEST_FCU_TELEMETRY_STATE.lock().expect("Failed to lock telemetry state");
+    let mut latest_telemetry = LATEST_FCU_TELEMETRY_STATE.lock().expect("Failed to lock telemetry state");
 
-    if let Some(latest_telemetry) = latest_telemetry.as_ref() {
-        Json(latest_telemetry.clone())
+    if let Some(latest_telemetry) = latest_telemetry.as_mut() {
+        let telem = latest_telemetry.clone();
+        latest_telemetry.graph_data = FcuTelemetryGraphData::default();
+        Json(telem.clone())
     } else {
         Json(FcuTelemetryData::default())
     }
