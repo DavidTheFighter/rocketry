@@ -3,7 +3,7 @@ use crate::{FiniteStateMachine, Fcu};
 use super::{FsmStorage, Landed};
 
 impl FiniteStateMachine<VehicleState> for Landed {
-    fn update(_fcu: &mut Fcu, _dt: f32, _packet: &Option<Packet>) -> Option<VehicleState> {
+    fn update(_fcu: &mut Fcu, _dt: f32, _packets: &[Packet]) -> Option<VehicleState> {
         None
     }
 

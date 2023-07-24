@@ -3,7 +3,7 @@ use crate::{FiniteStateMachine, Fcu};
 use super::{FsmStorage, Ascent};
 
 impl FiniteStateMachine<VehicleState> for Ascent {
-    fn update(fcu: &mut Fcu, _dt: f32, _packet: &Option<Packet>) -> Option<VehicleState> {
+    fn update(fcu: &mut Fcu, _dt: f32, _packets: &[Packet]) -> Option<VehicleState> {
         let begun_falling = Ascent::begun_falling(fcu);
 
         if begun_falling {

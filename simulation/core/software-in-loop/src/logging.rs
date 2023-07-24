@@ -1,19 +1,20 @@
-use hal::fcu_hal::{FcuTelemetryFrame, FcuDetailedStateFrame};
-use pyo3::{prelude::*, types::PyDict};
+use hal::fcu_hal::{FcuTelemetryFrame, FcuDetailedStateFrame, FcuDevStatsFrame};
+use pyo3::{prelude::*, types::{PyDict, PyList}};
 use serde::{Serialize, Deserialize};
-use std::io::Write;
+use std::{io::Write, thread};
 
 use crate::{SoftwareInLoop, driver::FcuDriverSim, ser::dict_from_obj};
 
 type Scalar = f64;
 
 #[pyclass]
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Logger {
     #[pyo3(get, set)]
     pub dt: Scalar,
     pub telemetry: Vec<FcuTelemetryFrame>,
     pub detailed_state: Vec<FcuDetailedStateFrame>,
+    pub dev_stats: Vec<FcuDevStatsFrame>,
     #[pyo3(get, set)]
     pub position: Vec<Vec<Scalar>>,
     #[pyo3(get, set)]
@@ -36,6 +37,7 @@ impl Logger {
             dt: 0.0,
             telemetry: Vec::new(),
             detailed_state: Vec::new(),
+            dev_stats: Vec::new(),
             position: Vec::new(),
             velocity: Vec::new(),
             acceleration: Vec::new(),
@@ -62,6 +64,19 @@ impl Logger {
         let state = fcu.fcu.generate_detailed_state_frame();
 
         self.detailed_state.push(state);
+    }
+
+    pub fn log_dev_stats(&mut self, fcu: &mut SoftwareInLoop) {
+        let driver = fcu
+            .fcu
+            .driver
+            .as_mut_any()
+            .downcast_mut::<FcuDriverSim>()
+            .expect("Failed to retrieve driver from FCU object");
+
+        if let Some(frame) = &driver.last_dev_stats_packet {
+            self.dev_stats.push(frame.clone());
+        }
     }
 
     pub fn log_position(&mut self, vec: Vec<Scalar>) {
@@ -104,13 +119,36 @@ impl Logger {
         Ok(dict.into())
     }
 
+    pub fn get_dev_stat_frames(&self, py: Python) -> PyResult<PyObject> {
+        let list = PyList::empty(py);
+        for frame in &self.dev_stats {
+            list.append(dict_from_obj(py, frame))?;
+        }
+
+        Ok(list.into())
+    }
+
     pub fn num_timesteps(&self) -> PyResult<usize> {
         Ok(self.position.len())
     }
 
     pub fn dump_to_file(&self) {
-        let mut file = std::fs::File::create("latest-sim.json").unwrap();
-        let json = serde_json::to_string_pretty(&self).unwrap();
-        file.write_all(json.as_bytes()).unwrap();
+        let data = self.clone();
+
+        thread::spawn(move || {
+            let mut file = std::fs::File::create("last-sim.json").unwrap();
+            let json = serde_json::to_string(&data).unwrap();
+            file.write_all(json.as_bytes()).unwrap();
+            file.flush().unwrap();
+            println!("Finished saving simulation data to file!");
+        });
     }
+}
+
+#[pyfunction]
+pub fn load_logs_from_file(file: &str) -> PyResult<Logger> {
+    let file = std::fs::File::open(file).expect("1");
+    let data: Logger = serde_json::from_reader(file).expect("2");
+
+    Ok(data)
 }

@@ -1,10 +1,11 @@
 FCU_UPDATE_RATE = 0.02 # Seconds
 SIM_UPDATE_RATE = 0.001 # Seconds
+DEV_STATS_RATE  = 2.0 # Seconds
 
 VEHICLE_MASS    = 1 # Kilograms
 
-THRUST          = 30 # Newtons
-THRUST_TIME     = 10# Seconds
+THRUST          = 25 # Newtons
+THRUST_TIME     = 1 # Seconds
 THRUST_WAIT     = 0.0 # Seconds
 
 ACCEL_RATE      = 0.02 # Seconds
@@ -16,9 +17,10 @@ ACCEL_NOISE     = 0.1 # Meters per second squared
 GPS_XZ_NOISE    = 5.0 # Meters
 GPS_Y_NOISE     = 10.0 # Meters
 BARO_NOISE      = 0.01 # Meters
-ANGULAR_NOISE   = 0.0 # Radians per second
+ANGULAR_NOISE   = 0.1 # Radians per second
 
 ACCEL_BIAS      = 0.1 # Meters per second squared
+GYRO_BIAS       = 0.0 # Radians per second
 
 FCU_CONFIG = {
     "telemetry_rate": 0.02, # Seconds

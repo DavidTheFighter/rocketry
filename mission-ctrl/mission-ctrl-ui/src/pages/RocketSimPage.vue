@@ -9,7 +9,7 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnLeft"
+        class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
         :datasets="velocityDataset"
@@ -19,7 +19,7 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnMiddle"
+        class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
         :datasets="accelerationDataset"
@@ -29,11 +29,21 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnMiddle"
+        class="columnThreeSixteenth"
+      />
+      <RealtimeLineGraphChartjs
+        :datasets="angularVelocityDataset"
+        :dataset="dataset"
+        :xTitle="'Angular Velocity (°/s)'"
+        :numXTicks="10"
+        :scaleXTicks="2"
+        :paddingFigs="0"
+        :label-legend="false"
+        class="columnThreeSixteenth"
       />
       <OrientationVisualization
         :orientation="rocketOrientation"
-        class="columnRight"
+        class="columnFourth"
       />
     </div>
     <div class="row">
@@ -45,7 +55,7 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnLeft"
+        class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
         :datasets="dvelocityDataset"
@@ -55,7 +65,7 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnMiddle"
+        class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
         :datasets="dOrientationDataset"
@@ -65,11 +75,21 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnMiddle"
+        class="columnThreeSixteenth"
+      />
+      <RealtimeLineGraphChartjs
+        :datasets="dangularVelocityDataset"
+        :dataset="dataset"
+        :xTitle="'Δ Angular Velocity (°/s)'"
+        :numXTicks="10"
+        :scaleXTicks="2"
+        :paddingFigs="0"
+        :label-legend="false"
+        class="columnThreeSixteenth"
       />
       <DatasetDisplay
         :states="numberDataset"
-        class="columnRight"
+        class="columnFourth"
       />
     </div>
     <div class="row">
@@ -81,7 +101,7 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnLeft"
+        class="columnFourth"
       />
       <RealtimeLineGraphChartjs
         :datasets="fcuVelocityDataset"
@@ -91,7 +111,7 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnMiddle"
+        class="columnFourth"
       />
       <RealtimeLineGraphChartjs
         :datasets="fcuAccelerationDataset"
@@ -101,9 +121,9 @@
         :scaleXTicks="2"
         :paddingFigs="0"
         :label-legend="false"
-        class="columnMiddle"
+        class="columnFourth"
       />
-      <EmptyComponent class="columnRight" />
+      <EmptyComponent class="columnFourth" />
     </div>
   </div>
 </template>
@@ -206,6 +226,34 @@ export default {
         },
       ];
     },
+    angularVelocityDataset() {
+      return [
+        {
+          name: 'X',
+          color: '#D00',
+          dataName: 'angular_velocity',
+          dataIndex: 0,
+          units: "°/s",
+          scale: 57.29578,
+        },
+        {
+          name: 'Y',
+          color: '#0BF',
+          dataName: 'angular_velocity',
+          dataIndex: 1,
+          units: "°/s",
+          scale: 57.29578,
+        },
+        {
+          name: 'Z',
+          color: '#0B0',
+          dataName: 'angular_velocity',
+          dataIndex: 2,
+          units: "°/s",
+          scale: 57.29578,
+        },
+      ];
+    },
     dpositionDataset() {
       return [
         {
@@ -264,6 +312,31 @@ export default {
           dataName: 'dorientation',
           dataIndex: 0,
           units: "°",
+        }
+      ];
+    },
+    dangularVelocityDataset() {
+      return [
+        {
+          name: 'X',
+          color: '#D00',
+          dataName: 'dangular_velocity',
+          dataIndex: 0,
+          units: "°/s",
+        },
+        {
+          name: 'Y',
+          color: '#0BF',
+          dataName: 'dangular_velocity',
+          dataIndex: 1,
+          units: "°/s",
+        },
+        {
+          name: 'Z',
+          color: '#0B0',
+          dataName: 'dangular_velocity',
+          dataIndex: 2,
+          units: "°/s",
         }
       ];
     },
@@ -411,11 +484,6 @@ export default {
           value: this.accelerationXYZErrorStr(),
           badValue: false,
         },
-        {
-          name: 'Accel Bias',
-          value: this.accelerometerBiasStr(),
-          badValue: false,
-        }
       ];
     },
     rocketOrientation() {
@@ -560,21 +628,16 @@ export default {
   height: 25vh;
 }
 
-.columnLeft {
+.columnFourth {
   flex: 25%;
-  padding-right: 4px;
+  padding-left: 3px;
+  padding-right: 3px;
 }
 
-.columnMiddle {
-  flex: 25%;
-  padding-left: 4px;
-  padding-right: 4px;
-}
-
-.columnRight {
-  flex: 25%;
-  max-height: 100%;
-  padding-left: 4px;
+.columnThreeSixteenth {
+  flex: 18.75%;
+  padding-left: 3px;
+  padding-right: 3px;
 }
 
 </style>

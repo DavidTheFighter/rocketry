@@ -2,7 +2,7 @@ from pysim.test import Simulation
 from threading import Thread
 import json
 import time
-import bottle
+import math
 from bottle import route, run, response, app
 from bottle_cors_plugin import cors_plugin
 
@@ -17,9 +17,11 @@ def dataset_default():
         'position': [[], [], []],
         'velocity': [[], [], []],
         'acceleration': [[], [], []],
+        'angular_velocity': [[], [], []],
         'dposition': [[], [], []],
         'dvelocity': [[], [], []],
         'dorientation': [[]],
+        'dangular_velocity': [[], [], []],
         'fcu_position': [[], [], []],
         'fcu_velocity': [[], [], []],
         'fcu_acceleration': [[], [], []],

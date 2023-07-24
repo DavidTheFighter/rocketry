@@ -21,11 +21,11 @@ class SimReplay():
                 data = self.logger.grab_timestep_frame(i)
 
                 # Do some calcs to make the webview easier
-                data['fcu_position'] = data['position']
-                data['fcu_velocity'] = data['velocity']
-                data['fcu_acceleration'] = data['acceleration']
-                data['fcu_orientation'] = data['orientation']
-                data['fcu_angular_velocity'] = data['angular_velocity']
+                data['fcu_position'] = data['telemetry']['position']
+                data['fcu_velocity'] = data['telemetry']['velocity']
+                data['fcu_acceleration'] = data['telemetry']['acceleration']
+                data['fcu_orientation'] = data['telemetry']['orientation']
+                data['fcu_angular_velocity'] = data['telemetry']['angular_velocity']
                 data['fcu_angular_acceleration'] = data['angular_acceleration']
 
                 data['dposition'] = [x2 - x1 for x1, x2 in zip(data['position'], data['fcu_position'])]
@@ -51,3 +51,7 @@ class SimReplay():
                 while time.time() < lt + FCU_UPDATE_RATE:
                     pass
                 lt = time.time()
+
+        dev_stats_frames = self.logger.get_dev_stat_frames()
+        for frame in dev_stats_frames:
+            print("Dev stats: {}".format(frame))

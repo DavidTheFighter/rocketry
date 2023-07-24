@@ -15,6 +15,7 @@ pub struct Dynamics {
     angular_velocity: Vector3<Scalar>,
     angular_acceleration: Vector3<Scalar>,
     motor_thrust: Vector3<Scalar>,  // Body frame
+    angular_forces: Vector3<Scalar>, // Body frame
     #[pyo3(get, set)]
     landed: bool,
 }
@@ -27,7 +28,7 @@ impl Dynamics {
         let gravity = Vector3::new(0.0, G, 0.0);
         let gravity_accel_body_frame = self.orientation.inverse() * gravity;
 
-        self.acceleration_body_frame = self.motor_thrust.clone();
+        self.acceleration_body_frame = self.motor_thrust;
         if !self.landed {
             self.acceleration_body_frame += gravity_accel_body_frame;
         }
@@ -38,7 +39,7 @@ impl Dynamics {
         self.velocity += self.acceleration_world_frame * dt;
         self.position += self.velocity * dt;
 
-        self.angular_velocity += self.angular_acceleration * dt;
+        self.angular_velocity += (self.angular_acceleration + self.angular_forces) * dt;
         self.orientation = integrate_angular_velocity_rk4(self.orientation, self.angular_velocity, dt);
     }
 
@@ -53,6 +54,7 @@ impl Dynamics {
             angular_velocity: Vector3::new(0.0, 0.0, 0.0),
             angular_acceleration: Vector3::new(0.0, 0.0, 0.0),
             motor_thrust: Vector3::new(0.0, 0.0, 0.0),
+            angular_forces: Vector3::new(0.0, 0.0, 0.0),
             landed: true,
         }
     }
@@ -100,10 +102,10 @@ impl Dynamics {
     #[getter(orientation)]
     pub fn get_orientation(&self) -> PyResult<Vec<f64>> {
         Ok(vec![
-            self.orientation.quaternion().w,
-            self.orientation.quaternion().i,
-            self.orientation.quaternion().j,
-            self.orientation.quaternion().k,
+            self.orientation.i,
+            self.orientation.j,
+            self.orientation.k,
+            self.orientation.w,
         ])
     }
 
@@ -152,6 +154,16 @@ impl Dynamics {
     pub fn set_motor_thrust(&mut self, list: &PyList) -> PyResult<()> {
         set_vec3(&mut self.motor_thrust, list)
     }
+
+    #[getter(angular_forces)]
+    pub fn get_angular_forces(&self) -> PyResult<Vec<f64>> {
+        Ok(self.angular_forces.iter().map(|x| *x).collect())
+    }
+
+    #[setter(angular_forces)]
+    pub fn set_angular_forces(&mut self, list: &PyList) -> PyResult<()> {
+        set_vec3(&mut self.angular_forces, list)
+    }
 }
 
 fn integrate_angular_velocity_rk4(
@@ -172,12 +184,7 @@ fn integrate_angular_velocity_rk4(
 }
 
 fn q_dot(quat: &Quaternion<Scalar>, ang_vel: Vector3<Scalar>) -> Quaternion<Scalar> {
-    Quaternion::new(
-        0.0,
-        0.5 * ang_vel.x * quat.i,
-        0.5 * ang_vel.y * quat.j,
-        0.5 * ang_vel.z * quat.k,
-    )
+    0.5 * Quaternion::new(0.0, ang_vel.x, ang_vel.y, ang_vel.z) * quat
 }
 
 fn set_vec3(vec: &mut Vector3<Scalar>, list: &PyList) -> PyResult<()> {

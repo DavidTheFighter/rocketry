@@ -6,6 +6,7 @@ from threading import Thread
 from pysim.test import Simulation
 from queue import Queue
 import json
+import software_in_loop
 
 from pysim.replay import SimReplay
 
@@ -29,8 +30,7 @@ def main():
         print("Done! Replaying")
         sim.replay()
     else:
-        with open('last-sim.json', 'r') as f:
-            logs = json.load(f)
+        logs = software_in_loop.load_logs_from_file('last-sim.json')
 
         replay = SimReplay(logs)
         replay.replay(data_queue)

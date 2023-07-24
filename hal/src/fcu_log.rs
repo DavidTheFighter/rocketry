@@ -1,26 +1,12 @@
 use core::fmt;
 
-use serde::{Serialize, Deserialize, de::Visitor};
-
+use serde::{de::Visitor, Deserialize, Serialize};
 
 #[derive(Debug, Clone)]
 pub enum DataPoint {
-    Accelerometer {
-        x: i16,
-        y: i16,
-        z: i16,
-    },
-    Gyroscope {
-        x: i16,
-        y: i16,
-        z: i16,
-    },
-    Magnetometer {
-        x: i16,
-        y: i16,
-        z: i16,
-        h: i16,
-    },
+    Accelerometer { x: i16, y: i16, z: i16 },
+    Gyroscope { x: i16, y: i16, z: i16 },
+    Magnetometer { x: i16, y: i16, z: i16, h: i16 },
 }
 
 #[derive(Debug, Clone)]
@@ -40,7 +26,7 @@ impl DataPoint {
                 buffer[5] = (z >> 8) as u8;
                 buffer[6] = (z & 0xFF) as u8;
                 &buffer[..7]
-            },
+            }
             DataPoint::Gyroscope { x, y, z } => {
                 buffer[0] = 0x02;
                 buffer[1] = (x >> 8) as u8;
@@ -50,7 +36,7 @@ impl DataPoint {
                 buffer[5] = (z >> 8) as u8;
                 buffer[6] = (z & 0xFF) as u8;
                 &buffer[..7]
-            },
+            }
             DataPoint::Magnetometer { x, y, z, h } => {
                 buffer[0] = 0x03;
                 buffer[1] = (x >> 8) as u8;
@@ -62,7 +48,7 @@ impl DataPoint {
                 buffer[7] = (h >> 8) as u8;
                 buffer[8] = (h & 0xFF) as u8;
                 &buffer[..9]
-            },
+            }
         }
     }
 
@@ -85,7 +71,7 @@ impl DataPoint {
                 let z = ((data[4] as i16) << 8) | (data[5] as i16);
 
                 (Some(DataPoint::Accelerometer { x, y, z }), Some(&data[6..]))
-            },
+            }
             0x02 => {
                 if data.len() < 6 {
                     return (None, None);
@@ -96,7 +82,7 @@ impl DataPoint {
                 let z = ((data[4] as i16) << 8) | (data[5] as i16);
 
                 (Some(DataPoint::Gyroscope { x, y, z }), Some(&data[6..]))
-            },
+            }
             0x03 => {
                 if data.len() < 8 {
                     return (None, None);
@@ -107,21 +93,30 @@ impl DataPoint {
                 let z = ((data[4] as i16) << 8) | (data[5] as i16);
                 let h = ((data[6] as i16) << 8) | (data[7] as i16);
 
-                (Some(DataPoint::Magnetometer { x, y, z, h }), Some(&data[8..]))
-            },
+                (
+                    Some(DataPoint::Magnetometer { x, y, z, h }),
+                    Some(&data[8..]),
+                )
+            }
             _ => (None, None),
         }
     }
 }
 
 impl Serialize for DataLogBuffer {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error> where S: serde::Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
         serializer.serialize_bytes(&self.buffer)
     }
 }
 
 impl<'de> Deserialize<'de> for DataLogBuffer {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: serde::Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
         deserializer.deserialize_byte_buf(DataLogBufferVisitor)
     }
 }
@@ -135,7 +130,10 @@ impl<'de> Visitor<'de> for DataLogBufferVisitor {
         formatter.write_str("a byte array")
     }
 
-    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E> where E: serde::de::Error {
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
         let mut buffer = [0u8; 256];
         buffer.copy_from_slice(v);
         Ok(DataLogBuffer { buffer })

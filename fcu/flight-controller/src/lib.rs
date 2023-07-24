@@ -1,9 +1,11 @@
 #![cfg_attr(not(test), no_std)]
 #![deny(unsafe_code)]
 
+mod dev_stats;
 pub mod state_vector;
 pub mod vehicle_fsm;
 
+use dev_stats::DevStatsCollector;
 use hal::{fcu_hal::{FcuDriver, VehicleState, FcuTelemetryFrame, OutputChannel, PwmChannel, FcuConfig, FcuDetailedStateFrame}, comms_hal::{Packet, NetworkAddress}};
 use mint::Vector3;
 use state_vector::StateVector;
@@ -14,6 +16,7 @@ pub struct Fcu<'a> {
     pub vehicle_state: VehicleState,
     pub driver: &'a mut dyn FcuDriver,
     pub state_vector: StateVector,
+    dev_stats: DevStatsCollector,
     vehicle_fsm_storage: vehicle_fsm::FsmStorage,
     time_since_last_telemetry: f32,
     data_logged_bytes: u32,
@@ -38,6 +41,7 @@ impl<'a> Fcu<'a> {
             vehicle_state: VehicleState::Idle,
             driver,
             state_vector,
+            dev_stats: DevStatsCollector::new(),
             vehicle_fsm_storage: vehicle_fsm::FsmStorage::Empty,
             time_since_last_telemetry: 0.0,
             data_logged_bytes: 0,
@@ -48,45 +52,58 @@ impl<'a> Fcu<'a> {
         fcu
     }
 
-    pub fn update(&mut self, dt: f32, packet: Option<Packet>) {
-        if dt > 1e-4 {
-            self.state_vector.predict(dt);
+    pub fn update(&mut self, dt: f32, packets: &[Packet]) {
+        let timestamp = self.driver.timestamp();
 
-            self.apogee = self.apogee.max(self.state_vector.get_position().y);
+        self.dev_stats.log_update_start(timestamp, packets.len() as u32, 0.0);
+        self.state_vector.predict(dt);
 
-            self.time_since_last_telemetry += dt;
-            if self.time_since_last_telemetry >= self.config.telemetry_rate {
-                self.driver.send_packet(
-                    Packet::FcuTelemetry(self.generate_telemetry_frame()),
-                    NetworkAddress::MissionControl,
-                );
-                self.time_since_last_telemetry = 0.0;
-            }
+        self.apogee = self.apogee.max(self.state_vector.get_position().y);
+
+        self.time_since_last_telemetry += dt;
+        if self.time_since_last_telemetry >= self.config.telemetry_rate {
+            self.driver.send_packet(
+                Packet::FcuTelemetry(self.generate_telemetry_frame()),
+                NetworkAddress::MissionControl,
+            );
+            self.time_since_last_telemetry = 0.0;
         }
 
-        if let Some(packet) = &packet {
-            match packet {
-                Packet::ConfigureFcu(config) => {
-                    self.configure_fcu(config.clone());
-                },
-                Packet::EraseDataLogFlash => {
-                    self.driver.erase_flash_chip();
-                },
-                Packet::EnableDataLogging(state) => {
-                    if *state {
-                        self.driver.enable_logging_to_flash();
-                    } else {
-                        self.driver.disable_logging_to_flash();
-                    }
-                },
-                Packet::RetrieveDataLogPage(addr) => {
-                    self.driver.retrieve_log_flash_page(*addr);
-                },
-                _ => {}
-            }
+        for packet in packets {
+            self.handle_packet(packet);
         }
 
-        self.update_vehicle_fsm(dt, &packet);
+        if let Some(frame) = self.dev_stats.pop_stats_frame() {
+            self.driver.send_packet(Packet::FcuDevStatsFrame(frame), NetworkAddress::MissionControl);
+        }
+
+        self.update_vehicle_fsm(dt, packets);
+        self.dev_stats.log_update_end(self.driver.timestamp());
+    }
+
+    fn handle_packet(&mut self, packet: &Packet) {
+        match packet {
+            Packet::ConfigureFcu(config) => {
+                self.configure_fcu(config.clone());
+            },
+            Packet::EraseDataLogFlash => {
+                self.driver.erase_flash_chip();
+            },
+            Packet::EnableDataLogging(state) => {
+                if *state {
+                    self.driver.enable_logging_to_flash();
+                } else {
+                    self.driver.disable_logging_to_flash();
+                }
+            },
+            Packet::RetrieveDataLogPage(addr) => {
+                self.driver.retrieve_log_flash_page(*addr);
+            },
+            Packet::StartDevStatsFrame => {
+                self.dev_stats.start_collection(self.driver.timestamp());
+            },
+            _ => {}
+        }
     }
 
     pub fn generate_telemetry_frame(&self) -> FcuTelemetryFrame {
@@ -122,8 +139,6 @@ impl<'a> Fcu<'a> {
             position_error: self.state_vector.get_position_std_dev(),
             velocity_error: self.state_vector.get_velocity_std_dev(),
             acceleration_error: self.state_vector.get_acceleration_std_dev(),
-            accelerometer_bias: self.state_vector.get_accelerometer_bias(),
-            accelerometer_bias_error: self.state_vector.get_accelerometer_bias_std_dev(),
             magnetometer: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             output_channels: [false; OutputChannel::COUNT],
             pwm_channels: [0.0; PwmChannel::COUNT],
@@ -138,8 +153,7 @@ impl<'a> Fcu<'a> {
     }
 
     pub fn update_angular_velocity(&mut self, angular_velocity: Vector3<f32>) {
-        let timestamp = self.driver.timestamp();
-        self.state_vector.update_angular_velocity(angular_velocity.into(), timestamp);
+        self.state_vector.update_angular_velocity(angular_velocity.into());
     }
 
     pub fn update_magnetic_field(&mut self, magnetic_field: Vector3<f32>) {
@@ -168,6 +182,6 @@ impl<'a> Fcu<'a> {
 unsafe impl Send for Fcu<'_> {}
 
 pub(crate) trait FiniteStateMachine<D> {
-    fn update(fcu: &mut Fcu, dt: f32, packet: &Option<Packet>) -> Option<D>;
+    fn update(fcu: &mut Fcu, dt: f32, packets: &[Packet]) -> Option<D>;
     fn setup_state(fcu: &mut Fcu);
 }

@@ -1,6 +1,9 @@
 use core::any::Any;
 
-use crate::{fcu_hal::{OutputChannel, PwmChannel, FcuDriver}, comms_hal::{Packet, NetworkAddress}};
+use crate::{
+    comms_hal::{NetworkAddress, Packet},
+    fcu_hal::{FcuDriver, OutputChannel, PwmChannel}, fcu_log::DataPoint,
+};
 use strum::EnumCount;
 
 #[derive(Debug)]
@@ -36,7 +39,10 @@ impl FcuDriver for FcuDriverMock {
         self.pwm[channel as usize]
     }
 
-    fn send_packet(&mut self, _packet: Packet, _destination: NetworkAddress) {
+    fn send_packet(&mut self, _packet: Packet, _destination: NetworkAddress) {}
+
+    fn log_data_point(&mut self, _datapoint: DataPoint) {
+
     }
 
     fn erase_flash_chip(&mut self) {
@@ -51,7 +57,7 @@ impl FcuDriver for FcuDriverMock {
         todo!()
     }
 
-    fn retrieve_log_flash_page(&mut self, _addr: u32)  {
+    fn retrieve_log_flash_page(&mut self, _addr: u32) {
         todo!()
     }
 

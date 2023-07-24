@@ -3,10 +3,10 @@ use nalgebra::{Vector3, SMatrix, SVector};
 
 use super::{StateVector, kalman::KalmanFilter};
 
-// state_vector = [x, y, z, vx, vy, vz, ax, ay, az, bax, bay, baz]
+// state_vector = [x, y, z, vx, vy, vz, ax, ay, az]
 // measure = [x, y, z, by, ax, ay, az]
 
-pub(super) const STATE_LEN: usize = 12;
+pub(super) const STATE_LEN: usize = 9;
 pub(super) const MEASURE_LEN: usize = 7;
 
 impl StateVector {
@@ -24,13 +24,10 @@ impl StateVector {
         self.position_std_dev = errors.fixed_rows::<3>(0).into();
         self.velocity_std_dev = errors.fixed_rows::<3>(3).into();
         self.acceleration_std_dev = errors.fixed_rows::<3>(6).into();
-
-        self.accelerometer_bias = self.position_kalman.state.fixed_rows::<3>(9).into();
-        self.accelerometer_bias_std_dev = errors.fixed_rows::<3>(9).into();
     }
 
     pub fn update_acceleration(&mut self, acceleration: Vector3<f32>) {
-        let acceleration =  self.orientation.transform_vector(&acceleration);
+        let acceleration =  self.orientation.orientation.transform_vector(&acceleration);
 
         let mut measurement = SVector::<f32, MEASURE_LEN>::zeros();
         measurement.fixed_rows_mut::<3>(4).copy_from(&acceleration);
@@ -39,11 +36,6 @@ impl StateVector {
         measurement_matrix[(4, 6)] = 1.0;
         measurement_matrix[(5, 7)] = 1.0;
         measurement_matrix[(6, 8)] = 1.0;
-
-        // Accelerometer bias
-        // measurement_matrix[(4, 9)] = -1.0;
-        // measurement_matrix[(5, 10)] = -1.0;
-        // measurement_matrix[(6, 11)] = -1.0;
 
         self.position_kalman.update(&measurement, &measurement_matrix);
     }
@@ -87,19 +79,11 @@ impl StateVector {
         measurement_noise[(5, 5)] = config.accelerometer_noise_std_dev.y.powi(2);       // ay
         measurement_noise[(6, 6)] = config.accelerometer_noise_std_dev.z.powi(2);       // az
 
-        let mut initial_state_cov = SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * 1e-4;
-        initial_state_cov[(9, 9)] = 100.0;
-        initial_state_cov[(10, 10)] = 100.0;
-        initial_state_cov[(11, 11)] = 100.0;
-
-        let vec = SVector::<f32, STATE_LEN>::zeros();
-        let process_cov = SMatrix::<f32, STATE_LEN, STATE_LEN>::from_diagonal(&vec);
-
         KalmanFilter::new(
             SMatrix::<f32, STATE_LEN, 1>::zeros(),
             SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * config.position_kalman_process_variance,
             measurement_noise,
-            initial_state_cov,
+            SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * 1e-4,
         )
     }
 }

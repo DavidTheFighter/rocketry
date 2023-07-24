@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::net::UdpSocket;
 
-use hal::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuTelemetryFrame};
+use hal::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuTelemetryFrame, FcuDevStatsFrame};
 use hal::comms_hal::{Packet, NetworkAddress};
 use strum::EnumCount;
 
@@ -13,13 +13,16 @@ pub struct FcuDriverSim {
     pwm: [f32; PwmChannel::COUNT],
     continuities: [bool; OutputChannel::COUNT],
     socket: Option<UdpSocket>,
-    start_timestamp: f64,
+    pub current_sim_timestamp: f32,
+    pub last_sim_timestamp_update_timestamp: f64,
     pub last_telem_packet: Option<FcuTelemetryFrame>,
+    pub last_dev_stats_packet: Option<FcuDevStatsFrame>,
 }
 
 impl FcuDriver for FcuDriverSim {
     fn timestamp(&self) -> f32 {
-        (get_timestamp() - self.start_timestamp) as f32
+        let elapsed = get_timestamp() - self.last_sim_timestamp_update_timestamp;
+        self.current_sim_timestamp + (elapsed as f32)
     }
 
     fn set_output_channel(&mut self, channel: OutputChannel, state: bool) {
@@ -48,6 +51,10 @@ impl FcuDriver for FcuDriverSim {
 
         if let Packet::FcuTelemetry(frame) = &packet {
             self.last_telem_packet = Some(frame.clone());
+        }
+
+        if let Packet::FcuDevStatsFrame(frame) = &packet {
+            self.last_dev_stats_packet = Some(frame.clone());
         }
 
         match packet.serialize(&mut buffer) {
@@ -83,6 +90,10 @@ impl FcuDriver for FcuDriverSim {
     fn as_mut_any(&mut self) -> &mut dyn Any {
         self
     }
+
+    fn log_data_point(&mut self, _datapoint: hal::fcu_log::DataPoint) {
+        // Nothing for now
+    }
 }
 
 impl FcuDriverSim {
@@ -92,14 +103,20 @@ impl FcuDriverSim {
             pwm: [0.0; PwmChannel::COUNT],
             continuities: [false; OutputChannel::COUNT],
             socket: None,
-            start_timestamp: 0.0,
+            current_sim_timestamp: 0.0,
+            last_sim_timestamp_update_timestamp: 0.0,
             last_telem_packet: None,
+            last_dev_stats_packet: None,
         }
     }
 
     pub fn init(&mut self) {
         self.socket = Some(UdpSocket::bind("0.0.0.0:25564").unwrap());
-        self.start_timestamp = get_timestamp();
+    }
+
+    pub fn update_timestamp(&mut self, sim_time: f32) {
+        self.current_sim_timestamp = sim_time;
+        self.last_sim_timestamp_update_timestamp = get_timestamp();
     }
 }
 

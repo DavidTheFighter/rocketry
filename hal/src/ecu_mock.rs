@@ -1,8 +1,9 @@
 use core::any::Any;
 
 use crate::{
-    ecu_hal::{EcuTelemetryFrame, EcuDriver, EcuSensor, EcuSolenoidValve},
-    SensorConfig, comms_hal::{Packet, NetworkAddress},
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuDriver, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame},
+    SensorConfig,
 };
 use strum::EnumCount;
 

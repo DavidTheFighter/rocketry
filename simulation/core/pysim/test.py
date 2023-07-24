@@ -39,6 +39,8 @@ class Simulation:
         start_time = time.time()
 
         while True:
+            self.fcu.update_timestamp(t)
+
             if t > THRUST_TIME + THRUST_WAIT and self.dynamics.position[1] <= 0.0:
                 print("Vehicle landed at {:.6f} s".format(t))
                 break
@@ -74,7 +76,13 @@ class Simulation:
                 self.fcu.update_gps(gps_noise(self.dynamics.position))
 
             if math.fmod(t, FCU_UPDATE_RATE) <= self.dt:
+                noise = [np.random.normal(0.0, 0.1) for _ in range(3)]
+                self.dynamics.angular_forces = noise
                 self.fcu.update(FCU_UPDATE_RATE)
+
+            if math.fmod(t, DEV_STATS_RATE) <= self.dt:
+                self.logger.log_dev_stats(self.fcu)
+                self.fcu.start_dev_stats_frame()
 
             self.logger.log_telemetry(self.fcu)
             self.logger.log_detailed_state(self.fcu)
@@ -97,7 +105,7 @@ class Simulation:
 
         self.fcu.reset_telemetry()
 
-        Thread(target=self.logger.dump_to_file, daemon=False).start()
+        self.logger.dump_to_file()
 
     def replay(self):
         replay = SimReplay(self.logger)

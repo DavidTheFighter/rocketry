@@ -7,9 +7,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ecu_hal::{
-        EcuDAQFrame, EcuTelemetryFrame, EcuSensor, EcuSolenoidValve, FuelTankState, IgniterConfig,
+        EcuDAQFrame, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame, FuelTankState, IgniterConfig,
     },
-    SensorConfig, fcu_hal::{FcuTelemetryFrame, FcuConfig}, fcu_log::DataLogBuffer,
+    fcu_hal::{FcuConfig, FcuDevStatsFrame, FcuTelemetryFrame},
+    SensorConfig,
 };
 
 pub const DAQ_PACKET_FRAMES: usize = 10;
@@ -52,6 +53,9 @@ pub enum Packet {
     EnableDataLogging(bool),
     RetrieveDataLogPage(u32),
 
+    // -- Dev Only -- //
+    StartDevStatsFrame,
+
     // -- Commands -- //,
     TransitionFuelTankState(FuelTankState),
     FireIgniter,
@@ -59,6 +63,7 @@ pub enum Packet {
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
     EcuTelemetry(EcuTelemetryFrame),
+    FcuDevStatsFrame(FcuDevStatsFrame),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
     // FcuDataLogPage(DataLogBuffer),
 

@@ -23,12 +23,12 @@ pub enum FsmStorage {
 }
 
 impl<'a> Fcu<'a> {
-    pub fn update_vehicle_fsm(&mut self, dt: f32, packet: &Option<Packet>) {
+    pub fn update_vehicle_fsm(&mut self, dt: f32, packets: &[Packet]) {
         let new_state = match self.vehicle_state {
-            VehicleState::Idle => Idle::update(self, dt, packet),
-            VehicleState::Ascent => Ascent::update(self, dt, packet),
-            VehicleState::Descent => Descent::update(self, dt, packet),
-            VehicleState::Landed => Landed::update(self, dt, packet),
+            VehicleState::Idle => Idle::update(self, dt, packets),
+            VehicleState::Ascent => Ascent::update(self, dt, packets),
+            VehicleState::Descent => Descent::update(self, dt, packets),
+            VehicleState::Landed => Landed::update(self, dt, packets),
         };
 
         if let Some(new_state) = new_state {

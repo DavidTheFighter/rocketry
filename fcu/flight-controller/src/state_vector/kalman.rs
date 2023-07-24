@@ -67,11 +67,6 @@ impl<const STATE_LEN: usize, const MEASURE_LEN: usize> KalmanFilter<STATE_LEN, M
         state[(4, 7)] = dt;
         state[(5, 8)] = dt;
 
-        // Update accelerometer bias
-        state[(9, 9)] = 1.0;
-        state[(10, 10)] = 1.0;
-        state[(11, 11)] = 1.0;
-
         state
     }
 }

@@ -4,7 +4,10 @@ use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
 
-use crate::{SensorConfig, comms_hal::{Packet, NetworkAddress}};
+use crate::{
+    comms_hal::{NetworkAddress, Packet},
+    SensorConfig,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
 pub enum EcuSensor {

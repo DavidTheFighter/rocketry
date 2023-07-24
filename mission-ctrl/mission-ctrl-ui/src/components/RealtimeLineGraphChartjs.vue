@@ -266,10 +266,15 @@ export default {
             continue;
           }
 
-          const data = this.dataset[datasetDesc.dataName][datasetDesc.dataIndex];
+          let data = this.dataset[datasetDesc.dataName][datasetDesc.dataIndex];
           if (data.length == 0) {
             continue;
           }
+
+          const scale = datasetDesc.scale ?? 1.0;
+          const offset = datasetDesc.offset ?? 0.0;
+
+          data = data.map((x) => x * scale + offset);
 
           this.workingDatasets[i].splice(0, data.length);
           this.workingDatasets[i].push(...data);

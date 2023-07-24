@@ -1,11 +1,11 @@
 use core::any::Any;
 
 use mint::{Quaternion, Vector3};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
 
-use crate::comms_hal::{Packet, NetworkAddress};
+use crate::{comms_hal::{NetworkAddress, Packet}, fcu_log::DataPoint};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum VehicleState {
@@ -42,8 +42,8 @@ pub struct FcuTelemetryFrame {
     pub acceleration: Vector3<f32>,
     pub orientation: Quaternion<f32>,
     pub angular_velocity: Vector3<f32>,
-    pub position_error: f32, // Standard deviation
-    pub velocity_error: f32, // Standard deviation
+    pub position_error: f32,     // Standard deviation
+    pub velocity_error: f32,     // Standard deviation
     pub acceleration_error: f32, // Standard deviation
     pub output_channels: [bool; OutputChannel::COUNT],
     pub pwm_channels: [f32; PwmChannel::COUNT],
@@ -63,11 +63,9 @@ pub struct FcuDetailedStateFrame {
     pub angular_velocity: Vector3<f32>,
     pub angular_acceleration: Vector3<f32>,
     pub magnetometer: Vector3<f32>,
-    pub position_error: Vector3<f32>, // Standard deviation
-    pub velocity_error: Vector3<f32>, // Standard deviation
+    pub position_error: Vector3<f32>,     // Standard deviation
+    pub velocity_error: Vector3<f32>,     // Standard deviation
     pub acceleration_error: Vector3<f32>, // Standard deviation
-    pub accelerometer_bias: Vector3<f32>,
-    pub accelerometer_bias_error: Vector3<f32>, // Standard deviation
     pub output_channels: [bool; OutputChannel::COUNT],
     pub pwm_channels: [f32; PwmChannel::COUNT],
     pub apogee: f32,
@@ -75,14 +73,15 @@ pub struct FcuDetailedStateFrame {
     pub data_logged_bytes: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FcuStatsTelemetryFrame {
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FcuDevStatsFrame {
     pub timestamp: u64,
-    pub cpu_utilization: u32,
+    pub cpu_utilization: f32,
     pub fcu_update_latency_avg: f32,
     pub fcu_update_latency_max: f32,
     pub packet_queue_length_avg: f32,
-    pub packet_queue_length_max: f32,
+    pub packet_queue_length_max: u32,
+    pub fcu_update_elapsed_avg: f32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -93,12 +92,13 @@ pub struct FcuConfig {
     pub accelerometer_noise_std_dev: Vector3<f32>,
     pub barometer_noise_std_dev: f32,
     pub gps_noise_std_dev: Vector3<f32>,
+    // Add a bitfield to contain all of the eventual bool configs
+    // pub log_dev_stats: bool,
+    //
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct FlightConfig {
-
-}
+pub struct FlightConfig {}
 
 pub trait FcuDriver {
     fn timestamp(&self) -> f32;
@@ -110,6 +110,7 @@ pub trait FcuDriver {
     fn get_output_channel_continuity(&self, channel: OutputChannel) -> bool;
     fn get_pwm_channel(&self, channel: PwmChannel) -> f32;
 
+    fn log_data_point(&mut self, datapoint: DataPoint);
     fn erase_flash_chip(&mut self);
     fn enable_logging_to_flash(&mut self);
     fn disable_logging_to_flash(&mut self);
@@ -125,11 +126,34 @@ impl FcuTelemetryFrame {
         Self {
             timestamp: 0,
             vehicle_state: VehicleState::Idle,
-            position: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-            velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-            acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-            orientation: Quaternion { s: 0.0, v: Vector3 { x: 0.0, y: 0.0, z: 0.0 } },
-            angular_velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            position: Vector3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            velocity: Vector3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            acceleration: Vector3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
+            orientation: Quaternion {
+                s: 0.0,
+                v: Vector3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: 0.0,
+                },
+            },
+            angular_velocity: Vector3 {
+                x: 0.0,
+                y: 0.0,
+                z: 0.0,
+            },
             position_error: 0.0,
             velocity_error: 0.0,
             acceleration_error: 0.0,
