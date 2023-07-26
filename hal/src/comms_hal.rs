@@ -13,6 +13,9 @@ use crate::{
     SensorConfig,
 };
 
+use strum::EnumCount;
+use strum_macros::EnumCount as EnumCountMacro;
+
 pub const DAQ_PACKET_FRAMES: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
@@ -21,6 +24,7 @@ pub enum NetworkAddress {
     EngineController(u8),
     FlightController,
     MissionControl,
+    GroundCamera(u8),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -34,7 +38,7 @@ pub enum SerializationError {
     BadEncoding,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, EnumCountMacro)]
 pub enum Packet {
     // -- Direct commands -- //
     SetSolenoidValve {
@@ -68,6 +72,10 @@ pub enum Packet {
     // FcuDataLogPage(DataLogBuffer),
 
     // -- Misc -- //
+    ComponentIpAddress {
+        addr: NetworkAddress,
+        ip: (u8, u8, u8, u8),
+    },
     DoNothing,
 }
 
@@ -137,5 +145,50 @@ impl Packet {
                 _ => Err(SerializationError::Unknown),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::SensorCalibration;
+
+    use super::*;
+
+    const SENSOR_CALIBRATION: SensorCalibration = SensorCalibration {
+        x0: 0.1,
+        x1: 0.2,
+        x2: 0.3,
+        x3: 0.4,
+    };
+
+    const SENSOR_CONFIG: SensorConfig = SensorConfig {
+        premin: 0.1,
+        premax: 0.9,
+        postmin: 10.0,
+        postmax: 99.9,
+        calibration: Some(SENSOR_CALIBRATION),
+    };
+
+    // const PACKET_TEST_DEFAULTS: [Packet; Packet::COUNT] = [
+    //     Packet::SetSolenoidValve { valve: EcuSolenoidValve::IgniterFuelMain, state: true },
+    //     Packet::SetSparking(true),
+    //     Packet::DeviceBooted,
+    //     Packet::ConfigureSensor {sensor: EcuSensor::IgniterGOxInjectorPressure, config: SENSOR_CONFIG },
+    //     Packet::ConfigureIgniter(IgniterConfig::default()),
+    //     Packet::ConfigureFcu(FcuConfig::default()),
+    //     Packet::EraseDataLogFlash,
+    //     Packet::EnableDataLogging(true),
+    //     Packet::RetrieveDataLogPage(42),
+    //     Packet::StartDevStatsFrame,
+    //     Packet::TransitionFuelTankState(FuelTankState::Pressurized),
+    //     Packet::FireIgniter,
+    //     Packet::FcuTelemetry(FcuTelemetryFrame::default()),
+    //     Packet::EcuTelemetry(EcuTelemetryFrame::default()),
+    //     Packet::FcuDevStatsFrame(FcuDevStatsFrame:)
+    // ];
+
+    #[test]
+    fn test_packet_sizes() {
+        
     }
 }
