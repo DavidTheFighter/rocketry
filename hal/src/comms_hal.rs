@@ -74,7 +74,7 @@ pub enum Packet {
     // -- Misc -- //
     ComponentIpAddress {
         addr: NetworkAddress,
-        ip: (u8, u8, u8, u8),
+        ip: [u8; 4],
     },
     DoNothing,
 }

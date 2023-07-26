@@ -172,9 +172,17 @@ impl FcuConfig {
             telemetry_rate: 0.02,
             startup_acceleration_threshold: 0.1,
             position_kalman_process_variance: 1e-3,
-            accelerometer_noise_std_dev: 1e-2,
+            accelerometer_noise_std_dev: Vector3 {
+                x: 1e-2,
+                y: 1e-2,
+                z: 1e-2,
+            },
             barometer_noise_std_dev: 1e-4,
-            gps_noise_std_dev: 5.0,
+            gps_noise_std_dev: Vector3 {
+                x: 5.0,
+                y: 10.0,
+                z: 5.0,
+            }
         }
     }
 }

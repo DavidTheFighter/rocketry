@@ -5,6 +5,7 @@ members = [
     "fcu/flight-controller",
     "mission-ctrl/mission-ctrl-server",
     "simulation/core/software-in-loop",
+    "streamish",
 ]
 
 exclude = [
