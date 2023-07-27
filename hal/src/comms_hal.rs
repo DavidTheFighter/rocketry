@@ -13,10 +13,13 @@ use crate::{
     SensorConfig,
 };
 
-use strum::EnumCount;
 use strum_macros::EnumCount as EnumCountMacro;
 
 pub const DAQ_PACKET_FRAMES: usize = 10;
+pub const PACKET_BUFFER_SIZE: usize = 256;
+
+pub const UDP_RECV_PORT: u16 = 25565;
+pub const UDP_SEND_PORT: u16 = 25566;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum NetworkAddress {
@@ -38,7 +41,7 @@ pub enum SerializationError {
     BadEncoding,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, EnumCountMacro)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumCountMacro)]
 pub enum Packet {
     // -- Direct commands -- //
     SetSolenoidValve {
@@ -63,6 +66,10 @@ pub enum Packet {
     // -- Commands -- //,
     TransitionFuelTankState(FuelTankState),
     FireIgniter,
+    StartCameraStream {
+        port: u16,
+    },
+    StopCameraStream,
 
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
@@ -76,16 +83,13 @@ pub enum Packet {
         addr: NetworkAddress,
         ip: [u8; 4],
     },
+    StopApplication,
     DoNothing,
 }
 
 impl Packet {
     pub fn allow_drop(&self) -> bool {
-        match self {
-            Packet::EcuTelemetry(_) => true,
-            Packet::EcuDAQ(_) => true,
-            _ => false,
-        }
+        matches!(self, Packet::EcuTelemetry(_) | Packet::FcuTelemetry(_) | Packet::EcuDAQ(_) | Packet::FcuDevStatsFrame(_))
     }
 
     /// Serializes this packet and writes it to the given buffer.
@@ -150,6 +154,9 @@ impl Packet {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
+    use strum::EnumCount;
+
     use crate::SensorCalibration;
 
     use super::*;
@@ -169,26 +176,58 @@ mod tests {
         calibration: Some(SENSOR_CALIBRATION),
     };
 
-    // const PACKET_TEST_DEFAULTS: [Packet; Packet::COUNT] = [
-    //     Packet::SetSolenoidValve { valve: EcuSolenoidValve::IgniterFuelMain, state: true },
-    //     Packet::SetSparking(true),
-    //     Packet::DeviceBooted,
-    //     Packet::ConfigureSensor {sensor: EcuSensor::IgniterGOxInjectorPressure, config: SENSOR_CONFIG },
-    //     Packet::ConfigureIgniter(IgniterConfig::default()),
-    //     Packet::ConfigureFcu(FcuConfig::default()),
-    //     Packet::EraseDataLogFlash,
-    //     Packet::EnableDataLogging(true),
-    //     Packet::RetrieveDataLogPage(42),
-    //     Packet::StartDevStatsFrame,
-    //     Packet::TransitionFuelTankState(FuelTankState::Pressurized),
-    //     Packet::FireIgniter,
-    //     Packet::FcuTelemetry(FcuTelemetryFrame::default()),
-    //     Packet::EcuTelemetry(EcuTelemetryFrame::default()),
-    //     Packet::FcuDevStatsFrame(FcuDevStatsFrame:)
-    // ];
+    const PACKET_TEST_DEFAULTS: [Packet; Packet::COUNT] = [
+        Packet::SetSolenoidValve { valve: EcuSolenoidValve::IgniterFuelMain, state: true },
+        Packet::SetSparking(true),
+        Packet::DeviceBooted,
+        Packet::ConfigureSensor {sensor: EcuSensor::IgniterGOxInjectorPressure, config: SENSOR_CONFIG },
+        Packet::ConfigureIgniter(IgniterConfig::default()),
+        Packet::ConfigureFcu(FcuConfig::default()),
+        Packet::EraseDataLogFlash,
+        Packet::EnableDataLogging(true),
+        Packet::RetrieveDataLogPage(42),
+        Packet::StartDevStatsFrame,
+        Packet::TransitionFuelTankState(FuelTankState::Pressurized),
+        Packet::FireIgniter,
+        Packet::StartCameraStream { port: 42 },
+        Packet::StopCameraStream,
+        Packet::FcuTelemetry(FcuTelemetryFrame::default()),
+        Packet::EcuTelemetry(EcuTelemetryFrame::default()),
+        Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
+        Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),
+        Packet::ComponentIpAddress { addr: NetworkAddress::GroundCamera(42), ip: [169, 254, 9, 41] },
+        Packet::StopApplication,
+        Packet::DoNothing,
+    ];
 
     #[test]
     fn test_packet_sizes() {
-        
+        let mut buffer = vec![0; 1024];
+        let mut file = std::fs::File::create("../packet_sizes.txt").unwrap();
+
+        for packet in &PACKET_TEST_DEFAULTS {
+            println!("Serializing: {:?}", packet);
+            let bytes_written = packet.serialize(&mut buffer[0..]).unwrap();
+            assert!(bytes_written <= PACKET_BUFFER_SIZE);
+
+            let packet_name = format!("{:?}", packet);
+            let packet_name = packet_name.split('(').next().unwrap();
+            let packet_name = packet_name.split(' ').next().unwrap();
+
+            let line = format!("{}: {},\n", packet_name, bytes_written);
+            file.write_all(line.as_bytes()).unwrap();
+        }
+    }
+
+    #[test]
+    fn packet_reserialization() {
+        let mut buffer = [0u8; PACKET_BUFFER_SIZE];
+
+        for packet in &PACKET_TEST_DEFAULTS {
+            let bytes_written = packet.serialize(&mut buffer).unwrap();
+            let reserialized_packet = Packet::deserialize(&mut buffer[0..bytes_written]).unwrap();
+
+            assert_eq!(*packet, reserialized_packet);
+        }
     }
 }

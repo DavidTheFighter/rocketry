@@ -42,7 +42,7 @@ pub enum FuelTankState {
     Pressurized = 2,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EcuTelemetryFrame {
     pub timestamp: u64,
     pub igniter_state: IgniterState,
@@ -67,7 +67,7 @@ impl EcuTelemetryFrame {
     }
 }
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, PartialEq, Clone, Serialize, Deserialize)]
 pub struct EcuDAQFrame {
     pub sensor_values: [u16; EcuSensor::COUNT],
 }
@@ -80,7 +80,7 @@ impl EcuDAQFrame {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IgniterConfig {
     pub gox_lead: bool,
     pub gox_lead_duration: f32,

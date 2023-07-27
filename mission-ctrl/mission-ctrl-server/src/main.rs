@@ -5,6 +5,7 @@ mod input;
 pub(crate) mod observer;
 mod ecu_telemetry;
 mod fcu_telemetry;
+mod cameras;
 
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -22,6 +23,7 @@ use comms::send::send_thread;
 use ecu_telemetry::{telemetry_thread, ecu_telemetry_endpoint};
 use fcu_telemetry::{fcu_telemetry_thread, fcu_telemetry_endpoint};
 
+use crate::cameras::camera_streaming_thread;
 use crate::config::config_thread;
 
 #[macro_use]
@@ -76,6 +78,11 @@ async fn main() {
     let observer_handler_ref = observer_handler.clone();
     thread::spawn(move || {
         config_thread(observer_handler_ref);
+    });
+
+    let observer_handler_ref = observer_handler.clone();
+    thread::spawn(move || {
+        camera_streaming_thread(observer_handler_ref);
     });
 
     let shutdown_handle_ref = shutdown_handle.clone();

@@ -136,11 +136,6 @@ impl FcuTelemetryHandler {
             last_frame.angular_velocity.y,
             last_frame.angular_velocity.z,
         ];
-        telem.magnetic_field = vec![
-            last_frame.magnetometer.x,
-            last_frame.magnetometer.y,
-            last_frame.magnetometer.z,
-        ];
 
         if telem.telemetry_rate > 0 {
             telem.graph_data.altitude.push(last_frame.position.y);

@@ -52,8 +52,8 @@ impl DataPoint {
         }
     }
 
-    pub fn deserialize<'a>(buffer: &'a [u8]) -> (Option<DataPoint>, Option<&'a [u8]>) {
-        if buffer.len() < 1 {
+    pub fn deserialize(buffer: &[u8]) -> (Option<DataPoint>, Option<&[u8]>) {
+        if buffer.is_empty() {
             return (None, None);
         }
 
@@ -66,9 +66,9 @@ impl DataPoint {
                     return (None, None);
                 }
 
-                let x = ((data[0] as i16) << 8) | (data[1] as i16);
-                let y = ((data[2] as i16) << 8) | (data[3] as i16);
-                let z = ((data[4] as i16) << 8) | (data[5] as i16);
+                let x = (i16::from(data[0]) << 8) | i16::from(data[1]);
+                let y = (i16::from(data[2]) << 8) | i16::from(data[3]);
+                let z = (i16::from(data[4]) << 8) | i16::from(data[5]);
 
                 (Some(DataPoint::Accelerometer { x, y, z }), Some(&data[6..]))
             }
@@ -77,9 +77,9 @@ impl DataPoint {
                     return (None, None);
                 }
 
-                let x = ((data[0] as i16) << 8) | (data[1] as i16);
-                let y = ((data[2] as i16) << 8) | (data[3] as i16);
-                let z = ((data[4] as i16) << 8) | (data[5] as i16);
+                let x = (i16::from(data[0]) << 8) | i16::from(data[1]);
+                let y = (i16::from(data[2]) << 8) | i16::from(data[3]);
+                let z = (i16::from(data[4]) << 8) | i16::from(data[5]);
 
                 (Some(DataPoint::Gyroscope { x, y, z }), Some(&data[6..]))
             }
@@ -88,10 +88,10 @@ impl DataPoint {
                     return (None, None);
                 }
 
-                let x = ((data[0] as i16) << 8) | (data[1] as i16);
-                let y = ((data[2] as i16) << 8) | (data[3] as i16);
-                let z = ((data[4] as i16) << 8) | (data[5] as i16);
-                let h = ((data[6] as i16) << 8) | (data[7] as i16);
+                let x = (i16::from(data[0]) << 8) | i16::from(data[1]);
+                let y = (i16::from(data[2]) << 8) | i16::from(data[3]);
+                let z = (i16::from(data[4]) << 8) | i16::from(data[5]);
+                let h = (i16::from(data[6]) << 8) | i16::from(data[7]);
 
                 (
                     Some(DataPoint::Magnetometer { x, y, z, h }),
@@ -138,33 +138,4 @@ impl<'de> Visitor<'de> for DataLogBufferVisitor {
         buffer.copy_from_slice(v);
         Ok(DataLogBuffer { buffer })
     }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::comms_hal::Packet;
-
-    use super::*;
-
-    // #[test]
-    // fn test_data_log_buffer_serialization() {
-    //     let mut data_log_buffer = DataLogBuffer { buffer: [0u8; 256] };
-    //     for i in 0..data_log_buffer.buffer.len() {
-    //         data_log_buffer.buffer[i] = i as u8;
-    //     }
-
-    //     let packet = Packet::FcuDataLogPage(data_log_buffer.clone());
-    //     let mut serialized_buffer = [0u8; 1024];
-    //     let len = packet.serialize(&mut serialized_buffer)
-    //         .expect("Failed to deserialize packet");
-
-    //     let deserialized_packet = Packet::deserialize(&mut serialized_buffer[..len])
-    //         .expect("Failed to deserialize packet");
-
-    //     if let Packet::FcuDataLogPage(deserialized_data_log_buffer) = deserialized_packet {
-    //         assert_eq!(data_log_buffer.buffer, deserialized_data_log_buffer.buffer);
-    //     } else {
-    //         panic!("Deserialized packet was not a DataLogBuffer");
-    //     }
-    // }
 }

@@ -33,7 +33,7 @@ pub enum PwmChannel {
     PwmChannel5 = 5,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FcuTelemetryFrame {
     pub timestamp: u64,
     pub vehicle_state: VehicleState,
@@ -73,7 +73,7 @@ pub struct FcuDetailedStateFrame {
     pub data_logged_bytes: u32,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FcuDevStatsFrame {
     pub timestamp: u64,
     pub cpu_utilization: f32,
@@ -84,7 +84,7 @@ pub struct FcuDevStatsFrame {
     pub fcu_update_elapsed_avg: f32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FcuConfig {
     pub telemetry_rate: f32,
     pub startup_acceleration_threshold: f32,
@@ -183,6 +183,20 @@ impl FcuConfig {
                 y: 10.0,
                 z: 5.0,
             }
+        }
+    }
+}
+
+impl FcuDevStatsFrame {
+    pub const fn default() -> Self {
+        Self {
+            timestamp: 0,
+            cpu_utilization: 0.0,
+            fcu_update_latency_avg: 0.0,
+            fcu_update_latency_max: 0.0,
+            packet_queue_length_avg: 0.0,
+            packet_queue_length_max: 0,
+            fcu_update_elapsed_avg: 0.0,
         }
     }
 }
