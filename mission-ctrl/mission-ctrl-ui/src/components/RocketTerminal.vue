@@ -32,6 +32,8 @@ export default {
         "setlog": (args) => this.commandAlias("set-logging", args),
         "retrieve-logs": (args) => this.postCommand(args),
         "getlogs": (args) => this.commandAlias("retrieve-logs", args),
+        "start-stream": (args) => this.postCommand(args),
+        "stop-stream": (args) => this.postCommand(args),
       },
     };
   },

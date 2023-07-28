@@ -5,8 +5,6 @@ mod stream;
 mod streamish;
 
 fn main() {
-    // let mut streamish = Streamish::new();
-    // streamish.run();
-
-    println!("Streamish");
+    let mut streamish = Streamish::new();
+    streamish.run();
 }

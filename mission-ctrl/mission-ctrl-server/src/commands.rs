@@ -2,6 +2,7 @@ pub mod components;
 pub mod logging;
 pub mod sequence;
 pub mod tanks;
+pub mod streamish;
 
 use std::{
     sync::Arc,
@@ -21,6 +22,7 @@ use components::{set_solenoid_valve, test_solenoid_valve, test_spark};
 use logging::{erase_flash, set_logging, retrieve_logs};
 use sequence::{test_fire_igniter};
 use tanks::{fuel_pressurize, fuel_idle, fuel_depressurize};
+use streamish::{start_stream, stop_stream};
 
 pub fn get_routes() -> Vec<rocket::Route> {
     routes![
@@ -38,6 +40,9 @@ pub fn get_routes() -> Vec<rocket::Route> {
         erase_flash,
         set_logging,
         retrieve_logs,
+        // Cameras
+        start_stream,
+        stop_stream,
     ]
 }
 

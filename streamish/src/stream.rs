@@ -12,13 +12,13 @@ impl Stream {
         println!("Streamish: Setting up stream to {}:{}", addr, port);
 
         let streaming_process = Command::new("ffmpeg")
-            .arg("-f v4l2")
-            .arg("-input_format h264")
-            .arg("-video_size 1280x720")
-            .arg("-r 30")
-            .arg("-i /dev/video0")
-            .arg("-c:v copy")
-            .arg("-f h264")
+            .args(["-f", "v4l2"])
+            .args(["-input_format", "h264"])
+            .args(["-video_size", "1280x720"])
+            .args(["-r", "30"])
+            .args(["-i", "/dev/video0"])
+            .args(["-c:v", "copy"])
+            .args(["-f", "h264"])
             .arg(format!("udp://{}:{}", addr, port))
             .spawn()
             .expect("Failed to start streaming process");
@@ -37,7 +37,8 @@ impl Stream {
 
 fn setup_v4l2_ctl_params() {
     Command::new("v4l2-ctl")
-            .arg("--set-ctrl repeat_sequence_header=1,video_bitrate=5000000")
+            .arg("--set-ctrl")
+            .arg("repeat_sequence_header=1,video_bitrate=5000000")
             .spawn()
             .expect("Failed to set v4l2-ctl params");
 }

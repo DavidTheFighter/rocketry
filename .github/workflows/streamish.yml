@@ -23,12 +23,8 @@ jobs:
           target: arm-unknown-linux-gnueabihf
           override: true
       - run: rustup target add arm-unknown-linux-gnueabihf
-      - uses: actions-rs/cargo@v1
-        env:
-          RUSTFLAGS: -C linker=arm-linux-gnueabihf-gcc
-        with:
-          command: build
-          args: --release --target arm-unknown-linux-gnueabihf --manifest-path ./streamish/Cargo.toml
+      - run: cargo install cross
+      - run: cross build --release --target arm-unknown-linux-gnueabihf  --manifest-path ./streamish/Cargo.toml
       - uses: actions/upload-artifact@v3
         with:
           name: streamish-binary

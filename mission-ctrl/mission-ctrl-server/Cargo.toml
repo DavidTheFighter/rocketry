@@ -12,6 +12,7 @@ strum = { version = "0.24", features = ["derive"] }
 strum_macros = "0.24"
 rand = "0.8"
 dashmap = "5.4.0"
+local-ip-address = "0.5.3"
 
 [dependencies.hal]
 path = "../../hal"
