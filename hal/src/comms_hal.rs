@@ -28,6 +28,7 @@ pub enum NetworkAddress {
     FlightController,
     MissionControl,
     GroundCamera(u8),
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

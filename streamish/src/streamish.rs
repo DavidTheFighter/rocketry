@@ -45,7 +45,7 @@ impl Streamish {
         }
     }
 
-    fn handle_packet(&mut self, packet: Packet, addr: Ipv4Addr) {
+    fn handle_packet(&mut self, packet: Packet, src_addr: Ipv4Addr) {
         match packet {
             Packet::StartCameraStream { port } => {
                 if let Some(stream) = &mut self.stream {
@@ -54,7 +54,7 @@ impl Streamish {
                     eprintln!("Streamish: Stopping existing stream");
                 }
 
-                let stream = Stream::new(port, addr);
+                let stream = Stream::new(port, src_addr);
                 self.stream = Some(stream);
             },
             Packet::StopCameraStream => {

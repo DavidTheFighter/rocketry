@@ -24,12 +24,14 @@ use ecu_telemetry::{telemetry_thread, ecu_telemetry_endpoint};
 use fcu_telemetry::{fcu_telemetry_thread, fcu_telemetry_endpoint};
 
 use crate::cameras::camera_streaming_thread;
+use crate::comms::addresses::AddressManager;
 use crate::config::config_thread;
 
 #[macro_use]
 extern crate rocket;
 
 static PROCESS_RUNNING: AtomicBool = AtomicBool::new(true);
+const ADDR_DEFAULTS_FILE: &str = "address-defaults.json";
 
 fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
     rocket::build()
@@ -48,16 +50,19 @@ async fn main() {
     let observer_handler = Arc::new(ObserverHandler::new());
     let rocket = rocket(observer_handler.clone()).ignite().await.unwrap();
     let shutdown_handle = rocket.shutdown();
+    let address_manager = Arc::new(AddressManager::new(String::from(ADDR_DEFAULTS_FILE)));
     rocket::tokio::spawn(rocket.launch());
 
     let observer_handler_ref = observer_handler.clone();
+    let address_manager_ref = address_manager.clone();
     thread::spawn(move || {
-        recv_thread(observer_handler_ref);
+        recv_thread(observer_handler_ref, address_manager_ref);
     });
 
     let observer_handler_ref = observer_handler.clone();
+    let address_manager_ref = address_manager.clone();
     thread::spawn(move || {
-        send_thread(observer_handler_ref);
+        send_thread(observer_handler_ref, address_manager_ref);
     });
 
     // Ensure that the recv and send threads are running so we can send and receive data

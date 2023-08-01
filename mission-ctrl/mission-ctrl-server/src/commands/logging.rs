@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
-use hal::{
-    comms_hal::{Packet, NetworkAddress}, fcu_log::DataLogBuffer,
-};
+use hal::comms_hal::{Packet, NetworkAddress};
 use rocket::{
     serde::json::Json,
     State,
 };
 
-use crate::{observer::{ObserverHandler, ObserverEvent}, commands::CommandResponse};
+use crate::{observer::ObserverHandler, commands::CommandResponse};
 
 use super::{send_command, format_response};
 
@@ -52,7 +50,7 @@ pub fn set_logging(
 }
 
 #[post("/retrieve-logs")]
-pub fn retrieve_logs(observer_handler: &State<Arc<ObserverHandler>>) -> Json<CommandResponse> {
+pub fn retrieve_logs(_observer_handler: &State<Arc<ObserverHandler>>) -> Json<CommandResponse> {
     return format_response(
         format!("You know this command doesn't work"),
         false,

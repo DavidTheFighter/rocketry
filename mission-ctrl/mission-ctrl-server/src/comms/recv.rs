@@ -1,20 +1,22 @@
-use std::{net::UdpSocket, time::Duration, sync::Arc, io::ErrorKind};
-use hal::comms_hal::Packet;
+use std::{net::{UdpSocket, Ipv4Addr}, time::Duration, sync::Arc, io::ErrorKind};
+use hal::comms_hal::{Packet, NetworkAddress};
 
 use crate::{observer::{ObserverEvent, ObserverHandler}, process_is_running};
 
-use super::{addresses::ip_to_network_address, RECV_PORT};
+use super::{addresses::AddressManager, RECV_PORT};
 
 const BUFFER_SIZE: usize = 1024;
 
 struct RecievingThread {
     observer_handler: Arc<ObserverHandler>,
+    address_manager: Arc<AddressManager>,
 }
 
 impl RecievingThread {
-    pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
+    pub fn new(observer_handler: Arc<ObserverHandler>, address_manager: Arc<AddressManager>) -> Self {
         Self {
             observer_handler,
+            address_manager,
         }
     }
 
@@ -33,14 +35,11 @@ impl RecievingThread {
             match socket.recv_from(&mut buffer) {
                 Ok((size, saddress)) => {
                     let packet = Packet::deserialize(&mut buffer[0..size]);
-                    let address = ip_to_network_address(saddress.ip().to_string());
+                    let address = self.address_manager.ip_to_network_address(saddress.ip());
 
                     match packet {
                         Ok(packet) => {
-                            self.observer_handler.notify(ObserverEvent::PacketReceived {
-                                packet,
-                                address,
-                            });
+                            self.handle_packet(packet, address);
                         }
                         Err(err) => {
                             println!("recv_thread: Packet deserialization error: {:?} ({} bytes: {:?})",
@@ -58,9 +57,20 @@ impl RecievingThread {
             }
         }
     }
+
+    fn handle_packet(&mut self, packet: Packet, address: NetworkAddress) {
+        if let Packet::ComponentIpAddress { addr, ip } = packet {
+            self.address_manager.map_ip_address(addr, Ipv4Addr::from(ip));
+        }
+
+        self.observer_handler.notify(ObserverEvent::PacketReceived {
+            packet,
+            address,
+        });
+    }
 }
 
-pub fn recv_thread(observer_handler: Arc<ObserverHandler>) {
+pub fn recv_thread(observer_handler: Arc<ObserverHandler>, address_manager: Arc<AddressManager>) {
     observer_handler.register_observer_thread();
-    RecievingThread::new(observer_handler).run();
+    RecievingThread::new(observer_handler, address_manager).run();
 }

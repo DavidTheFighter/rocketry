@@ -3,18 +3,20 @@ use hal::comms_hal::{Packet, NetworkAddress};
 
 use crate::{observer::{ObserverEvent, ObserverHandler}, process_is_running};
 
-use super::{addresses, SEND_PORT};
+use super::{addresses::AddressManager, SEND_PORT};
 
 const BUFFER_SIZE: usize = 1024;
 
 struct SendingThread {
     observer_handler: Arc<ObserverHandler>,
+    address_manager: Arc<AddressManager>,
 }
 
 impl SendingThread {
-    pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
+    pub fn new(observer_handler: Arc<ObserverHandler>, address_manager: Arc<AddressManager>) -> Self {
         Self {
             observer_handler,
+            address_manager,
         }
     }
 
@@ -27,15 +29,24 @@ impl SendingThread {
             if let Some((event_id, addr, packet)) = self.receive_packet_event() {
                 match packet.serialize(&mut buffer) {
                     Ok(size) => {
-                        let address = addresses::network_address_to_ip(addr) + ":25565";
+                        let ip_address = self.address_manager.network_address_to_ip(addr);
 
-                        if let Err(err) = socket.send_to(&buffer[0..size], address) {
+                        if let Some(ip_address) = ip_address {
+                            let address = format!("{}:{}", ip_address, SEND_PORT);
+
+                            if let Err(err) = socket.send_to(&buffer[0..size], address) {
+                                self.send_packet_resonse(
+                                    event_id,
+                                    Err(format!("send_thread: Failed to send packet: {err}")),
+                                );
+                            } else {
+                                self.send_packet_resonse(event_id, Ok(()));
+                            }
+                        } else {
                             self.send_packet_resonse(
                                 event_id,
-                                Err(format!("send_thread: Failed to send packet: {err}")),
+                                Err(format!("send_thread: Failed to map network addr to ip")),
                             );
-                        } else {
-                            self.send_packet_resonse(event_id, Ok(()));
                         }
                     }
                     Err(err) => {
@@ -73,7 +84,7 @@ impl SendingThread {
     }
 }
 
-pub fn send_thread(observer_handler: Arc<ObserverHandler>) {
+pub fn send_thread(observer_handler: Arc<ObserverHandler>, address_manager: Arc<AddressManager>) {
     observer_handler.register_observer_thread();
-    SendingThread::new(observer_handler).run();
+    SendingThread::new(observer_handler, address_manager).run();
 }

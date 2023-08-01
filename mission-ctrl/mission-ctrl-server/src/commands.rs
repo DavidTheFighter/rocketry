@@ -9,18 +9,16 @@ use std::{
     time::Duration,
 };
 
-use hal::{
-    comms_hal::{Packet, NetworkAddress},
-};
+use hal::comms_hal::{Packet, NetworkAddress};
 use rocket::{
     serde::{json::Json, Serialize},
     State,
 };
 
-use crate::{observer::{ObserverHandler, ObserverEvent}};
+use crate::observer::{ObserverHandler, ObserverEvent};
 use components::{set_solenoid_valve, test_solenoid_valve, test_spark};
 use logging::{erase_flash, set_logging, retrieve_logs};
-use sequence::{test_fire_igniter};
+use sequence::test_fire_igniter;
 use tanks::{fuel_pressurize, fuel_idle, fuel_depressurize};
 use streamish::{start_stream, stop_stream};
 
