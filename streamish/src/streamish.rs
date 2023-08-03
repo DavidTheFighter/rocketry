@@ -49,6 +49,11 @@ impl Streamish {
         match packet {
             Packet::StartCameraStream { port } => {
                 if let Some(stream) = &mut self.stream {
+                    if stream.port == port && stream.stream_addr == src_addr {
+                        eprintln!("Streamish: Tried starting a new stream with same settings, ignoring");
+                        return;
+                    }
+
                     stream.stop();
                     self.stream = None;
                     eprintln!("Streamish: Stopping existing stream");

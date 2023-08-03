@@ -36,22 +36,17 @@ impl AddressManager {
         address_map.get(&address).copied()
     }
 
-    pub fn ip_to_network_address(&self, ip: IpAddr) -> NetworkAddress {
+    pub fn ip_to_network_address(&self, ip: IpAddr) -> Option<NetworkAddress> {
         match ip {
             IpAddr::V4(ip) => self.ipv4_to_network_address(ip),
-            IpAddr::V6(_) => NetworkAddress::Unknown,
+            IpAddr::V6(_) => None,
         }
     }
 
-    pub fn ipv4_to_network_address(&self, ip: Ipv4Addr) -> NetworkAddress {
+    pub fn ipv4_to_network_address(&self, ip: Ipv4Addr) -> Option<NetworkAddress> {
         let address_map = self.address_map.read().unwrap();
-        let addr = address_map.iter().find(|(_, &v)| v == ip).map(|(&k, _)| k);
 
-        if let Some(addr) = addr {
-            addr
-        } else {
-            NetworkAddress::Unknown
-        }
+        address_map.iter().find(|(_, &v)| v == ip).map(|(&k, _)| k)
     }
 
     pub fn map_ip_address(&self, address: NetworkAddress, ip: Ipv4Addr) {

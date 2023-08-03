@@ -3,6 +3,8 @@ use std::process::{Command, Child};
 
 pub struct Stream {
     streaming_process: Child,
+    pub port: u16,
+    pub stream_addr: Ipv4Addr,
 }
 
 impl Stream {
@@ -25,6 +27,8 @@ impl Stream {
 
         Self {
             streaming_process,
+            port,
+            stream_addr: addr,
         }
     }
 

@@ -58,9 +58,12 @@ impl RecievingThread {
         }
     }
 
-    fn handle_packet(&mut self, packet: Packet, address: NetworkAddress) {
+    fn handle_packet(&mut self, packet: Packet, address: Option<NetworkAddress>) {
+        let mut address = address.unwrap_or(NetworkAddress::Unknown);
+
         if let Packet::ComponentIpAddress { addr, ip } = packet {
             self.address_manager.map_ip_address(addr, Ipv4Addr::from(ip));
+            address = addr;
         }
 
         self.observer_handler.notify(ObserverEvent::PacketReceived {
