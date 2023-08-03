@@ -1,5 +1,5 @@
 use std::net::Ipv4Addr;
-use std::process::{Command, Child};
+use std::process::{Command, Child, Stdio};
 
 pub struct Stream {
     streaming_process: Child,
@@ -22,6 +22,9 @@ impl Stream {
             .args(["-c:v", "copy"])
             .args(["-f", "h264"])
             .arg(format!("udp://{}:{}", addr, port))
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .stdin(Stdio::null())
             .spawn()
             .expect("Failed to start streaming process");
 

@@ -1,18 +1,22 @@
 pub mod connection;
 
-use std::{sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration, net::Ipv4Addr};
 
 use hal::comms_hal::{Packet, NetworkAddress};
 
-use crate::{observer::{ObserverHandler, ObserverEvent}, process_is_running};
+use crate::{observer::{ObserverHandler, ObserverEvent}, process_is_running, timestamp};
 
 use self::connection::CameraConnection;
 
 pub const CAMERA_CONNECTION_TIMEOUT: f64 = 5.0;
+pub const CAMERA_CONNECTION_PORT_START: u16 = 5000;
+pub const TRANSCODE_PORT_START: u16 = 5500;
 
 pub struct CameraStreaming {
     observer_handler: Arc<ObserverHandler>,
     active_connections: Vec<CameraConnection>,
+    connection_port_counter: u16,
+    transcode_port_counter: u16,
 }
 
 impl CameraStreaming {
@@ -20,6 +24,8 @@ impl CameraStreaming {
         Self {
             observer_handler,
             active_connections: Vec::new(),
+            connection_port_counter: CAMERA_CONNECTION_PORT_START,
+            transcode_port_counter: TRANSCODE_PORT_START,
         }
     }
 
@@ -29,26 +35,35 @@ impl CameraStreaming {
                 self.handle_packet(packet);
             }
 
-            // self.active_connections.iter_mut().filter(|connection| {
-            //     if timestamp() - connection.last_ping > CAMERA_CONNECTION_TIMEOUT {
-            //         return false;
-            //     }
+            self.active_connections.retain_mut(|connection| {
+                if timestamp() - connection.last_ping > CAMERA_CONNECTION_TIMEOUT {
+                    print!("Dropping camera connection: {:?}...", connection.address);
+                    connection.drop_connection();
+                    println!(" done");
+                    return false;
+                }
 
-            //     return true;
-            // });
+                return true;
+            });
+        }
+
+        for connection in &mut self.active_connections {
+            print!("Dropping camera connection: {:?}...", connection.address);
+            connection.drop_connection();
+            println!(" done");
         }
     }
 
     fn handle_packet(&mut self, packet: Packet) {
         match packet {
-            Packet::ComponentIpAddress { addr, ip: _ } => {
-                self.handle_ping(addr);
+            Packet::ComponentIpAddress { addr, ip } => {
+                self.handle_ping(addr, Ipv4Addr::from(ip));
             },
             _ => {}
         }
     }
 
-    fn handle_ping(&mut self, address: NetworkAddress) {
+    fn handle_ping(&mut self, address: NetworkAddress, connection_ip: Ipv4Addr) {
         let mut found = false;
         for connection in &mut self.active_connections {
             if connection.address == address {
@@ -59,15 +74,34 @@ impl CameraStreaming {
         }
 
         if !found {
-            let new_connection = self.create_connection(address);
-            self.active_connections.push(new_connection);
+            let connection_port = self.connection_port_counter;
+            let transcode_port = self.transcode_port_counter;
+            match CameraConnection::new(
+                address,
+                connection_ip,
+                connection_port,
+                transcode_port,
+                self.observer_handler.clone(),
+            ) {
+                Some(connection) => {
+                    self.active_connections.push(connection);
+                },
+                None => {
+                    println!("Failed to start transcoding process for camera: {:?}", address);
+                    return;
+                }
+            }
+
+            println!("New camera connection: {:?} @ {:?}:{}, transcoding on {}",
+                address,
+                connection_ip,
+                connection_port,
+                transcode_port,
+            );
+
+            self.connection_port_counter += 1;
+            self.transcode_port_counter += 1;
         }
-    }
-
-    fn create_connection(&mut self, address: NetworkAddress) -> CameraConnection {
-        let mut connection = CameraConnection::new(address);
-
-        connection
     }
 
     fn get_packet(&self) -> Option<Packet> {

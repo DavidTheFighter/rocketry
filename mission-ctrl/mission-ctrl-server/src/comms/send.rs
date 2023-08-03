@@ -3,7 +3,7 @@ use hal::comms_hal::{Packet, NetworkAddress};
 
 use crate::{observer::{ObserverEvent, ObserverHandler}, process_is_running};
 
-use super::{addresses::AddressManager, SEND_PORT};
+use super::{addresses::AddressManager, SEND_PORT, RECV_PORT};
 
 const BUFFER_SIZE: usize = 1024;
 
@@ -32,7 +32,7 @@ impl SendingThread {
                         let ip_address = self.address_manager.network_address_to_ip(addr);
 
                         if let Some(ip_address) = ip_address {
-                            let address = format!("{}:{}", ip_address, SEND_PORT);
+                            let address = format!("{}:{}", ip_address, RECV_PORT);
 
                             if let Err(err) = socket.send_to(&buffer[0..size], address) {
                                 self.send_packet_resonse(
@@ -41,11 +41,13 @@ impl SendingThread {
                                 );
                             } else {
                                 self.send_packet_resonse(event_id, Ok(()));
+
+                                println!("send_thread: Sent packet {:?} to {:?} @ {:?}:{}", packet, addr, ip_address, RECV_PORT);
                             }
                         } else {
                             self.send_packet_resonse(
                                 event_id,
-                                Err(format!("send_thread: Failed to map network addr to ip")),
+                                Err(format!("send_thread: Failed to map network addr {:?} to ip for packet {:?}", addr, packet)),
                             );
                         }
                     }

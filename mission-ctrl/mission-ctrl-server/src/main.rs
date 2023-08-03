@@ -55,13 +55,13 @@ async fn main() {
 
     let observer_handler_ref = observer_handler.clone();
     let address_manager_ref = address_manager.clone();
-    thread::spawn(move || {
+    let recv_join_handle = thread::spawn(move || {
         recv_thread(observer_handler_ref, address_manager_ref);
     });
 
     let observer_handler_ref = observer_handler.clone();
     let address_manager_ref = address_manager.clone();
-    thread::spawn(move || {
+    let send_join_handle = thread::spawn(move || {
         send_thread(observer_handler_ref, address_manager_ref);
     });
 
@@ -70,33 +70,45 @@ async fn main() {
         thread::sleep(Duration::from_millis(10));
     }
 
+    let mut join_handles = Vec::new();
+
     let observer_handler_ref = observer_handler.clone();
-    thread::spawn(move || {
+    join_handles.push(thread::spawn(move || {
         telemetry_thread(observer_handler_ref);
-    });
+    }));
 
     let observer_handler_ref = observer_handler.clone();
-    thread::spawn(move || {
+    join_handles.push(thread::spawn(move || {
         fcu_telemetry_thread(observer_handler_ref);
-    });
+    }));
 
     let observer_handler_ref = observer_handler.clone();
-    thread::spawn(move || {
+    join_handles.push(thread::spawn(move || {
         config_thread(observer_handler_ref);
-    });
+    }));
 
     let observer_handler_ref = observer_handler.clone();
-    thread::spawn(move || {
+    join_handles.push(thread::spawn(move || {
         camera_streaming_thread(observer_handler_ref);
-    });
+    }));
 
     let shutdown_handle_ref = shutdown_handle.clone();
-    thread::spawn(move || {
+    join_handles.push(thread::spawn(move || {
         input_thread(shutdown_handle_ref);
-    });
+    }));
 
     // Wait for the server to shut down before exiting
     shutdown_handle.await;
+
+    // Stop all threads
+    for join_handle in join_handles {
+        if let Err(err) = join_handle.join() {
+            println!("Error joining thread: {:?}", err);
+        }
+    }
+
+    recv_join_handle.join().expect("Error joining recv thread");
+    send_join_handle.join().expect("Error joining send thread");
 
     println!("Shut down gracefully!");
 }
