@@ -1,0 +1,42 @@
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - '*'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  streamish:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: arm-unknown-linux-gnueabihf
+          override: true
+      - run: rustup target add arm-unknown-linux-gnueabihf
+      - run: cargo install cross
+      - run: cross build --release --target arm-unknown-linux-gnueabihf  --manifest-path ./streamish/Cargo.toml
+      - uses: actions/upload-artifact@v3
+        with:
+          name: streamish-binary
+          path: target/arm-unknown-linux-gnueabihf/release/streamish
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test

@@ -6,7 +6,7 @@ use hal::comms_hal::{Packet, NetworkAddress};
 
 #[derive(Debug, Clone)]
 pub enum ObserverEvent {
-    EventResponse(u64, Result<(), String>),
+    EventResponse(u64, Result<ObserverResponse, String>),
     PacketReceived {
         address: NetworkAddress,
         packet: Packet,
@@ -15,6 +15,18 @@ pub enum ObserverEvent {
         address: NetworkAddress,
         packet: Packet,
     },
+    SetupBrowserStream {
+        camera_address: NetworkAddress,
+        browser_session: String,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum ObserverResponse {
+    Empty,
+    BrowserStream {
+        stream_session: String,
+    }
 }
 
 struct ObserverData {
@@ -68,7 +80,7 @@ impl ObserverHandler {
         event_id
     }
 
-    pub fn get_response(&self, event_id: u64, timeout: Duration) -> Option<Result<(), String>> {
+    pub fn get_response(&self, event_id: u64, timeout: Duration) -> Option<Result<ObserverResponse, String>> {
         let thread_id = thread::current().id();
 
         if !self.observers.contains_key(&thread_id) {

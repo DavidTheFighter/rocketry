@@ -1,8 +1,10 @@
-use std::{process::{Child, Command, Stdio}, net::Ipv4Addr, sync::Arc};
+use std::{process::{Child, Command, Stdio}, net::{Ipv4Addr, UdpSocket}, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Duration};
 
 use hal::comms_hal::{NetworkAddress, Packet};
 
 use crate::{timestamp, observer::{ObserverHandler, ObserverEvent}};
+
+use super::webrtc::WebRtcStream;
 
 
 pub struct CameraConnection {
@@ -11,6 +13,8 @@ pub struct CameraConnection {
     connection_ip: Ipv4Addr,
     transcode_process: Child,
     observer_handler: Arc<ObserverHandler>,
+    browser_streams: Vec<WebRtcStream>,
+    alive: Arc<AtomicBool>,
 }
 
 impl CameraConnection {
@@ -31,12 +35,20 @@ impl CameraConnection {
                 packet: Packet::StartCameraStream { port: connection_port },
             });
 
+            let alive = Arc::new(AtomicBool::new(true));
+            let alive_ref = alive.clone();
+            std::thread::spawn(move || {
+                Self::transcode_thread(alive_ref, transcode_port);
+            });
+
             return Some(Self {
                 address,
                 last_ping: timestamp(),
                 connection_ip,
                 transcode_process,
                 observer_handler,
+                browser_streams: Vec::new(),
+                alive,
             });
         }
 
@@ -45,16 +57,37 @@ impl CameraConnection {
         None
     }
 
+    pub fn setup_browser_stream(&mut self, browser_session: String) {
+        
+    }
+
     pub fn ping(&mut self) {
         self.last_ping = timestamp();
     }
 
     pub fn drop_connection(&mut self) {
         self.transcode_process.kill().expect("Failed to kill transcoding process");
+        self.alive.store(false, Ordering::Relaxed);
         self.observer_handler.notify(ObserverEvent::SendPacket {
             address: self.address,
             packet: Packet::StopCameraStream,
         });
+    }
+
+    fn transcode_thread(alive: Arc<AtomicBool>, transcode_port: u16) {
+        let mut buffer = vec![0; 1600];
+        let socket = UdpSocket::bind(format!("127.0.0.1:{}", transcode_port))
+            .expect("Failed to bind to transcode socket");
+        socket.set_read_timeout(Some(Duration::from_millis(100)))
+            .expect("Failed to set transcode socket timeout");
+
+        while alive.load(Ordering::Relaxed) {
+            if let Ok((size, _)) = socket.recv_from(&mut buffer) {
+                if size > 0 {
+                    // TODO
+                }
+            }
+        }
     }
 
     fn start_transcode_process(connection_ip: Ipv4Addr, connection_port: u16, transcode_port: u16) -> Option<Child> {

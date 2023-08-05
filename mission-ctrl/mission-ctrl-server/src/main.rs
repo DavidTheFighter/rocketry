@@ -12,6 +12,7 @@ use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
+use cameras::browser_stream;
 use input::input_thread;
 use observer::ObserverHandler;
 use comms::recv::recv_thread;
@@ -41,6 +42,7 @@ fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
             all_options,
             ecu_telemetry_endpoint,
             fcu_telemetry_endpoint,
+            browser_stream,
         ])
         .mount("/commands", commands::get_routes())
 }

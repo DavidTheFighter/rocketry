@@ -1,7 +1,7 @@
 use std::{net::UdpSocket, sync::Arc, time::Duration};
 use hal::comms_hal::{Packet, NetworkAddress};
 
-use crate::{observer::{ObserverEvent, ObserverHandler}, process_is_running};
+use crate::{observer::{ObserverEvent, ObserverHandler, ObserverResponse}, process_is_running};
 
 use super::{addresses::AddressManager, SEND_PORT, RECV_PORT};
 
@@ -40,7 +40,7 @@ impl SendingThread {
                                     Err(format!("send_thread: Failed to send packet: {err}")),
                                 );
                             } else {
-                                self.send_packet_resonse(event_id, Ok(()));
+                                self.send_packet_resonse(event_id, Ok(ObserverResponse::Empty));
 
                                 println!("send_thread: Sent packet {:?} to {:?} @ {:?}:{}", packet, addr, ip_address, RECV_PORT);
                             }
@@ -62,7 +62,7 @@ impl SendingThread {
         }
     }
 
-    fn send_packet_resonse(&self, event_id: u64, result: Result<(), String>) {
+    fn send_packet_resonse(&self, event_id: u64, result: Result<ObserverResponse, String>) {
         if let Err(err) = &result {
             eprintln!("{err}");
         }

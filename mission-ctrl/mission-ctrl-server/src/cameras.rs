@@ -1,10 +1,12 @@
-pub mod connection;
+mod connection;
+mod webrtc;
 
 use std::{sync::Arc, time::Duration, net::Ipv4Addr};
 
 use hal::comms_hal::{Packet, NetworkAddress};
+use rocket::{State, serde::json::Json};
 
-use crate::{observer::{ObserverHandler, ObserverEvent}, process_is_running, timestamp};
+use crate::{observer::{ObserverHandler, ObserverEvent, ObserverResponse}, process_is_running, timestamp, commands::CommandResponse};
 
 use self::connection::CameraConnection;
 
@@ -31,8 +33,21 @@ impl CameraStreaming {
 
     pub fn run(&mut self) {
         while process_is_running() {
-            if let Some(packet) = self.get_packet() {
-                self.handle_packet(packet);
+            if let Some(event) = self.get_event() {
+                match event {
+                    ObserverEvent::PacketReceived { address: _, packet } => {
+                        self.handle_packet(packet);
+                    },
+                    ObserverEvent::SetupBrowserStream { camera_address, browser_session } => {
+                        for connection in &mut self.active_connections {
+                            if connection.address == camera_address {
+                                connection.setup_browser_stream(browser_session);
+                                break;
+                            }
+                        }
+                    },
+                    _ => {}
+                }
             }
 
             self.active_connections.retain_mut(|connection| {
@@ -104,16 +119,83 @@ impl CameraStreaming {
         }
     }
 
-    fn get_packet(&self) -> Option<Packet> {
+    fn get_event(&self) -> Option<ObserverEvent> {
         let timeout = Duration::from_millis(10);
 
         if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
-            if let ObserverEvent::PacketReceived { address: _, packet } = event {
-                return Some(packet);
-            }
+            return Some(event);
         }
 
         None
+    }
+}
+
+#[get("/browser-stream", data = "<args>")]
+pub fn browser_stream(
+    observer_handler: &State<Arc<ObserverHandler>>,
+    args: Json<Vec<String>>,
+) -> Json<CommandResponse> {
+    if args.len() != 2 {
+        return Json(CommandResponse::new(
+            String::from(format!("Failed to start browser stream, got wrong number of arguments")),
+            false,
+        ));
+    }
+
+    let camera_index = match args[0].parse::<u8>() {
+        Ok(index) => index,
+        Err(err) => {
+            return Json(CommandResponse::new(
+                String::from(format!("Failed to start browser stream, wrong args[0]: {:?}", err)),
+                false,
+            ));
+        }
+    };
+
+    let browser_session = match args[1].parse::<String>() {
+        Ok(session) => session,
+        Err(err) => {
+            return Json(CommandResponse::new(
+                String::from(format!("Failed to start browser stream, wrong args[1]: {:?}", err)),
+                false,
+            ));
+        }
+    };
+
+    observer_handler.register_observer_thread();
+    let event_id = observer_handler.notify(ObserverEvent::SetupBrowserStream {
+        camera_address: NetworkAddress::GroundCamera(camera_index),
+        browser_session,
+    });
+    let timeout = Duration::from_millis(1000);
+    let response = observer_handler.get_response(event_id, timeout);
+
+    match response {
+        Some(result) => {
+            match result {
+                Ok(response) => {
+                    if let ObserverResponse::BrowserStream { stream_session } = response {
+                        Json(CommandResponse::new(
+                            stream_session,
+                            true,
+                        ))
+                    } else {
+                        Json(CommandResponse::new(
+                            String::from(format!("Failed to start browser stream, got wrong response")),
+                            false,
+                        ))
+                    }
+                },
+                Err(err) => Json(CommandResponse::new(
+                    String::from(format!("Failed to start browser stream, got {:?}", err)),
+                    false,
+                )),
+            }
+        },
+        None => Json(CommandResponse::new(
+            String::from(format!("Failed to start browser stream, got timeout")),
+            false,
+        )),
     }
 }
 

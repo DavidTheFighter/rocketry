@@ -93,3 +93,12 @@ fn format_response(text_response: String, success: bool) -> Json<CommandResponse
         success,
     })
 }
+
+impl CommandResponse {
+    pub fn new(text_response: String, success: bool) -> Self {
+        Self {
+            text_response,
+            success,
+        }
+    }
+}
