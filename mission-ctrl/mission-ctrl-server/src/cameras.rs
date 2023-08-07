@@ -1,14 +1,14 @@
 mod connection;
 mod webrtc;
 
-use std::{sync::Arc, time::Duration, net::Ipv4Addr};
+use std::{sync::{Arc, RwLock}, time::Duration, net::Ipv4Addr};
 
 use hal::comms_hal::{Packet, NetworkAddress};
-use rocket::{State, serde::json::Json};
+use rocket::{State, serde::{json::Json, Serialize, Deserialize}};
 
 use crate::{observer::{ObserverHandler, ObserverEvent, ObserverResponse}, process_is_running, timestamp, commands::CommandResponse};
 
-use self::connection::CameraConnection;
+use self::{connection::CameraConnection, webrtc::WebRtcStream};
 
 pub const CAMERA_CONNECTION_TIMEOUT: f64 = 5.0;
 pub const CAMERA_CONNECTION_PORT_START: u16 = 5000;
@@ -16,7 +16,8 @@ pub const TRANSCODE_PORT_START: u16 = 5500;
 
 pub struct CameraStreaming {
     observer_handler: Arc<ObserverHandler>,
-    active_connections: Vec<CameraConnection>,
+    camera_connections: Vec<CameraConnection>,
+    browser_streams: Arc<RwLock<Vec<WebRtcStream>>>,
     connection_port_counter: u16,
     transcode_port_counter: u16,
 }
@@ -25,7 +26,8 @@ impl CameraStreaming {
     pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
         Self {
             observer_handler,
-            active_connections: Vec::new(),
+            camera_connections: Vec::new(),
+            browser_streams: Arc::new(RwLock::new(Vec::new())),
             connection_port_counter: CAMERA_CONNECTION_PORT_START,
             transcode_port_counter: TRANSCODE_PORT_START,
         }
@@ -33,25 +35,21 @@ impl CameraStreaming {
 
     pub fn run(&mut self) {
         while process_is_running() {
-            if let Some(event) = self.get_event() {
+            if let Some((event_id, event)) = self.get_event() {
                 match event {
                     ObserverEvent::PacketReceived { address: _, packet } => {
                         self.handle_packet(packet);
                     },
                     ObserverEvent::SetupBrowserStream { camera_address, browser_session } => {
-                        for connection in &mut self.active_connections {
-                            if connection.address == camera_address {
-                                connection.setup_browser_stream(browser_session);
-                                break;
-                            }
-                        }
+                        self.setup_browser_stream(event_id, camera_address, browser_session);
                     },
                     _ => {}
                 }
             }
 
-            self.active_connections.retain_mut(|connection| {
-                if timestamp() - connection.last_ping > CAMERA_CONNECTION_TIMEOUT {
+            // Drop any camera streams that have timed out
+            self.camera_connections.retain_mut(|connection| {
+                if timestamp() - connection.get_last_ping() > CAMERA_CONNECTION_TIMEOUT {
                     print!("Dropping camera connection: {:?}...", connection.address);
                     connection.drop_connection();
                     println!(" done");
@@ -62,7 +60,7 @@ impl CameraStreaming {
             });
         }
 
-        for connection in &mut self.active_connections {
+        for connection in &mut self.camera_connections {
             print!("Dropping camera connection: {:?}...", connection.address);
             connection.drop_connection();
             println!(" done");
@@ -78,89 +76,106 @@ impl CameraStreaming {
         }
     }
 
+    fn setup_browser_stream(
+        &mut self,
+        event_id: u64,
+        camera_address: NetworkAddress,
+        browser_session: String,
+    ) {
+        match WebRtcStream::new(camera_address, browser_session) {
+            Ok(stream) => {
+                let session_desc = stream.get_session_desc();
+                self.browser_streams.write().expect("browser_streams write lock").push(stream);
+
+                self.observer_handler.notify(ObserverEvent::EventResponse(
+                    event_id,
+                    Ok(ObserverResponse::BrowserStream {
+                        stream_session: session_desc,
+                    }),
+                ));
+            },
+            Err(err) => {
+                self.observer_handler.notify(ObserverEvent::EventResponse(
+                    event_id,
+                    Err(format!("Failed to setup browser stream: {:?}", err)),
+                ));
+            }
+        }
+    }
+
     fn handle_ping(&mut self, address: NetworkAddress, connection_ip: Ipv4Addr) {
         let mut found = false;
-        for connection in &mut self.active_connections {
+        for connection in &mut self.camera_connections {
             if connection.address == address {
                 found = true;
-                connection.ping();
                 break;
             }
         }
 
         if !found {
-            let connection_port = self.connection_port_counter;
-            let transcode_port = self.transcode_port_counter;
-            match CameraConnection::new(
-                address,
-                connection_ip,
-                connection_port,
-                transcode_port,
-                self.observer_handler.clone(),
-            ) {
-                Some(connection) => {
-                    self.active_connections.push(connection);
-                },
-                None => {
-                    println!("Failed to start transcoding process for camera: {:?}", address);
-                    return;
-                }
-            }
-
-            println!("New camera connection: {:?} @ {:?}:{}, transcoding on {}",
-                address,
-                connection_ip,
-                connection_port,
-                transcode_port,
-            );
-
-            self.connection_port_counter += 1;
-            self.transcode_port_counter += 1;
+            self.setup_camera_connection(address, connection_ip);
         }
     }
 
-    fn get_event(&self) -> Option<ObserverEvent> {
+    fn setup_camera_connection(&mut self, address: NetworkAddress, connection_ip: Ipv4Addr) {
+        let connection_port = self.connection_port_counter;
+        let transcode_port = self.transcode_port_counter;
+
+        let camera_connection = CameraConnection::new(
+            address,
+            connection_ip,
+            connection_port,
+            transcode_port,
+            self.browser_streams.clone(),
+            self.observer_handler.clone(),
+        );
+
+        match camera_connection {
+            Some(connection) => {
+                self.camera_connections.push(connection);
+            },
+            None => {
+                println!("Failed to start transcoding process for camera: {:?}", address);
+                return;
+            }
+        }
+
+        println!("New camera connection: {:?} @ {:?}:{}, transcoding on {}",
+            address,
+            connection_ip,
+            connection_port,
+            transcode_port,
+        );
+
+        self.connection_port_counter += 1;
+        self.transcode_port_counter += 1;
+    }
+
+    fn get_event(&self) -> Option<(u64, ObserverEvent)> {
         let timeout = Duration::from_millis(10);
 
-        if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
-            return Some(event);
+        if let Some((id, event)) = self.observer_handler.wait_event(timeout) {
+            return Some((id, event));
         }
 
         None
     }
 }
 
-#[get("/browser-stream", data = "<args>")]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+pub struct BrowserStreamArgs {
+    camera_index: u8,
+    browser_session: String,
+}
+
+#[post("/browser-stream", data = "<args>")]
 pub fn browser_stream(
     observer_handler: &State<Arc<ObserverHandler>>,
-    args: Json<Vec<String>>,
+    args: Json<BrowserStreamArgs>,
 ) -> Json<CommandResponse> {
-    if args.len() != 2 {
-        return Json(CommandResponse::new(
-            String::from(format!("Failed to start browser stream, got wrong number of arguments")),
-            false,
-        ));
-    }
-
-    let camera_index = match args[0].parse::<u8>() {
-        Ok(index) => index,
-        Err(err) => {
-            return Json(CommandResponse::new(
-                String::from(format!("Failed to start browser stream, wrong args[0]: {:?}", err)),
-                false,
-            ));
-        }
-    };
-
-    let browser_session = match args[1].parse::<String>() {
-        Ok(session) => session,
-        Err(err) => {
-            return Json(CommandResponse::new(
-                String::from(format!("Failed to start browser stream, wrong args[1]: {:?}", err)),
-                false,
-            ));
-        }
-    };
+    let camera_index = args.camera_index;
+    let browser_session = args.browser_session.clone();
 
     observer_handler.register_observer_thread();
     let event_id = observer_handler.notify(ObserverEvent::SetupBrowserStream {

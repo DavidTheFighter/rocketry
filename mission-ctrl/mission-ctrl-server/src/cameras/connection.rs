@@ -1,4 +1,4 @@
-use std::{process::{Child, Command, Stdio}, net::{Ipv4Addr, UdpSocket}, sync::{Arc, atomic::{AtomicBool, Ordering}}, time::Duration};
+use std::{process::{Child, Command, Stdio}, net::{Ipv4Addr, UdpSocket}, sync::{Arc, atomic::{AtomicBool, Ordering, AtomicU64}, RwLock}, time::Duration};
 
 use hal::comms_hal::{NetworkAddress, Packet};
 
@@ -9,11 +9,9 @@ use super::webrtc::WebRtcStream;
 
 pub struct CameraConnection {
     pub address: NetworkAddress,
-    pub last_ping: f64,
-    connection_ip: Ipv4Addr,
+    last_ping: Arc<AtomicU64>,
     transcode_process: Child,
     observer_handler: Arc<ObserverHandler>,
-    browser_streams: Vec<WebRtcStream>,
     alive: Arc<AtomicBool>,
 }
 
@@ -23,6 +21,7 @@ impl CameraConnection {
         connection_ip: Ipv4Addr,
         connection_port: u16,
         transcode_port: u16,
+        browser_streams: Arc<RwLock<Vec<WebRtcStream>>>,
         observer_handler: Arc<ObserverHandler>,
     ) -> Option<CameraConnection> {
         if let Some(transcode_process) = Self::start_transcode_process(
@@ -36,18 +35,25 @@ impl CameraConnection {
             });
 
             let alive = Arc::new(AtomicBool::new(true));
+            let last_ping: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+
             let alive_ref = alive.clone();
+            let last_ping_ref = last_ping.clone();
             std::thread::spawn(move || {
-                Self::transcode_thread(alive_ref, transcode_port);
+                Self::transcode_thread(
+                    alive_ref,
+                    last_ping_ref,
+                    address,
+                    transcode_port,
+                    browser_streams
+                );
             });
 
             return Some(Self {
                 address,
-                last_ping: timestamp(),
-                connection_ip,
+                last_ping,
                 transcode_process,
                 observer_handler,
-                browser_streams: Vec::new(),
                 alive,
             });
         }
@@ -57,12 +63,14 @@ impl CameraConnection {
         None
     }
 
-    pub fn setup_browser_stream(&mut self, browser_session: String) {
-        
-    }
+    pub fn get_last_ping(&self) -> f64 {
+        let last_ping = self.last_ping.load(Ordering::Relaxed);
 
-    pub fn ping(&mut self) {
-        self.last_ping = timestamp();
+        if last_ping == 0 {
+            timestamp()
+        } else {
+            (last_ping as f64) * 1e-3
+        }
     }
 
     pub fn drop_connection(&mut self) {
@@ -74,7 +82,13 @@ impl CameraConnection {
         });
     }
 
-    fn transcode_thread(alive: Arc<AtomicBool>, transcode_port: u16) {
+    fn transcode_thread(
+        alive: Arc<AtomicBool>,
+        last_ping: Arc<AtomicU64>,
+        camera_address: NetworkAddress,
+        transcode_port: u16,
+        browser_streams: Arc<RwLock<Vec<WebRtcStream>>>,
+    ) {
         let mut buffer = vec![0; 1600];
         let socket = UdpSocket::bind(format!("127.0.0.1:{}", transcode_port))
             .expect("Failed to bind to transcode socket");
@@ -84,7 +98,17 @@ impl CameraConnection {
         while alive.load(Ordering::Relaxed) {
             if let Ok((size, _)) = socket.recv_from(&mut buffer) {
                 if size > 0 {
-                    // TODO
+                    last_ping.store(timestamp_u64(), Ordering::Relaxed);
+
+                    let streams = browser_streams
+                        .read()
+                        .expect("Failed to unlock browser streams vector");
+
+                    for stream in streams.iter() {
+                        if stream.camera_address == camera_address {
+                            stream.send_data(Vec::from(&buffer[..size]));
+                        }
+                    }
                 }
             }
         }
@@ -107,4 +131,8 @@ impl CameraConnection {
             .spawn()
             .ok()
     }
+}
+
+fn timestamp_u64() -> u64 {
+    (timestamp() * 1e3) as u64
 }
