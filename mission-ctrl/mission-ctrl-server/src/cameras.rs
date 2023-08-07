@@ -6,11 +6,12 @@ use std::{sync::{Arc, RwLock}, time::Duration, net::Ipv4Addr};
 use hal::comms_hal::{Packet, NetworkAddress};
 use rocket::{State, serde::{json::Json, Serialize, Deserialize}};
 
-use crate::{observer::{ObserverHandler, ObserverEvent, ObserverResponse}, process_is_running, timestamp, commands::CommandResponse};
+use crate::{observer::{ObserverHandler, ObserverEvent, ObserverResponse}, process_is_running, commands::CommandResponse};
 
 use self::{connection::CameraConnection, webrtc::WebRtcStream};
 
 pub const CAMERA_CONNECTION_TIMEOUT: f64 = 5.0;
+pub const CAMERA_STARTUP_TIMEOUT_GRACE: f64 = 10.0;
 pub const CAMERA_CONNECTION_PORT_START: u16 = 5000;
 pub const TRANSCODE_PORT_START: u16 = 5500;
 
@@ -49,10 +50,20 @@ impl CameraStreaming {
 
             // Drop any camera streams that have timed out
             self.camera_connections.retain_mut(|connection| {
-                if timestamp() - connection.get_last_ping() > CAMERA_CONNECTION_TIMEOUT {
+                if connection.timed_out() {
                     print!("Dropping camera connection: {:?}...", connection.address);
                     connection.drop_connection();
                     println!(" done");
+                    return false;
+                }
+
+                return true;
+            });
+
+            // Drop any browser streams that have timed out
+            self.browser_streams.write().expect("browser_streams write lock").retain_mut(|stream| {
+                if stream.stream_closed() {
+                    println!("Dropping browser stream: {:?}... done", stream.name());
                     return false;
                 }
 
@@ -64,6 +75,10 @@ impl CameraStreaming {
             print!("Dropping camera connection: {:?}...", connection.address);
             connection.drop_connection();
             println!(" done");
+        }
+
+        for stream in &mut *self.browser_streams.write().expect("browser_streams write lock") {
+            println!("Dropping browser stream: {:?}... done", stream.name());
         }
     }
 

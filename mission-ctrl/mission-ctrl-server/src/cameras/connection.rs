@@ -4,7 +4,7 @@ use hal::comms_hal::{NetworkAddress, Packet};
 
 use crate::{timestamp, observer::{ObserverHandler, ObserverEvent}};
 
-use super::webrtc::WebRtcStream;
+use super::{webrtc::WebRtcStream, CAMERA_CONNECTION_TIMEOUT, CAMERA_STARTUP_TIMEOUT_GRACE};
 
 
 pub struct CameraConnection {
@@ -35,7 +35,9 @@ impl CameraConnection {
             });
 
             let alive = Arc::new(AtomicBool::new(true));
-            let last_ping: Arc<AtomicU64> = Arc::new(AtomicU64::new(0));
+
+            let start_timestamp = timestamp_u64() + (CAMERA_STARTUP_TIMEOUT_GRACE * 1e3) as u64;
+            let last_ping: Arc<AtomicU64> = Arc::new(AtomicU64::new(start_timestamp));
 
             let alive_ref = alive.clone();
             let last_ping_ref = last_ping.clone();
@@ -63,14 +65,10 @@ impl CameraConnection {
         None
     }
 
-    pub fn get_last_ping(&self) -> f64 {
-        let last_ping = self.last_ping.load(Ordering::Relaxed);
+    pub fn timed_out(&self) -> bool {
+        let last_ping = (self.last_ping.load(Ordering::Relaxed) as f64) * 1e-3;
 
-        if last_ping == 0 {
-            timestamp()
-        } else {
-            (last_ping as f64) * 1e-3
-        }
+        timestamp() - last_ping > CAMERA_CONNECTION_TIMEOUT
     }
 
     pub fn drop_connection(&mut self) {

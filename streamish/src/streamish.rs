@@ -1,4 +1,4 @@
-use std::net::{UdpSocket, IpAddr, Ipv4Addr};
+use std::{net::{UdpSocket, IpAddr, Ipv4Addr}, time::Duration};
 
 use hal::comms_hal::{PACKET_BUFFER_SIZE, Packet, UDP_RECV_PORT};
 
@@ -21,8 +21,10 @@ impl Streamish {
     }
 
     pub fn run(&mut self) {
+        let timeout = Duration::from_millis(10);
+
         self.socket.set_broadcast(true).expect("Failed to set broadcast");
-        self.socket.set_nonblocking(true).expect("Failed to set non-blocking");
+        self.socket.set_read_timeout(Some(timeout)).expect("Failed to set read timeout");
 
         let mut last_broadcast_time = get_timestamp();
 

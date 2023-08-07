@@ -109,6 +109,9 @@ async fn main() {
         }
     }
 
+    // Add a small delay to ensure all remaining packets are handled
+    thread::sleep(Duration::from_millis(250));
+
     recv_join_handle.join().expect("Error joining recv thread");
     send_join_handle.join().expect("Error joining send thread");
 

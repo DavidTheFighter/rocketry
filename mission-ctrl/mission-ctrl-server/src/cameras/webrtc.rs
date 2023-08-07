@@ -10,6 +10,8 @@ use webrtc::{peer_connection::{configuration::RTCConfiguration, peer_connection_
 pub struct WebRtcStream {
     pub camera_address: NetworkAddress,
     rtp_tx: Sender<Vec<u8>>,
+    stream_done_rx: tokio::sync::oneshot::Receiver<()>,
+    stream_closed: bool,
     stream_session: String,
     runtime: Runtime,
 }
@@ -18,11 +20,17 @@ impl WebRtcStream {
     pub fn new(camera_address: NetworkAddress, browser_session: String) -> Result<Self, String> {
         let (rtp_tx, rtp_rx) = tokio::sync::mpsc::channel::<Vec<u8>>(10);
         let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<Result<String, String>>(1);
+        let (stream_done_tx, stream_done_rx) = tokio::sync::oneshot::channel::<()>();
 
         let runtime = tokio::runtime::Runtime::new()
             .expect("Failed to create tokio runtime");
 
-        runtime.spawn(Self::setup_webrtc_stream(browser_session, result_tx, rtp_rx));
+        runtime.spawn(Self::setup_webrtc_stream(
+            browser_session,
+            result_tx,
+            stream_done_tx,
+            rtp_rx,
+        ));
 
         let result = runtime
             .block_on(result_rx.recv())
@@ -33,6 +41,8 @@ impl WebRtcStream {
                 Ok(Self {
                     camera_address,
                     rtp_tx,
+                    stream_done_rx,
+                    stream_closed: false,
                     stream_session,
                     runtime,
                 })
@@ -46,13 +56,9 @@ impl WebRtcStream {
     async fn setup_webrtc_stream(
         browser_session: String,
         result_tx: Sender<Result<String, String>>,
+        stream_done_tx: tokio::sync::oneshot::Sender<()>,
         mut rtp_rx: Receiver<Vec<u8>>
     ) {
-        println!("Setting up WebRTC stream with token {:?}...{:?}",
-            browser_session[0..5].to_owned(),
-            browser_session[browser_session.len()-5..].to_owned(),
-        );
-
         let config = RTCConfiguration {
             ice_servers: vec![RTCIceServer {
                 urls: vec!["stun:stun.l.google.com:19302".to_owned()],
@@ -132,13 +138,10 @@ impl WebRtcStream {
         // Set the handler for Peer connection state
         // This will notify you when the peer has connected/disconnected
         peer_connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
-            println!("Peer Connection State has changed: {s}");
-
             if s == RTCPeerConnectionState::Failed {
                 // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
                 // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
                 // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
-                println!("Peer Connection has gone to failed exiting: Done forwarding");
                 let _ = done_tx2.try_send(());
             }
 
@@ -183,9 +186,9 @@ impl WebRtcStream {
             return;
         }
 
-        println!("Finished setting up WebRTC stream with token {:?}...{:?}",
-            browser_session[0..5].to_owned(),
-            browser_session[browser_session.len()-5..].to_owned(),
+        println!("Set up WebRTC stream {}...{}",
+            desc_data[0..4].to_owned(),
+            desc_data[desc_data.len()-4..].to_owned(),
         );
 
         let done_tx3 = done_tx.clone();
@@ -193,38 +196,49 @@ impl WebRtcStream {
         tokio::spawn(async move {
             println!("Waiting on data");
             while let Some(buffer) = rtp_rx.recv().await {
-                if let Err(err) = video_track.write(&buffer[0..]).await {
-                    if Error::ErrClosedPipe == err {
-                        // The peerConnection has been closed.
-                    } else {
-                        println!("video_track write err: {err}");
-                    }
+                if let Err(_err) = video_track.write(&buffer[0..]).await {
                     let _ = done_tx3.try_send(());
                     return;
                 }
             }
-            println!("Stopped waiting on data");
         });
 
         done_rx.recv().await;
 
-        println!("Done received for WebRTC stream with token {:?}...{:?}",
-            browser_session[0..5].to_owned(),
-            browser_session[browser_session.len()-5..].to_owned(),
-        );
-
         peer_connection.close().await.expect("Failed to close peer connection");
 
-        println!("Finished closing WebRTC stream with token {:?}...{:?}",
-            browser_session[0..5].to_owned(),
-            browser_session[browser_session.len()-5..].to_owned(),
+        println!("Closing WebRTC stream {}...{}",
+            desc_data[0..4].to_owned(),
+            desc_data[desc_data.len()-4..].to_owned(),
         );
+
+        stream_done_tx.send(()).expect("Failed to send stream done");
     }
 
     pub fn send_data(&self, buffer: Vec<u8>) {
         self.runtime
             .block_on(self.rtp_tx.send(buffer))
             .expect("Failed to send data");
+    }
+
+    pub fn stream_closed(&mut self) -> bool {
+        if self.stream_closed {
+            return true;
+        }
+
+        if let Ok(_) = self.stream_done_rx.try_recv() {
+            self.stream_closed = true;
+            return true;
+        }
+
+        return false;
+    }
+
+    pub fn name(&self) -> String {
+        format!("{}...{}",
+            self.stream_session[0..4].to_owned(),
+            self.stream_session[self.stream_session.len()-4..].to_owned(),
+        )
     }
 
     pub fn get_session_desc(&self) -> String {

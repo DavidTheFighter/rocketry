@@ -43,12 +43,9 @@ export default {
       });
 
       this.pc.ontrack = (event) => {
-        let el = this.$refs.videoStream;// document.createElement(event.track.kind);
-        el.srcObject = event.streams[0];
-        el.autoplay = true;
-        el.controls = false;
-
-        // this.$refs.videoStream.appendChild(el);
+        this.$refs.videoStream.srcObject = event.streams[0];
+        this.$refs.videoStream.autoplay = true;
+        this.$refs.videoStream.controls = false;
       };
 
       // this.pc.oniceconnectionstatechange = () => log(this.pc.iceConnectionState);
