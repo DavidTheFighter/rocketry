@@ -1,0 +1,24 @@
+{
+    "pre_commands": [
+        {
+            "command": "v4l2-ctl",
+            "args": [
+                "--set-ctrl", "repeat_sequence_header=1,video_bitrate=5000000"
+            ]
+        }
+    ],
+    "streaming_command": {
+        "command": "ffmpeg",
+        "args": [
+            "-f", "v4l2",
+            "-input_format", "h264",
+            "-video_size", "1280x720",
+            "-framerate", "30",
+            "-i", "/dev/video0",
+            "-c:v", "copy",
+            "-tune", "zerolatency",
+            "-f", "flv",
+            "udp://{stream_address}"
+        ]
+    }
+}

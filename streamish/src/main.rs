@@ -1,5 +1,5 @@
 use streamish::Streamish;
-use sysinfo::{SystemExt, ProcessExt, Pid};
+use sysinfo::{SystemExt, ProcessExt};
 
 mod broadcast;
 mod stream;
@@ -11,7 +11,7 @@ fn main() {
 
     for (pid, process) in system.processes() {
         if process.name() == "streamish" && usize::from(*pid) != std::process::id() as usize {
-            println!("Streamish: Killing existing streamish process {:?}", pid);
+            println!("Killing existing streamish process {:?}", pid);
             process.kill();
         }
     }

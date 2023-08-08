@@ -1,32 +1,56 @@
 use std::net::Ipv4Addr;
 use std::process::{Command, Child, Stdio};
 
+use serde::{Serialize, Deserialize};
+
 pub struct Stream {
     streaming_process: Child,
     pub port: u16,
     pub stream_addr: Ipv4Addr,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StreamishCommandSet {
+    pre_commands: Vec<StreamishCommand>,
+    streaming_command: StreamishCommand,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct StreamishCommand {
+    command: String,
+    args: Vec<String>,
+}
+
 impl Stream {
     pub fn new(port: u16, addr: Ipv4Addr) -> Self {
-        setup_v4l2_ctl_params();
+        println!("Setting up stream for {}:{}...", addr, port);
 
-        println!("Streamish: Setting up stream to {}:{}", addr, port);
+        let config_file = std::fs::read_to_string("streamish-cmds.json")
+            .expect("Failed to read streamish-cmds.json");
+        let mut command_set = serde_json::from_str::<StreamishCommandSet>(&config_file)
+            .expect("Failed to parse streamish-cmds.json");
 
-        let streaming_process = Command::new("ffmpeg")
-            .args(["-f", "v4l2"])
-            .args(["-input_format", "h264"])
-            .args(["-video_size", "1280x720"])
-            .args(["-r", "30"])
-            .args(["-i", "/dev/video0"])
-            .args(["-c:v", "copy"])
-            .args(["-f", "h264"])
-            .arg(format!("udp://{}:{}", addr, port))
+        command_set.fill_template("{stream_address}", &format!("{}:{}", addr, port));
+
+        for command in command_set.pre_commands.iter() {
+            println!("\t$ {}", command.as_string());
+            command.to_command()
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .stdin(Stdio::null())
+                .spawn()
+                .expect(&format!("Failed to run pre-command: \"{}\"", command.command));
+        }
+
+        println!("\t$ {}", command_set.streaming_command.as_string());
+        let streaming_process = command_set.streaming_command.to_command()
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .stdin(Stdio::null())
             .spawn()
-            .expect("Failed to start streaming process");
+            .expect(&format!("Failed to start streaming process: \"{}\"", command_set.streaming_command.command));
+
+        println!("Set up stream to {}:{}", addr, port);
 
         Self {
             streaming_process,
@@ -38,14 +62,38 @@ impl Stream {
     pub fn stop(&mut self) {
         self.streaming_process.kill().expect("Failed to kill streaming process");
 
-        println!("Streamish: Stopped stream");
+        println!("Stopped stream");
     }
 }
 
-fn setup_v4l2_ctl_params() {
-    Command::new("v4l2-ctl")
-            .arg("--set-ctrl")
-            .arg("repeat_sequence_header=1,video_bitrate=5000000")
-            .spawn()
-            .expect("Failed to set v4l2-ctl params");
+impl StreamishCommandSet {
+    fn fill_template(&mut self, template: &str, value: &str) {
+        for command in self.pre_commands.iter_mut() {
+            for arg in command.args.iter_mut() {
+                *arg = arg.replace(template, value);
+            }
+        }
+
+        for arg in self.streaming_command.args.iter_mut() {
+            *arg = arg.replace(template, value);
+        }
+    }
+}
+
+impl StreamishCommand {
+    fn to_command(&self) -> Command {
+        let mut command = Command::new(&self.command);
+        for arg in &self.args {
+            command.arg(arg);
+        }
+        command
+    }
+
+    fn as_string(&self) -> String {
+        let mut command = self.command.clone();
+        for arg in &self.args {
+            command.push_str(&format!(" {}", arg));
+        }
+        command
+    }
 }
