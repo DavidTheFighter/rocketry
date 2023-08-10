@@ -19,6 +19,7 @@ pub struct Fcu<'a> {
     dev_stats: DevStatsCollector,
     vehicle_fsm_storage: vehicle_fsm::FsmStorage,
     time_since_last_telemetry: f32,
+    time_since_last_ping: f32,
     data_logged_bytes: u32,
     apogee: f32,
 }
@@ -44,6 +45,7 @@ impl<'a> Fcu<'a> {
             dev_stats: DevStatsCollector::new(),
             vehicle_fsm_storage: vehicle_fsm::FsmStorage::Empty,
             time_since_last_telemetry: 0.0,
+            time_since_last_ping: 0.0,
             data_logged_bytes: 0,
             apogee: 0.0,
         };
@@ -61,12 +63,18 @@ impl<'a> Fcu<'a> {
         self.apogee = self.apogee.max(self.state_vector.get_position().y);
 
         self.time_since_last_telemetry += dt;
+        self.time_since_last_ping += dt;
+
         if self.time_since_last_telemetry >= self.config.telemetry_rate {
             self.driver.send_packet(
                 Packet::FcuTelemetry(self.generate_telemetry_frame()),
                 NetworkAddress::MissionControl,
             );
             self.time_since_last_telemetry = 0.0;
+        }
+
+        if self.time_since_last_ping >= 0.5 {
+            self.time_since_last_ping = 0.0;
         }
 
         for packet in packets {

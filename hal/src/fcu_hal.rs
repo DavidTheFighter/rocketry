@@ -117,6 +117,7 @@ pub trait FcuDriver {
     fn retrieve_log_flash_page(&mut self, addr: u32);
 
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
+    fn broadcast_heartbeat(&mut self);
 
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }

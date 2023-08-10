@@ -77,6 +77,10 @@ impl FcuDriver for Stm32F407FcuDriver {
         app::send_packet::spawn(packet, destination).unwrap();
     }
 
+    fn broadcast_heartbeat(&mut self) {
+        
+    }
+
     fn log_data_point(&mut self, datapoint: hal::fcu_log::DataPoint) {
         todo!()
     }
