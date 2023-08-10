@@ -78,7 +78,10 @@ impl FcuDriver for Stm32F407FcuDriver {
     }
 
     fn broadcast_heartbeat(&mut self) {
-        
+        self.send_packet(Packet::ComponentIpAddress {
+            addr: NetworkAddress::FlightController,
+            ip: [255, 255, 255, 255],
+        }, NetworkAddress::Broadcast);
     }
 
     fn log_data_point(&mut self, datapoint: hal::fcu_log::DataPoint) {

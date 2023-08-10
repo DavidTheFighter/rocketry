@@ -5,7 +5,7 @@ use smoltcp::{
     iface::{self, SocketStorage},
     socket::{UdpSocket, UdpSocketBuffer},
     storage::PacketMetadata,
-    wire::{self, EthernetAddress, IpEndpoint}, time::Duration,
+    wire::{self, EthernetAddress, IpEndpoint},
 };
 use stm32_eth::{EthernetDMA, RxRingEntry, TxRingEntry};
 
@@ -43,13 +43,14 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
     });
 }
 
-use stm32f4xx_hal::prelude::*;
-
 pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, address: NetworkAddress) {
     let iface = ctx.shared.interface;
     let udp = ctx.shared.udp_socket_handle;
 
     (iface, udp).lock(|iface, udp_handle| {
+        let host_ip_addr = iface
+            .ipv4_addr()
+            .unwrap_or(wire::Ipv4Address::new(255, 255, 255, 255));
         let udp_socket = iface.get_socket::<UdpSocket>(*udp_handle);
         let buffer = ctx.local.data;
 
@@ -59,6 +60,14 @@ pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, address: Netw
 
         let ip_addr = wire::Ipv4Address::new(169, 254, 0, 5);
         let endpoint = wire::IpEndpoint::new(ip_addr.into(), 25565);
+
+        let packet = match packet {
+            Packet::ComponentIpAddress { addr, ip: _ } => Packet::ComponentIpAddress {
+                addr,
+                ip: [host_ip_addr.0[0], host_ip_addr.0[1], host_ip_addr.0[2], host_ip_addr.0[3]],
+            },
+            _ => packet,
+        };
 
         if let Ok(result_length) = packet.serialize(buffer) {
             let send_result = udp_socket
@@ -87,7 +96,7 @@ pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, address: Netw
             }
         }
 
-        if let Err(err) = iface.poll(smoltcp_now()) {
+        if let Err(_err) = iface.poll(smoltcp_now()) {
             defmt::error!("Failed to poll interface");
         }
     });
