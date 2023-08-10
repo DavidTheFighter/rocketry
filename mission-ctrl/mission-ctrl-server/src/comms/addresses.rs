@@ -26,8 +26,12 @@ pub struct AddressManager {
 
 impl AddressManager {
     pub fn new(_defaults_file: String) -> Self {
+        let mut default_map = HashMap::new();
+        default_map.insert(NetworkAddress::FlightController, Ipv4Addr::new(169, 254, 0, 7));
+        default_map.insert(NetworkAddress::EngineController(0), Ipv4Addr::new(169, 254, 0, 6));
+
         Self {
-            address_map: RwLock::new(HashMap::new()),
+            address_map: RwLock::new(default_map),
         }
     }
 

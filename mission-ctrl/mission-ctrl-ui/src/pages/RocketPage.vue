@@ -223,13 +223,13 @@ export default {
       return "(0.0, 0.0, 0.0)";
     },
     magneticFieldStr() {
-      if (this.dataset.magnetic_field) {
-        const x = this.dataset.magnetic_field[0].toFixed(3);
-        const y = this.dataset.magnetic_field[1].toFixed(3);
-        const z = this.dataset.magnetic_field[2].toFixed(3);
+      // if (this.dataset.magnetic_field) {
+      //   const x = this.dataset.magnetic_field[0].toFixed(3);
+      //   const y = this.dataset.magnetic_field[1].toFixed(3);
+      //   const z = this.dataset.magnetic_field[2].toFixed(3);
 
-        return `(${x}, ${y}, ${z})`;
-      }
+      //   return `(${x}, ${y}, ${z})`;
+      // }
 
       return "(?, ?, ?)";
     },

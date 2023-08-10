@@ -1,5 +1,6 @@
 use hal::fcu_hal::FcuConfig;
 use nalgebra::{Vector3, SMatrix, SVector};
+use num_traits::float::Float;
 
 use super::{StateVector, kalman::KalmanFilter};
 

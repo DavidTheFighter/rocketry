@@ -76,6 +76,14 @@ impl FcuDriver for Stm32F407FcuDriver {
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress) {
         app::send_packet::spawn(packet, destination).unwrap();
     }
+
+    fn log_data_point(&mut self, datapoint: hal::fcu_log::DataPoint) {
+        todo!()
+    }
+
+    fn as_mut_any(&mut self) -> &mut dyn core::any::Any {
+        self
+    }
 }
 
 pub fn fcu_update(ctx: app::fcu_update::Context) {
@@ -87,14 +95,20 @@ pub fn fcu_update(ctx: app::fcu_update::Context) {
 
     (fcu, packet_queue, data_logger).lock(|fcu, packet_queue, data_logger| {
         fcu.update_data_logged_bytes(data_logger.get_bytes_logged());
-        fcu.update(0.01, None);
+
+        let mut packet_array_len = 0;
+        let mut packet_array = empty_packet_array();
 
         while let Some(packet) = packet_queue.dequeue() {
-            if let Packet::RetrieveDataLogPage(page) = packet {
-                defmt::info!("Received request for data log page {}", page);
+            packet_array[packet_array_len] = packet;
+            packet_array_len += 1;
+
+            if packet_array_len == packet_array.len() {
+                break;
             }
-            fcu.update(0.0, Some(packet));
         }
+
+        fcu.update(0.01, &packet_array[0..packet_array_len]);
     });
 }
 
@@ -107,4 +121,25 @@ impl Stm32F407FcuDriver {
             continuities: [false; OutputChannel::COUNT],
         }
     }
+}
+
+fn empty_packet_array() -> [Packet; 16] {
+    [
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+        Packet::DoNothing,
+    ]
 }
