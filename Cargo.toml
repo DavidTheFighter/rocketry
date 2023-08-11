@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "comms-manager/",
     "hal",
     "ecu/engine-controller",
     "fcu/flight-controller",

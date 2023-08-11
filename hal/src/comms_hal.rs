@@ -105,20 +105,7 @@ impl Packet {
 
                 match serialized {
                     Ok(output_buffer) => Ok(output_buffer.len()),
-                    Err(err) => match err {
-                        postcard::Error::WontImplement
-                        | postcard::Error::NotYetImplemented
-                        | postcard::Error::SerializeSeqLengthUnknown => {
-                            Err(SerializationError::PostcardImplementation)
-                        }
-                        postcard::Error::SerializeBufferFull => {
-                            Err(SerializationError::PacketTooLong)
-                        }
-                        postcard::Error::SerdeSerCustom | postcard::Error::SerdeDeCustom => {
-                            Err(SerializationError::SerdeError)
-                        }
-                        _ => Err(SerializationError::Unknown),
-                    },
+                    Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
                 }
             }
             Err(_err) => Err(SerializationError::Unknown),
@@ -132,34 +119,66 @@ impl Packet {
     pub fn deserialize(buffer: &mut [u8]) -> Result<Packet, SerializationError> {
         match from_bytes_cobs(buffer) {
             Ok(packet) => Ok(packet),
-            Err(err) => match err {
-                postcard::Error::WontImplement | postcard::Error::NotYetImplemented => {
-                    Err(SerializationError::PostcardImplementation)
-                }
-                postcard::Error::SerdeSerCustom | postcard::Error::SerdeDeCustom => {
-                    Err(SerializationError::SerdeError)
-                }
-                postcard::Error::DeserializeUnexpectedEnd => Err(SerializationError::UnexpectedEnd),
-                postcard::Error::DeserializeBadVarint
-                | postcard::Error::DeserializeBadBool
-                | postcard::Error::DeserializeBadChar
-                | postcard::Error::DeserializeBadUtf8
-                | postcard::Error::DeserializeBadOption
-                | postcard::Error::DeserializeBadEnum => Err(SerializationError::BadVar),
-                postcard::Error::DeserializeBadEncoding => Err(SerializationError::BadEncoding),
-                _ => Err(SerializationError::Unknown),
-            },
+            Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
         }
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::io::Write;
-    use strum::EnumCount;
+impl NetworkAddress {
+    /// Serializes this network address and writes it to the given buffer.
+    ///
+    /// # Errors
+    /// If the buffer is too short or the address cannot be serialized, an error is returned.
+    pub fn serialize(&self, buffer: &mut [u8]) -> Result<usize, SerializationError> {
+        match Cobs::try_new(Slice::new(buffer)) {
+            Ok(flavor) => {
+                let serialized =
+                    serialize_with_flavor::<NetworkAddress, Cobs<Slice>, &mut [u8]>(self, flavor);
 
+                match serialized {
+                    Ok(output_buffer) => Ok(output_buffer.len()),
+                    Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
+                }
+            }
+            Err(_err) => Err(SerializationError::Unknown),
+        }
+    }
+
+    /// Deserializes a network address from the given buffer and returns that address.
+    ///
+    /// # Errors
+    /// If the data within the buffer is incorrect for whatever reason then an error is returned.
+    pub fn deserialize(buffer: &mut [u8]) -> Result<NetworkAddress, SerializationError> {
+        match from_bytes_cobs(buffer) {
+            Ok(address) => Ok(address),
+            Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
+        }
+    }
+}
+
+fn postcard_serialization_err_to_hal_err(err: postcard::Error) -> SerializationError {
+    match err {
+        postcard::Error::WontImplement
+        | postcard::Error::NotYetImplemented
+        | postcard::Error::SerializeSeqLengthUnknown => SerializationError::PostcardImplementation,
+        postcard::Error::SerializeBufferFull => SerializationError::PacketTooLong,
+        postcard::Error::SerdeSerCustom
+        | postcard::Error::SerdeDeCustom => SerializationError::SerdeError,
+        postcard::Error::DeserializeUnexpectedEnd => SerializationError::UnexpectedEnd,
+        postcard::Error::DeserializeBadVarint
+        | postcard::Error::DeserializeBadBool
+        | postcard::Error::DeserializeBadChar
+        | postcard::Error::DeserializeBadUtf8
+        | postcard::Error::DeserializeBadOption
+        | postcard::Error::DeserializeBadEnum => SerializationError::BadVar,
+        postcard::Error::DeserializeBadEncoding => SerializationError::BadEncoding,
+        _ => SerializationError::Unknown,
+    }
+}
+
+pub mod tests_data {
     use crate::SensorCalibration;
-
+    use strum::EnumCount;
     use super::*;
 
     const SENSOR_CALIBRATION: SensorCalibration = SensorCalibration {
@@ -177,7 +196,7 @@ mod tests {
         calibration: Some(SENSOR_CALIBRATION),
     };
 
-    const PACKET_TEST_DEFAULTS: [Packet; Packet::COUNT] = [
+    pub const PACKET_TEST_DEFAULTS: [Packet; Packet::COUNT] = [
         Packet::SetSolenoidValve { valve: EcuSolenoidValve::IgniterFuelMain, state: true },
         Packet::SetSparking(true),
         Packet::DeviceBooted,
@@ -200,6 +219,13 @@ mod tests {
         Packet::StopApplication,
         Packet::DoNothing,
     ];
+}
+
+#[cfg(test)]
+pub mod tests {
+    use std::io::Write;
+    use super::*;
+    use super::tests_data::*;
 
     #[test]
     fn test_packet_sizes() {
