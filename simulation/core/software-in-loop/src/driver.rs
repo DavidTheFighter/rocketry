@@ -94,6 +94,10 @@ impl FcuDriver for FcuDriverSim {
     fn log_data_point(&mut self, _datapoint: hal::fcu_log::DataPoint) {
         // Nothing for now
     }
+
+    fn broadcast_heartbeat(&mut self) {
+        todo!()
+    }
 }
 
 impl FcuDriverSim {
