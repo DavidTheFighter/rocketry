@@ -7,12 +7,14 @@ mod ecu_telemetry;
 mod fcu_telemetry;
 mod cameras;
 
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 use cameras::browser_stream;
+use comms_manager::CommsManager;
+use hal::comms_hal::NetworkAddress;
 use input::input_thread;
 use observer::ObserverHandler;
 use comms::recv::recv_thread;
@@ -25,14 +27,13 @@ use ecu_telemetry::{telemetry_thread, ecu_telemetry_endpoint};
 use fcu_telemetry::{fcu_telemetry_thread, fcu_telemetry_endpoint};
 
 use crate::cameras::camera_streaming_thread;
-use crate::comms::addresses::AddressManager;
+use crate::comms::NETWORK_MAP_SIZE;
 use crate::config::config_thread;
 
 #[macro_use]
 extern crate rocket;
 
 static PROCESS_RUNNING: AtomicBool = AtomicBool::new(true);
-const ADDR_DEFAULTS_FILE: &str = "address-defaults.json";
 
 fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
     rocket::build()
@@ -52,19 +53,19 @@ async fn main() {
     let observer_handler = Arc::new(ObserverHandler::new());
     let rocket = rocket(observer_handler.clone()).ignite().await.unwrap();
     let shutdown_handle = rocket.shutdown();
-    let address_manager = Arc::new(AddressManager::new(String::from(ADDR_DEFAULTS_FILE)));
+    let comms_manager = Arc::new(RwLock::new(CommsManager::<NETWORK_MAP_SIZE>::new(NetworkAddress::MissionControl)));
     rocket::tokio::spawn(rocket.launch());
 
     let observer_handler_ref = observer_handler.clone();
-    let address_manager_ref = address_manager.clone();
+    let comms_manager_ref = comms_manager.clone();
     let recv_join_handle = thread::spawn(move || {
-        recv_thread(observer_handler_ref, address_manager_ref);
+        recv_thread(observer_handler_ref, comms_manager_ref);
     });
 
     let observer_handler_ref = observer_handler.clone();
-    let address_manager_ref = address_manager.clone();
+    let comms_manager_ref = comms_manager.clone();
     let send_join_handle = thread::spawn(move || {
-        send_thread(observer_handler_ref, address_manager_ref);
+        send_thread(observer_handler_ref, comms_manager_ref);
     });
 
     // Ensure that the recv and send threads are running so we can send and receive data

@@ -2,8 +2,8 @@
 
 import os
 
-SEARCH_DIRECTORIES = ['design-scripts', 'ecu', 'fcu', 'hal', 'mission-ctrl', 'simulation'] # What directories to recursively search
-DIRECTORY_BLACKLIST = ['target', 'build']
+SEARCH_DIRECTORIES = ['design-scripts', 'ecu', 'fcu', 'hal', 'mission-ctrl', 'simulation', 'comms-manager', 'streamish'] # What directories to recursively search
+DIRECTORY_BLACKLIST = ['target', 'build', 'node_modules', 'dist', 'assets']
 CODE_FILE_WHITELIST = ['.rs', '.py', '.js', '.vue', '.html', '.css']
 
 def getNumberOfLinesInFile(filepath):

@@ -19,3 +19,6 @@ base64 = "0.21.2"
 
 [dependencies.hal]
 path = "../../hal"
+
+[dependencies.comms-manager]
+path = "../../comms-manager"

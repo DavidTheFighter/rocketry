@@ -2,6 +2,7 @@ use streamish::Streamish;
 use sysinfo::{SystemExt, ProcessExt};
 
 mod broadcast;
+pub(crate) mod config;
 mod stream;
 mod streamish;
 

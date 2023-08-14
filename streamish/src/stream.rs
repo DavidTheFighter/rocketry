@@ -1,24 +1,12 @@
 use std::net::Ipv4Addr;
-use std::process::{Command, Child, Stdio};
+use std::process::{Child, Stdio};
 
-use serde::{Serialize, Deserialize};
+use crate::config::StreamishCommandSet;
 
 pub struct Stream {
     streaming_process: Child,
     pub port: u16,
     pub stream_addr: Ipv4Addr,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct StreamishCommandSet {
-    pre_commands: Vec<StreamishCommand>,
-    streaming_command: StreamishCommand,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct StreamishCommand {
-    command: String,
-    args: Vec<String>,
 }
 
 impl Stream {
@@ -63,37 +51,5 @@ impl Stream {
         self.streaming_process.kill().expect("Failed to kill streaming process");
 
         println!("Stopped stream");
-    }
-}
-
-impl StreamishCommandSet {
-    fn fill_template(&mut self, template: &str, value: &str) {
-        for command in self.pre_commands.iter_mut() {
-            for arg in command.args.iter_mut() {
-                *arg = arg.replace(template, value);
-            }
-        }
-
-        for arg in self.streaming_command.args.iter_mut() {
-            *arg = arg.replace(template, value);
-        }
-    }
-}
-
-impl StreamishCommand {
-    fn to_command(&self) -> Command {
-        let mut command = Command::new(&self.command);
-        for arg in &self.args {
-            command.arg(arg);
-        }
-        command
-    }
-
-    fn as_string(&self) -> String {
-        let mut command = self.command.clone();
-        for arg in &self.args {
-            command.push_str(&format!(" {}", arg));
-        }
-        command
     }
 }

@@ -24,9 +24,10 @@ mod app {
         mem::MaybeUninit,
         sync::atomic::{compiler_fence, AtomicU32, Ordering},
     };
+    use comms_manager::CommsManager;
     use cortex_m::peripheral::DWT;
     use flight_controller::Fcu;
-    use hal::comms_hal::{NetworkAddress, Packet};
+    use hal::comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE};
     use rtic::export::Queue;
     use smoltcp::iface;
     use stm32_eth::{EthPins, EthernetDMA, RxRingEntry, TxRingEntry};
@@ -79,6 +80,7 @@ mod app {
         red_led: PC15<Output>,
         fcu: Fcu<'static>,
         data_logger: DataLogger,
+        comms_manager: CommsManager<16>,
         #[lock_free]
         w25x05: w25x05::W25X05<PE4<Output>, PE5<Output>>,
         #[lock_free]
@@ -89,6 +91,7 @@ mod app {
     #[task(local = [blue_led], priority = 1)]
     fn heartbeat_blink_led(ctx: heartbeat_blink_led::Context) {
         heartbeat_blink_led::spawn_after(1000.millis().into()).unwrap();
+        send_packet::spawn(Packet::Heartbeat, NetworkAddress::Broadcast).unwrap();
         ctx.local.blue_led.toggle();
     }
 
@@ -100,8 +103,8 @@ mod app {
         fn fcu_update(ctx: fcu_update::Context);
 
         #[task(
-            local = [data: [u8; 512] = [0u8; 512]],
-            shared = [interface, udp_socket_handle],
+            local = [data: [u8; PACKET_BUFFER_SIZE] = [0u8; PACKET_BUFFER_SIZE]],
+            shared = [interface, udp_socket_handle, comms_manager],
             capacity = 8,
             priority = 10,
         )]
@@ -109,8 +112,8 @@ mod app {
 
         #[task(
             binds = ETH,
-            local = [data: [u8; 512] = [0u8; 512]],
-            shared = [interface, udp_socket_handle, packet_queue],
+            local = [data: [u8; PACKET_BUFFER_SIZE] = [0u8; PACKET_BUFFER_SIZE]],
+            shared = [interface, udp_socket_handle, packet_queue, comms_manager],
             priority = 12,
         )]
         fn eth_interrupt(ctx: eth_interrupt::Context);
@@ -350,6 +353,7 @@ mod app {
                 red_led,
                 fcu: Fcu::new(fcu_driver),
                 data_logger,
+                comms_manager: CommsManager::new(NetworkAddress::FlightController),
                 w25x05,
                 spi1,
                 cpu_utilization: AtomicU32::new(0),

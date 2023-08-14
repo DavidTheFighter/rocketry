@@ -80,6 +80,7 @@ pub enum Packet {
     // FcuDataLogPage(DataLogBuffer),
 
     // -- Misc -- //
+    Heartbeat,
     ComponentIpAddress {
         addr: NetworkAddress,
         ip: [u8; 4],
@@ -215,6 +216,7 @@ pub mod tests_data {
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
         Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),
+        Packet::Heartbeat,
         Packet::ComponentIpAddress { addr: NetworkAddress::GroundCamera(42), ip: [169, 254, 9, 41] },
         Packet::StopApplication,
         Packet::DoNothing,
@@ -229,7 +231,11 @@ pub mod tests {
 
     #[test]
     fn test_packet_sizes() {
-        let mut buffer = vec![0; 1024];
+        let mut buffer = Vec::with_capacity(1024 * 1024);
+        for _ in 0..buffer.capacity() {
+            buffer.push(0u8);
+        }
+
         let mut file = std::fs::File::create("../packet_sizes.txt").unwrap();
 
         for packet in &PACKET_TEST_DEFAULTS {

@@ -1,63 +1,87 @@
-use std::{net::UdpSocket, sync::Arc, time::Duration};
-use hal::comms_hal::{Packet, NetworkAddress};
+use std::{net::UdpSocket, sync::{Arc, RwLock}, time::Duration};
+use comms_manager::CommsManager;
+use hal::comms_hal::{Packet, NetworkAddress, PACKET_BUFFER_SIZE};
 
-use crate::{observer::{ObserverEvent, ObserverHandler, ObserverResponse}, process_is_running};
+use crate::{observer::{ObserverEvent, ObserverHandler, ObserverResponse}, process_is_running, timestamp};
 
-use super::{addresses::AddressManager, SEND_PORT, RECV_PORT};
-
-const BUFFER_SIZE: usize = 1024;
+use super::{SEND_PORT, RECV_PORT, NETWORK_MAP_SIZE};
 
 struct SendingThread {
     observer_handler: Arc<ObserverHandler>,
-    address_manager: Arc<AddressManager>,
+    comms_manager: Arc<RwLock<CommsManager<NETWORK_MAP_SIZE>>>,
+    socket: UdpSocket,
 }
 
 impl SendingThread {
-    pub fn new(observer_handler: Arc<ObserverHandler>, address_manager: Arc<AddressManager>) -> Self {
+    pub fn new(observer_handler: Arc<ObserverHandler>, comms_manager: Arc<RwLock<CommsManager<NETWORK_MAP_SIZE>>>) -> Self {
+        comms_manager.as_ref().write().unwrap().set_broadcast_address([169, 254, 255, 255]);
+        let socket = UdpSocket::bind(format!("0.0.0.0:{}", SEND_PORT))
+            .expect("send_thread: Failed to bind socket");
+        socket.set_broadcast(true).expect("send_thread: Failed to set broadcast on socket");
+
         Self {
             observer_handler,
-            address_manager,
+            comms_manager,
+            socket,
         }
     }
 
-    pub fn run(&self) {
-        let socket = UdpSocket::bind(format!("0.0.0.0:{}", SEND_PORT))
-            .expect("send_thread: Failed to bind socket");
-        let mut buffer = [0_u8; BUFFER_SIZE];
+    pub fn run(&mut self) {
+        let mut last_heartbeat_time = timestamp();
+
+        self.send_heartbeat();
 
         while process_is_running() {
-            if let Some((event_id, addr, packet)) = self.receive_packet_event() {
-                match packet.serialize(&mut buffer) {
-                    Ok(size) => {
-                        let ip_address = self.address_manager.network_address_to_ip(addr);
+            if let Some((event_id, destination, packet)) = self.receive_packet_event() {
+                self.send_packet(packet, destination, event_id);
+            }
 
-                        if let Some(ip_address) = ip_address {
-                            let address = format!("{}:{}", ip_address, RECV_PORT);
+            if timestamp() - last_heartbeat_time > 0.5 {
+                self.send_heartbeat();
+                last_heartbeat_time = timestamp();
+            }
+        }
+    }
 
-                            if let Err(err) = socket.send_to(&buffer[0..size], address) {
-                                self.send_packet_resonse(
-                                    event_id,
-                                    Err(format!("send_thread: Failed to send packet: {err}")),
-                                );
-                            } else {
-                                self.send_packet_resonse(event_id, Ok(ObserverResponse::Empty));
+    fn send_packet(&self, packet: Packet, destination: NetworkAddress, event_id: u64) {
+        let mut buffer = [0_u8; PACKET_BUFFER_SIZE];
 
-                                println!("send_thread: Sent packet {:?} to {:?} @ {:?}:{}", packet, addr, ip_address, RECV_PORT);
-                            }
-                        } else {
-                            self.send_packet_resonse(
-                                event_id,
-                                Err(format!("send_thread: Failed to map network addr {:?} to ip for packet {:?}", addr, packet)),
-                            );
-                        }
-                    }
-                    Err(err) => {
-                        self.send_packet_resonse(
-                            event_id,
-                            Err(format!("send_thread: Failed to serialize packet: {:?}", err)),
-                        );
-                    }
+        match self.comms().process_packet(packet, destination, &mut buffer) {
+            Ok((size, ip)) => {
+                let address = Self::ip_str_from_octets(ip, RECV_PORT);
+
+                if let Err(err) = self.socket.send_to(&buffer[0..size], address) {
+                    self.send_packet_resonse(
+                        event_id,
+                        Err(format!("send_thread: Failed to send packet: {err}")),
+                    );
+                } else {
+                    self.send_packet_resonse(event_id, Ok(ObserverResponse::Empty));
                 }
+            }
+            Err(err) => {
+                self.send_packet_resonse(
+                    event_id,
+                    Err(format!("send_thread: Failed to serialize packet: {:?}", err)),
+                );
+            }
+        }
+    }
+
+    fn send_heartbeat(&self) {
+        let mut buffer = [0_u8; PACKET_BUFFER_SIZE];
+        let packet = Packet::Heartbeat;
+
+        match self.comms().process_packet(packet, NetworkAddress::Broadcast, &mut buffer) {
+            Ok((size, ip)) => {
+                let address = Self::ip_str_from_octets(ip, RECV_PORT);
+
+                if let Err(err) = self.socket.send_to(&buffer[0..size], address) {
+                    eprintln!("send_thread: Failed to send heartbeat packet: {:?}", err);
+                }
+            },
+            Err(e) => {
+                eprintln!("send_thread: Failed to send heartbeat packet: {:?}", e);
             }
         }
     }
@@ -84,9 +108,17 @@ impl SendingThread {
 
         None
     }
+
+    fn comms(&self) -> std::sync::RwLockReadGuard<'_, CommsManager<NETWORK_MAP_SIZE>> {
+        self.comms_manager.as_ref().read().unwrap()
+    }
+
+    fn ip_str_from_octets(ipv4: [u8; 4], port: u16) -> String {
+        format!("{}.{}.{}.{}:{}", ipv4[0], ipv4[1], ipv4[2], ipv4[3], port)
+    }
 }
 
-pub fn send_thread(observer_handler: Arc<ObserverHandler>, address_manager: Arc<AddressManager>) {
+pub fn send_thread(observer_handler: Arc<ObserverHandler>, comms_manager: Arc<RwLock<CommsManager<NETWORK_MAP_SIZE>>>) {
     observer_handler.register_observer_thread();
-    SendingThread::new(observer_handler, address_manager).run();
+    SendingThread::new(observer_handler, comms_manager).run();
 }

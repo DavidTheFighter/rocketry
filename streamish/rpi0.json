@@ -1,4 +1,7 @@
 {
+    "host": {
+        "GroundCamera": 0
+    },
     "pre_commands": [
         {
             "command": "v4l2-ctl",

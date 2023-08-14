@@ -19,6 +19,9 @@ panic-probe = { version = "0.3.1", feautres = ["print-defmt"] }
 [dependencies.hal]
 path = "../../../hal"
 
+[dependencies.comms-manager]
+path = "../../../comms-manager"
+
 [dependencies.flight-controller]
 path = "../../flight-controller"
 
