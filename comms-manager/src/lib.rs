@@ -69,7 +69,7 @@ impl<const NETWORK_MAP_SIZE: usize> CommsManager<NETWORK_MAP_SIZE> {
     pub fn extract_packet(
         &mut self,
         buffer: &mut [u8],
-        host_address: [u8; 4],
+        source_address: [u8; 4],
     ) -> Result<(Packet, NetworkAddress), CommsError> {
         let to_addr_size = buffer[0] as usize;
         let from_addr_size = buffer[1] as usize;
@@ -96,7 +96,7 @@ impl<const NETWORK_MAP_SIZE: usize> CommsManager<NETWORK_MAP_SIZE> {
         }
         let packet = packet.unwrap();
 
-        self.map_network_address(&from_addr, host_address);
+        self.map_network_address(&from_addr, source_address);
 
         Ok((packet, from_addr))
     }

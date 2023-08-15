@@ -34,8 +34,8 @@ impl RecievingThread {
         while process_is_running() {
             match socket.recv_from(&mut buffer) {
                 Ok((size, saddress)) => {
-                    let source_addr = Self::ipv4_from_ip(saddress.ip()).octets();
-                    let packet = self.comms_mut().extract_packet(&mut buffer[0..size], source_addr);
+                    let source_address = Self::ipv4_from_ip(saddress.ip()).octets();
+                    let packet = self.comms_mut().extract_packet(&mut buffer[0..size], source_address);
 
                     match packet {
                         Ok((packet, address)) => {

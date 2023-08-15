@@ -2,7 +2,6 @@ use std::{net::{UdpSocket, IpAddr, Ipv4Addr}, time::Duration};
 
 use comms_manager::CommsManager;
 use hal::comms_hal::{PACKET_BUFFER_SIZE, Packet, UDP_RECV_PORT, NetworkAddress};
-use local_ip_address::local_ip;
 
 use crate::stream::Stream;
 
@@ -35,23 +34,16 @@ impl Streamish {
         let mut buffer = [0u8; PACKET_BUFFER_SIZE];
 
         loop {
-            let host_address = self.get_host_ip().octets();
-
             while let Ok((bytes_read, addr)) = self.socket.recv_from(&mut buffer) {
-                match self.comms_manager.extract_packet(&mut buffer, host_address) {
+                let source_address = Self::ipv4_from_ip(addr.ip()).octets();
+
+                match self.comms_manager.extract_packet(&mut buffer[..bytes_read], source_address) {
                     Ok((packet, source_address)) => {
                         if let Some(ip) = self.comms_manager.network_address_to_ip(source_address) {
                             self.handle_packet(packet, Ipv4Addr::from(ip));
                         }
                     },
                     Err(e) => eprintln!("Streamish: Failed to extract packet: {:?}", e),
-                }
-
-                let packet = Packet::deserialize(&mut buffer[0..bytes_read])
-                    .expect("Failed to deserialize packet");
-
-                if let IpAddr::V4(ip4) = addr.ip() {
-                    self.handle_packet(packet, ip4);
                 }
             }
 
@@ -115,13 +107,10 @@ impl Streamish {
         }
     }
 
-    fn get_host_ip(&self) -> Ipv4Addr {
-        let my_local_ip = local_ip().expect("Failed to get local IP address");
-
-        if let IpAddr::V4(ip4) = my_local_ip {
-            ip4
-        } else {
-            panic!("Failed to get local IP address");
+    fn ipv4_from_ip(ip: IpAddr) -> Ipv4Addr {
+        match ip {
+            IpAddr::V4(ipv4) => ipv4,
+            IpAddr::V6(ipv6) => ipv6.to_ipv4().expect("recv_thread: Failed to convert IPv6 address to IPv4"),
         }
     }
 
