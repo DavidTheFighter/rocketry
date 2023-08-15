@@ -41,6 +41,7 @@ impl RecievingThread {
                         Ok((packet, address)) => {
                             self.observer_handler.notify(ObserverEvent::PacketReceived {
                                 packet,
+                                ip: source_address,
                                 address,
                             });
                         }

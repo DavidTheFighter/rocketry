@@ -44,7 +44,7 @@ impl ConfigHandler {
 
     fn get_device_booted(&self) -> Option<NetworkAddress> {
         if let Some((_, event)) = self.observer_handler.wait_event(Duration::from_millis(100)) {
-            if let ObserverEvent::PacketReceived { address, packet } = event {
+            if let ObserverEvent::PacketReceived { address, ip: _, packet } = event {
                 if let Packet::DeviceBooted = packet {
                     return Some(address);
                 }

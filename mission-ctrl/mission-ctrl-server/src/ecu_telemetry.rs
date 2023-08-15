@@ -175,7 +175,7 @@ impl TelemetryHandler {
         let timeout = Duration::from_millis(1);
 
         if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
-            if let ObserverEvent::PacketReceived { address: _, packet } = event {
+            if let ObserverEvent::PacketReceived { address: _, ip: _, packet } = event {
                 return Some(packet);
             }
         }

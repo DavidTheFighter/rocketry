@@ -38,8 +38,8 @@ impl CameraStreaming {
         while process_is_running() {
             if let Some((event_id, event)) = self.get_event() {
                 match event {
-                    ObserverEvent::PacketReceived { address: _, packet } => {
-                        self.handle_packet(packet);
+                    ObserverEvent::PacketReceived { address, ip, packet } => {
+                        self.handle_packet(packet, address, ip);
                     },
                     ObserverEvent::SetupBrowserStream { camera_address, browser_session } => {
                         self.setup_browser_stream(event_id, camera_address, browser_session);
@@ -82,11 +82,13 @@ impl CameraStreaming {
         }
     }
 
-    fn handle_packet(&mut self, packet: Packet) {
+    fn handle_packet(&mut self, packet: Packet, source_addr: NetworkAddress, source_ip: [u8; 4]) {
         match packet {
-            Packet::ComponentIpAddress { addr, ip } => {
-                self.handle_ping(addr, Ipv4Addr::from(ip));
-            },
+            Packet::Heartbeat => {
+                if let NetworkAddress::GroundCamera(_) = source_addr {
+                    self.handle_ping(source_addr, Ipv4Addr::from(source_ip));
+                }
+            }
             _ => {}
         }
     }

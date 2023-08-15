@@ -9,6 +9,7 @@ pub enum ObserverEvent {
     EventResponse(u64, Result<ObserverResponse, String>),
     PacketReceived {
         address: NetworkAddress,
+        ip: [u8; 4],
         packet: Packet,
     },
     SendPacket {
