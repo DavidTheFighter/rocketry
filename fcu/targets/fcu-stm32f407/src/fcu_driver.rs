@@ -84,7 +84,7 @@ impl FcuDriver for Stm32F407FcuDriver {
         }, NetworkAddress::Broadcast);
     }
 
-    fn log_data_point(&mut self, datapoint: hal::fcu_log::DataPoint) {
+    fn log_data_point(&mut self, _datapoint: hal::fcu_log::DataPoint) {
         todo!()
     }
 

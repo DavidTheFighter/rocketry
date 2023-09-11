@@ -1,4 +1,4 @@
-use std::{net::{UdpSocket, Ipv4Addr, IpAddr}, time::Duration, sync::{Arc, RwLock}, io::ErrorKind};
+use std::{net::{UdpSocket, Ipv4Addr, IpAddr, SocketAddr}, time::Duration, sync::{Arc, RwLock}, io::ErrorKind};
 use comms_manager::CommsManager;
 
 use crate::{observer::{ObserverEvent, ObserverHandler}, process_is_running};
@@ -33,26 +33,8 @@ impl RecievingThread {
 
         while process_is_running() {
             match socket.recv_from(&mut buffer) {
-                Ok((size, saddress)) => {
-                    let source_address = Self::ipv4_from_ip(saddress.ip()).octets();
-                    let packet = self.comms_mut().extract_packet(&mut buffer[0..size], source_address);
-
-                    match packet {
-                        Ok((packet, address)) => {
-                            self.observer_handler.notify(ObserverEvent::PacketReceived {
-                                packet,
-                                ip: source_address,
-                                address,
-                            });
-                        }
-                        Err(err) => {
-                            println!("recv_thread: Packet deserialization error: {:?} ({} bytes: {:?})",
-                                err,
-                                size,
-                                &buffer[0..size],
-                            );
-                        }
-                    }
+                Ok((size, source_address)) => {
+                    self.handle_recv(&mut buffer[0..size], source_address);
                 },
                 Err(err) => match err.kind() {
                     ErrorKind::WouldBlock | ErrorKind::TimedOut => {}
@@ -62,9 +44,27 @@ impl RecievingThread {
         }
     }
 
-    // fn comms(&self) -> std::sync::RwLockReadGuard<'_, CommsManager<NETWORK_MAP_SIZE>> {
-    //     self.comms_manager.as_ref().read().unwrap()
-    // }
+    fn handle_recv(&mut self, buffer: &mut [u8], source_address: SocketAddr) {
+        let source_address = Self::ipv4_from_ip(source_address.ip()).octets();
+        let packet = self.comms_mut().extract_packet(buffer, source_address);
+
+        match packet {
+            Ok((packet, address)) => {
+                self.observer_handler.notify(ObserverEvent::PacketReceived {
+                    packet,
+                    ip: source_address,
+                    address,
+                });
+            }
+            Err(err) => {
+                println!("recv_thread: Packet deserialization error: {:?} ({} bytes: {:?})",
+                    err,
+                    buffer.len(),
+                    buffer,
+                );
+            }
+        }
+    }
 
     fn comms_mut(&mut self) -> std::sync::RwLockWriteGuard<'_, CommsManager<NETWORK_MAP_SIZE>> {
         self.comms_manager.as_ref().write().unwrap()

@@ -14,10 +14,10 @@ struct SendingThread {
 
 impl SendingThread {
     pub fn new(observer_handler: Arc<ObserverHandler>, comms_manager: Arc<RwLock<CommsManager<NETWORK_MAP_SIZE>>>) -> Self {
-        comms_manager.as_ref().write().unwrap().set_broadcast_address([169, 254, 255, 255]);
         let socket = UdpSocket::bind(format!("0.0.0.0:{}", SEND_PORT))
             .expect("send_thread: Failed to bind socket");
         socket.set_broadcast(true).expect("send_thread: Failed to set broadcast on socket");
+        comms_manager.as_ref().write().unwrap().set_broadcast_address([169, 254, 255, 255]);
 
         Self {
             observer_handler,

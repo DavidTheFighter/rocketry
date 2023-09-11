@@ -172,7 +172,7 @@ impl Bmi088 {
             AccelRange::G24 => 24.0,
         };
 
-        let scale = range / 32768.0;
+        let scale = range / 32767.0;
 
         let x = x_int16 as f32 * scale;
         let y = y_int16 as f32 * scale;
