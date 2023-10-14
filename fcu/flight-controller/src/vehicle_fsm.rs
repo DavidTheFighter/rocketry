@@ -1,4 +1,4 @@
-use hal::{fcu_hal::VehicleState, comms_hal::Packet};
+use hal::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
 use crate::{Fcu, FiniteStateMachine};
 
 mod idle;
@@ -23,7 +23,7 @@ pub enum FsmStorage {
 }
 
 impl<'a> Fcu<'a> {
-    pub fn update_vehicle_fsm(&mut self, dt: f32, packets: &[Packet]) {
+    pub fn update_vehicle_fsm(&mut self, dt: f32, packets: &[(NetworkAddress, Packet)]) {
         let new_state = match self.vehicle_state {
             VehicleState::Idle => Idle::update(self, dt, packets),
             VehicleState::Ascent => Ascent::update(self, dt, packets),

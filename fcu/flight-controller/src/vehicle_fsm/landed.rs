@@ -1,9 +1,9 @@
-use hal::{fcu_hal::VehicleState, comms_hal::Packet};
+use hal::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
 use crate::{FiniteStateMachine, Fcu};
 use super::{FsmStorage, Landed};
 
 impl FiniteStateMachine<VehicleState> for Landed {
-    fn update(_fcu: &mut Fcu, _dt: f32, _packets: &[Packet]) -> Option<VehicleState> {
+    fn update(_fcu: &mut Fcu, _dt: f32, _packets: &[(NetworkAddress, Packet)]) -> Option<VehicleState> {
         None
     }
 

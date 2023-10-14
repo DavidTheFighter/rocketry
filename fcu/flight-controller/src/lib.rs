@@ -6,7 +6,7 @@ pub mod state_vector;
 pub mod vehicle_fsm;
 
 use dev_stats::DevStatsCollector;
-use hal::{fcu_hal::{FcuDriver, VehicleState, FcuTelemetryFrame, OutputChannel, PwmChannel, FcuConfig, FcuDetailedStateFrame}, comms_hal::{Packet, NetworkAddress}};
+use hal::{fcu_hal::{FcuDriver, VehicleState, FcuTelemetryFrame, OutputChannel, PwmChannel, FcuConfig, FcuDetailedStateFrame}, comms_hal::{Packet, NetworkAddress}, fcu_log::DataPoint};
 use mint::Vector3;
 use state_vector::StateVector;
 use strum::EnumCount;
@@ -54,7 +54,7 @@ impl<'a> Fcu<'a> {
         fcu
     }
 
-    pub fn update(&mut self, dt: f32, packets: &[Packet]) {
+    pub fn update(&mut self, dt: f32, packets: &[(NetworkAddress, Packet)]) {
         let timestamp = self.driver.timestamp();
 
         self.dev_stats.log_update_start(timestamp, packets.len() as u32, 0.0);
@@ -77,8 +77,8 @@ impl<'a> Fcu<'a> {
             self.time_since_last_ping = 0.0;
         }
 
-        for packet in packets {
-            self.handle_packet(packet);
+        for (source, packet) in packets {
+            self.handle_packet(*source, packet);
         }
 
         if let Some(frame) = self.dev_stats.pop_stats_frame() {
@@ -89,7 +89,7 @@ impl<'a> Fcu<'a> {
         self.dev_stats.log_update_end(self.driver.timestamp());
     }
 
-    fn handle_packet(&mut self, packet: &Packet) {
+    fn handle_packet(&mut self, source: NetworkAddress, packet: &Packet) {
         match packet {
             Packet::ConfigureFcu(config) => {
                 self.configure_fcu(config.clone());
@@ -109,6 +109,12 @@ impl<'a> Fcu<'a> {
             },
             Packet::StartDevStatsFrame => {
                 self.dev_stats.start_collection(self.driver.timestamp());
+            },
+            Packet::RequestFcuDetailedState => {
+                let frame = self.generate_detailed_state_frame();
+                let packet = Packet::FcuDetailedState(frame);
+
+                self.driver.send_packet(packet, source);
             },
             _ => {}
         }
@@ -176,6 +182,10 @@ impl<'a> Fcu<'a> {
         self.state_vector.update_gps(gps.into());
     }
 
+    pub fn log_data_point(&mut self, data: DataPoint) {
+        
+    }
+
     pub fn update_data_logged_bytes(&mut self, bytes: u32) {
         self.data_logged_bytes = bytes;
     }
@@ -190,6 +200,6 @@ impl<'a> Fcu<'a> {
 unsafe impl Send for Fcu<'_> {}
 
 pub(crate) trait FiniteStateMachine<D> {
-    fn update(fcu: &mut Fcu, dt: f32, packets: &[Packet]) -> Option<D>;
+    fn update(fcu: &mut Fcu, dt: f32, packets: &[(NetworkAddress, Packet)]) -> Option<D>;
     fn setup_state(fcu: &mut Fcu);
 }

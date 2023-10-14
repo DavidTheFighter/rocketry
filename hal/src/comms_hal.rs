@@ -9,7 +9,7 @@ use crate::{
     ecu_hal::{
         EcuDAQFrame, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame, FuelTankState, IgniterConfig,
     },
-    fcu_hal::{FcuConfig, FcuDevStatsFrame, FcuTelemetryFrame},
+    fcu_hal::{FcuConfig, FcuDevStatsFrame, FcuTelemetryFrame, FcuDetailedStateFrame},
     SensorConfig,
 };
 
@@ -75,6 +75,8 @@ pub enum Packet {
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
     EcuTelemetry(EcuTelemetryFrame),
+    RequestFcuDetailedState,
+    FcuDetailedState(FcuDetailedStateFrame),
     FcuDevStatsFrame(FcuDevStatsFrame),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
     // FcuDataLogPage(DataLogBuffer),
@@ -214,6 +216,8 @@ pub mod tests_data {
         Packet::StopCameraStream,
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
+        Packet::RequestFcuDetailedState,
+        Packet::FcuDetailedState(FcuDetailedStateFrame::default()),
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
         Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),
         Packet::Heartbeat,

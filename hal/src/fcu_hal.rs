@@ -52,7 +52,7 @@ pub struct FcuTelemetryFrame {
     pub data_logged_bytes: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FcuDetailedStateFrame {
     pub timestamp: u64,
     pub vehicle_state: VehicleState,
@@ -111,6 +111,7 @@ pub trait FcuDriver {
     fn get_pwm_channel(&self, channel: PwmChannel) -> f32;
 
     fn log_data_point(&mut self, datapoint: DataPoint);
+    // fn retrieve_log_data_point(&mut self) -> Option<DataPoint>;
     fn erase_flash_chip(&mut self);
     fn enable_logging_to_flash(&mut self);
     fn disable_logging_to_flash(&mut self);
@@ -161,6 +162,30 @@ impl FcuTelemetryFrame {
             output_channels: [false; OutputChannel::COUNT],
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: 0.0,
+            battery_voltage: 0.0,
+            data_logged_bytes: 0,
+        }
+    }
+}
+
+impl FcuDetailedStateFrame {
+    pub const fn default() -> Self {
+        Self {
+            timestamp: 0,
+            vehicle_state: VehicleState::Idle,
+            position: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            orientation: Quaternion { v: Vector3 { x: 0.0, y: 0.0, z: 0.0 }, s: 1.0 },
+            angular_velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            angular_acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            magnetometer: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            position_error: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            velocity_error: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            acceleration_error: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            output_channels: [false; OutputChannel::COUNT],
+            pwm_channels: [0.0; PwmChannel::COUNT],
+            apogee: -1.0,
             battery_voltage: 0.0,
             data_logged_bytes: 0,
         }
