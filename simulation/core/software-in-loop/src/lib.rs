@@ -21,7 +21,7 @@ pub struct SoftwareInLoop {
     #[pyo3(get)]
     name: String,
     fcu: Fcu<'static>,
-    pending_packets: Vec<Packet>,
+    pending_packets: Vec<(NetworkAddress, Packet)>,
 }
 
 #[pymethods]
@@ -119,7 +119,7 @@ impl SoftwareInLoop {
     }
 
     pub fn start_dev_stats_frame(&mut self) {
-        self.pending_packets.push(Packet::StartDevStatsFrame);
+        self.pending_packets.push((NetworkAddress::MissionControl, Packet::StartDevStatsFrame));
     }
 
     pub fn get_fcu_detailed_state(&mut self, py: Python) -> PyResult<PyObject> {

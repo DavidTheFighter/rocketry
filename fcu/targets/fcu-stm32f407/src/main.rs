@@ -83,7 +83,7 @@ mod app {
     struct Shared {
         interface: iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>,
         udp_socket_handle: iface::SocketHandle,
-        packet_queue: Queue<Packet, PACKET_QUEUE_SIZE>,
+        packet_queue: Queue<(NetworkAddress, Packet), PACKET_QUEUE_SIZE>,
         red_led: PC15<Output>,
         fcu: Fcu<'static>,
         data_logger: DataLogger,

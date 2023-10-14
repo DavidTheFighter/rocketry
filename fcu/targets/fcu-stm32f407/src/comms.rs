@@ -41,8 +41,8 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
             };
 
             match comms_manager.extract_packet(buffer, source_address) {
-                Ok((packet, _addr)) => {
-                    packet_queue.enqueue(packet).unwrap();
+                Ok((packet, address)) => {
+                    packet_queue.enqueue((address, packet)).unwrap();
                 },
                 Err(e) => {
                     defmt::error!("Failed to extract packet: {:?}", e.error_str());

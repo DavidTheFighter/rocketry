@@ -201,6 +201,7 @@ impl FcuDetailedStateFrame {
             apogee: -1.0,
             battery_voltage: 0.0,
             data_logged_bytes: 0,
+            barometric_pressure: 0.0,
         }
     }
 }

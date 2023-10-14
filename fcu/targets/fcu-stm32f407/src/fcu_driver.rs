@@ -130,23 +130,23 @@ impl Stm32F407FcuDriver {
     }
 }
 
-fn empty_packet_array() -> [Packet; 16] {
+fn empty_packet_array() -> [(NetworkAddress, Packet); 16] {
     [
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
-        Packet::DoNothing,
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
     ]
 }
