@@ -29,10 +29,10 @@ def calc_chamber_diameter(throat_diameter, half_angle, chamber_length, chamber_v
 
 # --- Design Constants --- #
 
-CHAMBER_PRESSURE = 150.0 # PSI
+CHAMBER_PRESSURE = 300.0 # PSI
 EXIT_PRESSURE = 10.0 # PSI
 MIX_RATIO = 1.2
-THRUST = 600 # Newtons
+THRUST = 500 # Newtons
 
 L_STAR = 1.5 # meters
 CONVERGENT_HALF_ANGLE = 15.0 * (math.pi / 180.0) # radians

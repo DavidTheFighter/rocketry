@@ -14,7 +14,9 @@ strum = { version = "0.24", default-features = false, features = ["derive"] }
 mint = "0.5.9"
 defmt = { version = "0.3", features = ["encoding-rzcobs"] }
 defmt-brtt = { version = "0.1", default-features = false, features = ["rtt"] }
-panic-probe = { version = "0.3.1", feautres = ["print-defmt"] }
+panic-probe = { version = "0.3.1", features = ["print-defmt"] }
+ms5611-rs = { git = "https://github.com/DavidTheFighter/ms5611-rs" }
+bmi088-rs = { git = "https://github.com/DavidTheFighter/bmi088-rs" }
 
 [dependencies.hal]
 path = "../../../hal"
@@ -36,6 +38,12 @@ features = ["rt", "defmt", "stm32f407"]
 [dependencies.stm32-eth]
 version = "0.3.0"
 features = ["stm32f407", "smoltcp-phy"]
+
+[dependencies.shared-bus]
+git = "https://github.com/Rahix/shared-bus"
+rev = "b78409b326fcdfb2f26d6a721737c6842615d630"
+default-features = false
+features = ["cortex-m", "eh-alpha"]
 
 [dependencies.smoltcp]
 version = "0.8.2"

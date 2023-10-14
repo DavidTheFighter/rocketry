@@ -23,9 +23,12 @@ mod app {
     use core::{
         mem::MaybeUninit,
         sync::atomic::{compiler_fence, AtomicU32, Ordering},
+        cell::RefCell,
     };
+    use bmi088_rs::{AccelFilterBandwidth, AccelDataRate, AccelRange, GyroRange, GyroBandwidth, Bmi088Accelerometer, Bmi088Gyroscope, Bmi088PinMode, Bmi088PinBehavior};
     use comms_manager::CommsManager;
     use cortex_m::peripheral::DWT;
+    use cortex_m::interrupt::Mutex;
     use flight_controller::Fcu;
     use hal::comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE};
     use rtic::export::Queue;
@@ -40,6 +43,7 @@ mod app {
         serial::{self, Serial},
     };
     use systick_monotonic::Systick;
+    use shared_bus::BusManagerSimple;
 
     use crate::fcu_driver::{Stm32F407FcuDriver, FcuControlPins, fcu_update};
     use crate::drivers::{bmi088, bmm150, w25x05};
@@ -57,11 +61,15 @@ mod app {
 
     type LogSpi1 = spi::Spi<SPI1, (Pin<'A', 5, Alternate<5>>, Pin<'B', 4, Alternate<5>>, Pin<'B', 5, Alternate<5>>), false>;
     // type Usart2Type = Serial<USART2, (Pin<'D', 5, Alternate<7>>, Pin<'D', 6, Alternate<7>>)>;
+    type I2C1Type = stm32f4xx_hal::i2c::I2c<I2C1, (Pin<'B', 6, Alternate<4, gpio::OpenDrain>>, Pin<'B', 7, Alternate<4, gpio::OpenDrain>>)>;
+    type I2C1BusType = shared_bus::BusManager<Mutex<RefCell<I2C1Type>>>;
+    type SharedI2C1Type = shared_bus::I2cProxy<'static, Mutex<RefCell<I2C1Type>>>;
 
     #[local]
-    struct Local<T> {
+    struct Local {
         blue_led: PC14<Output>,
-        bmi088: bmi088::Bmi088,
+        bmi088_accel: Bmi088Accelerometer<SharedI2C1Type>,
+        bmi088_gyro: Bmi088Gyroscope<SharedI2C1Type>,
         bmm150: bmm150::Bmm150,
         accel_int_pin: PE8<Input>,
         gyro_int_pin: PE9<Input>,
@@ -76,7 +84,6 @@ mod app {
         interface: iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>,
         udp_socket_handle: iface::SocketHandle,
         packet_queue: Queue<Packet, PACKET_QUEUE_SIZE>,
-        i2c1: stm32f4xx_hal::i2c::I2c<I2C1, (stm32f4xx_hal::gpio::Pin<'B', 6, stm32f4xx_hal::gpio::Alternate<4, stm32f4xx_hal::gpio::OpenDrain>>, stm32f4xx_hal::gpio::Pin<'B', 7, stm32f4xx_hal::gpio::Alternate<4, stm32f4xx_hal::gpio::OpenDrain>>)>,
         red_led: PC15<Output>,
         fcu: Fcu<'static>,
         data_logger: DataLogger,
@@ -120,8 +127,8 @@ mod app {
 
         #[task(
             binds = EXTI9_5,
-            local = [bmi088, accel_int_pin, gyro_int_pin],
-            shared = [i2c1, fcu, data_logger],
+            local = [bmi088_accel, bmi088_gyro, accel_int_pin, gyro_int_pin],
+            shared = [fcu, data_logger],
             priority = 11,
         )]
         fn bmi088_interrupt(ctx: bmi088_interrupt::Context);
@@ -129,7 +136,7 @@ mod app {
         #[task(
             binds = EXTI3,
             local = [bmm150, mag_int_pin],
-            shared = [i2c1, fcu, data_logger],
+            shared = [fcu, data_logger],
             priority = 13,
         )]
         fn bmm150_interrupt(ctx: bmm150_interrupt::Context);
@@ -178,6 +185,7 @@ mod app {
         net_storage: NetworkingStorage = NetworkingStorage::new(),
         dma: MaybeUninit<EthernetDMA<'static, 'static>> = MaybeUninit::uninit(),
         fcu_driver: MaybeUninit<Stm32F407FcuDriver> = MaybeUninit::uninit(),
+        i2c1_bus: MaybeUninit<I2C1BusType> = MaybeUninit::uninit(),
     ])]
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
         let mut core = ctx.core;
@@ -233,11 +241,14 @@ mod app {
             output4_ctrl,
         };
 
-        let mut i2c1 = p.I2C1.i2c(
-            (i2c1_scl, i2c1_sda),
-            400.kHz(),
-            &clocks,
-        );
+        let i2c1_bus = ctx.local.i2c1_bus.write(shared_bus::BusManagerCortexM::new(
+            p.I2C1.i2c(
+                (i2c1_scl, i2c1_sda),
+                400.kHz(),
+                &clocks,
+            ),
+        ));
+        let ms5611_device = ms5611_rs::Ms5611::new(i2c1_bus.acquire_i2c(), 0x76);
 
         let spi1: spi::Spi<SPI1, (gpio::Pin<'A', 5, gpio::Alternate<5>>, gpio::Pin<'B', 4, gpio::Alternate<5>>, gpio::Pin<'B', 5, gpio::Alternate<5>>), false> = p.SPI1.spi(
             (spi1_sck, spi1_miso, spi1_mosi),
@@ -284,32 +295,36 @@ mod app {
 
         let (interface, udp_socket_handle) = init_comms(ctx.local.net_storage, eth_dma);
 
-        let mut bmi088 = bmi088::Bmi088::new(0x18, 0x68);
+        let mut bmi088_accel: Bmi088Accelerometer<SharedI2C1Type> = bmi088_rs::Bmi088Accelerometer::new(i2c1_bus.acquire_i2c(), 0x18);
+        let mut bmi088_gyro: Bmi088Gyroscope<SharedI2C1Type> = bmi088_rs::Bmi088Gyroscope::new(i2c1_bus.acquire_i2c(), 0x68);
         let bmm150 = bmm150::Bmm150::new(
             0x10,
             bmm150::MagDataRate::Hz20,
         );
         let w25x05 = w25x05::W25X05::new(log_flash_csn, log_flash_hold);
 
-        bmi088.reset(&mut i2c1);
-        bmm150.reset(&mut i2c1);
+        bmi088_accel.reset().unwrap();
+        bmi088_gyro.reset().unwrap();
+        // bmm150.reset(&mut i2c1);
         // Delay for 100ms
         cortex_m::asm::delay((MCU_FREQ * 1) / 10);
 
-        bmi088.turn_on(&mut i2c1);
-        bmm150.turn_on(&mut i2c1);
+        bmi088_accel.set_on(true).unwrap();
+        bmi088_gyro.set_on(true).unwrap();
+        // bmm150.turn_on(&mut i2c1);
+
 
         // Delay for 50ms
         cortex_m::asm::delay((MCU_FREQ * 5) / 100);
 
-        bmi088.configure(
-            &mut i2c1,
-            bmi088::AccelFilterBandwidth::Normal,
-            bmi088::AccelDataRate::Hz50,
-            bmi088::AccelRange::G12,
-            bmi088::GyroRange::Deg2000,
-            bmi088::GyroBandwidth::Data100Filter32,
-        );
+        bmi088_accel.set_bandwidth(AccelFilterBandwidth::Normal).unwrap();
+        bmi088_accel.set_data_rate(AccelDataRate::Hz50).unwrap();
+        bmi088_accel.set_range(AccelRange::G6).unwrap();
+        bmi088_accel.configure_int1_pin(Bmi088PinMode::Output, Bmi088PinBehavior::PushPull, true, true).unwrap();
+
+        bmi088_gyro.set_range(GyroRange::Deg1000).unwrap();
+        bmi088_gyro.set_bandwidth(GyroBandwidth::Data100Filter32).unwrap();
+        bmi088_gyro.configure_int3_pin(Bmi088PinBehavior::PushPull, true, true).unwrap();
 
         let data_logger = DataLogger::new();
 
@@ -340,7 +355,7 @@ mod app {
         // Initiate a first read to get the data sequence going. I found that if I don't add this
         // then the first interrupt never gets triggered, likely because the line is already high
         // so the MCU never sees a rising edge
-        bmm150.read_mag(&mut i2c1);
+        // bmm150.read_mag(&mut i2c1);
 
         defmt::info!("Init complete!");
 
@@ -349,7 +364,6 @@ mod app {
                 interface,
                 udp_socket_handle,
                 packet_queue: Queue::new(),
-                i2c1,
                 red_led,
                 fcu: Fcu::new(fcu_driver),
                 data_logger,
@@ -360,7 +374,8 @@ mod app {
             },
             Local {
                 blue_led,
-                bmi088,
+                bmi088_accel,
+                bmi088_gyro,
                 bmm150,
                 accel_int_pin,
                 gyro_int_pin,
