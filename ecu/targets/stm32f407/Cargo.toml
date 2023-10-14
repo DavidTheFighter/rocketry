@@ -16,6 +16,9 @@ strum = { version = "0.24", default-features = false, features = ["derive"] }
 [dependencies.hal]
 path = "../../../hal"
 
+[dependencies.comms-manager]
+path = "../../../comms-manager"
+
 [dependencies.engine-controller]
 path = "../../engine-controller"
 

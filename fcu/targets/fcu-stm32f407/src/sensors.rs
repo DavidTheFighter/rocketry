@@ -2,6 +2,7 @@ use crate::app;
 use bmi088_rs::{AccelRange, GyroRange, Bmi088Accelerometer, Bmi088Gyroscope};
 use hal::fcu_log;
 use mint::Vector3;
+use ms5611_rs::OversampleRatio;
 use stm32f4xx_hal::prelude::*;
 use rtic::Mutex;
 
@@ -83,6 +84,24 @@ pub fn bmm150_interrupt(mut _ctx: app::bmm150_interrupt::Context) {
     //         fcu.update_magnetic_field(Vector3 { x, y, z });
     //     }
     // });
+}
+
+pub fn ms5611_update(ctx: app::ms5611_update::Context) {
+    let ms5611 = ctx.local.ms5611;
+    let mut fcu = ctx.shared.fcu;
+
+    fcu.lock(|fcu| {
+        match ms5611.read_pressure(OversampleRatio::Osr4096) {
+            Ok(pressure) => {
+                fcu.update_barometric_pressure(pressure as f32);
+            },
+            Err(_) => {
+                panic!("Error reading pressure")
+            }
+        }
+    });
+
+    app::ms5611_update::spawn_after(100.millis().into()).unwrap();
 }
 
 fn convert_raw_to_m_s2(accel_range: AccelRange, raw_values: (i16, i16, i16)) -> (f32, f32, f32) {

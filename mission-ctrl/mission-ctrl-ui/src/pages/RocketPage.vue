@@ -147,6 +147,12 @@ export default {
           value: Math.floor(this.nzero(this.dataset.bytes_logged) / 1024),
           units: "KiB",
           badValue: false,
+        },
+        {
+          name: "Barometric",
+          value: this.dataset.detailed_state?.barometric_pressure,
+          units: "Pa",
+          badValue: false,
         }
       ];
     },

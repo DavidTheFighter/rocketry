@@ -254,7 +254,7 @@ export default {
       if (this.datasets != null && this.datasets != undefined) {
         for (let i = 0; i < this.datasets.length; i++) {
           const datasetDesc = this.datasets[i];
-          if (datasetDesc.dataName == undefined || datasetDesc.dataIndex == undefined) {
+          if (datasetDesc.dataName == undefined) {
             continue;
           }
 
@@ -262,11 +262,15 @@ export default {
             continue;
           }
 
-          if (this.dataset[datasetDesc.dataName] == undefined || this.dataset[datasetDesc.dataName][datasetDesc.dataIndex] == undefined) {
+          if (this.dataset[datasetDesc.dataName] == undefined) {
             continue;
           }
 
-          let data = this.dataset[datasetDesc.dataName][datasetDesc.dataIndex];
+          let data = this.dataset[datasetDesc.dataName];
+          if (datasetDesc.dataIndex != undefined && datasetDesc.dataIndex != null) {
+            data = data[datasetDesc.dataIndex];
+          }
+
           if (data.length == 0) {
             continue;
           }

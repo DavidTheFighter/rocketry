@@ -23,6 +23,7 @@ mod app {
         mem::MaybeUninit,
         sync::atomic::{compiler_fence, AtomicU32, Ordering},
     };
+    use comms_manager::CommsManager;
     use cortex_m::peripheral::DWT;
     use hal::comms_hal::{NetworkAddress, Packet};
     use rtic::export::Queue;
@@ -65,6 +66,7 @@ mod app {
         interface: iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>,
         udp_socket_handle: iface::SocketHandle,
         daq: DAQHandler,
+        comms_manager: CommsManager<16>,
         packet_queue: Queue<Packet, PACKET_QUEUE_SIZE>,
         cpu_utilization: AtomicU32,
     }
@@ -86,7 +88,7 @@ mod app {
 
         #[task(
             local = [data: [u8; 512] = [0u8; 512]],
-            shared = [interface, udp_socket_handle],
+            shared = [interface, udp_socket_handle, comms_manager],
             capacity = 8,
             priority = 12,
         )]
@@ -102,7 +104,7 @@ mod app {
         #[task(
             binds = ETH,
             local = [data: [u8; 512] = [0u8; 512]],
-            shared = [interface, udp_socket_handle, packet_queue],
+            shared = [interface, udp_socket_handle, packet_queue, comms_manager],
             priority = 12,
         )]
         fn eth_interrupt(ctx: eth_interrupt::Context);
@@ -246,7 +248,7 @@ mod app {
         compiler_fence(Ordering::SeqCst);
         adc1_transfer.start(|adc| adc.start_conversion());
 
-        send_packet::spawn(Packet::DeviceBooted, NetworkAddress::MissionControl).unwrap();
+        send_packet::spawn(Packet::DeviceBooted, NetworkAddress::Broadcast).unwrap();
 
         let ecu_driver = ctx.local.ecu_driver.write(
             Stm32F407EcuDriver::new(ecu_control_pins),
@@ -259,6 +261,7 @@ mod app {
                 daq: DAQHandler::new(),
                 packet_queue: Queue::new(),
                 cpu_utilization: AtomicU32::new(0),
+                comms_manager: CommsManager::new(NetworkAddress::EngineController(0)),
             },
             Local {
                 blue_led,

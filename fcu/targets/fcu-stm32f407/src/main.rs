@@ -18,7 +18,7 @@ pub(crate) fn now() -> u64 {
     app::monotonics::now().duration_since_epoch().ticks()
 }
 
-#[rtic::app(device = stm32f4xx_hal::pac, dispatchers = [CAN2_TX, CAN2_RX0, CAN2_RX1, CAN2_SCE])]
+#[rtic::app(device = stm32f4xx_hal::pac, dispatchers = [CAN2_TX, CAN2_RX0, CAN2_RX1, CAN2_SCE, USART6])]
 mod app {
     use core::{
         mem::MaybeUninit,
@@ -43,13 +43,12 @@ mod app {
         serial::{self, Serial},
     };
     use systick_monotonic::Systick;
-    use shared_bus::BusManagerSimple;
 
     use crate::fcu_driver::{Stm32F407FcuDriver, FcuControlPins, fcu_update};
     use crate::drivers::{bmi088, bmm150, w25x05};
     use crate::comms::{send_packet, eth_interrupt, init_comms, NetworkingStorage, RX_RING_ENTRY_DEFAULT, TX_RING_ENTRY_DEFAULT};
     use crate::logging::{DataLogger, log_data_to_flash, erase_data_log_flash, set_data_logging_state, read_log_page_and_transfer, usart2_interrupt};
-    use crate::sensors::{bmi088_interrupt, bmm150_interrupt};
+    use crate::sensors::{bmi088_interrupt, bmm150_interrupt, ms5611_update};
 
     const CRYSTAL_FREQ: u32 = 25_000_000;
     const MCU_FREQ: u32 = 75_000_000;
@@ -70,6 +69,7 @@ mod app {
         blue_led: PC14<Output>,
         bmi088_accel: Bmi088Accelerometer<SharedI2C1Type>,
         bmi088_gyro: Bmi088Gyroscope<SharedI2C1Type>,
+        ms5611: ms5611_rs::Ms5611<SharedI2C1Type>,
         bmm150: bmm150::Bmm150,
         accel_int_pin: PE8<Input>,
         gyro_int_pin: PE9<Input>,
@@ -140,6 +140,13 @@ mod app {
             priority = 13,
         )]
         fn bmm150_interrupt(ctx: bmm150_interrupt::Context);
+
+        #[task(
+            local = [ms5611],
+            shared = [fcu],
+            priority = 3,
+        )]
+        fn ms5611_update(ctx: ms5611_update::Context);
 
         #[task(
             shared = [w25x05, spi1, data_logger],
@@ -248,7 +255,6 @@ mod app {
                 &clocks,
             ),
         ));
-        let ms5611_device = ms5611_rs::Ms5611::new(i2c1_bus.acquire_i2c(), 0x76);
 
         let spi1: spi::Spi<SPI1, (gpio::Pin<'A', 5, gpio::Alternate<5>>, gpio::Pin<'B', 4, gpio::Alternate<5>>, gpio::Pin<'B', 5, gpio::Alternate<5>>), false> = p.SPI1.spi(
             (spi1_sck, spi1_miso, spi1_mosi),
@@ -301,6 +307,7 @@ mod app {
             0x10,
             bmm150::MagDataRate::Hz20,
         );
+        let ms5611 = ms5611_rs::Ms5611::new(i2c1_bus.acquire_i2c(), 0x76);
         let w25x05 = w25x05::W25X05::new(log_flash_csn, log_flash_hold);
 
         bmi088_accel.reset().unwrap();
@@ -351,6 +358,7 @@ mod app {
 
         send_packet::spawn(Packet::DeviceBooted, NetworkAddress::MissionControl).unwrap();
         fcu_update::spawn().unwrap();
+        ms5611_update::spawn().unwrap();
 
         // Initiate a first read to get the data sequence going. I found that if I don't add this
         // then the first interrupt never gets triggered, likely because the line is already high
@@ -376,6 +384,7 @@ mod app {
                 blue_led,
                 bmi088_accel,
                 bmi088_gyro,
+                ms5611,
                 bmm150,
                 accel_int_pin,
                 gyro_int_pin,

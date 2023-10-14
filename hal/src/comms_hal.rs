@@ -9,7 +9,7 @@ use crate::{
     ecu_hal::{
         EcuDAQFrame, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame, FuelTankState, IgniterConfig,
     },
-    fcu_hal::{FcuConfig, FcuDevStatsFrame, FcuTelemetryFrame, FcuDetailedStateFrame},
+    fcu_hal::{FcuConfig, FcuDevStatsFrame, FcuRawSensorData, FcuTelemetryFrame, FcuDetailedStateFrame},
     SensorConfig,
 };
 
@@ -79,6 +79,7 @@ pub enum Packet {
     FcuDetailedState(FcuDetailedStateFrame),
     FcuDevStatsFrame(FcuDevStatsFrame),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
+    FcuRawSensorData(FcuRawSensorData),
     // FcuDataLogPage(DataLogBuffer),
 
     // -- Misc -- //
@@ -93,7 +94,13 @@ pub enum Packet {
 
 impl Packet {
     pub fn allow_drop(&self) -> bool {
-        matches!(self, Packet::EcuTelemetry(_) | Packet::FcuTelemetry(_) | Packet::EcuDAQ(_) | Packet::FcuDevStatsFrame(_))
+        matches!(
+            self,
+            Packet::EcuTelemetry(_)
+                | Packet::FcuTelemetry(_)
+                | Packet::EcuDAQ(_)
+                | Packet::FcuDevStatsFrame(_)
+        )
     }
 
     /// Serializes this packet and writes it to the given buffer.
@@ -165,8 +172,9 @@ fn postcard_serialization_err_to_hal_err(err: postcard::Error) -> SerializationE
         | postcard::Error::NotYetImplemented
         | postcard::Error::SerializeSeqLengthUnknown => SerializationError::PostcardImplementation,
         postcard::Error::SerializeBufferFull => SerializationError::PacketTooLong,
-        postcard::Error::SerdeSerCustom
-        | postcard::Error::SerdeDeCustom => SerializationError::SerdeError,
+        postcard::Error::SerdeSerCustom | postcard::Error::SerdeDeCustom => {
+            SerializationError::SerdeError
+        }
         postcard::Error::DeserializeUnexpectedEnd => SerializationError::UnexpectedEnd,
         postcard::Error::DeserializeBadVarint
         | postcard::Error::DeserializeBadBool
@@ -180,9 +188,10 @@ fn postcard_serialization_err_to_hal_err(err: postcard::Error) -> SerializationE
 }
 
 pub mod tests_data {
-    use crate::SensorCalibration;
-    use strum::EnumCount;
     use super::*;
+    use crate::SensorCalibration;
+    use mint::Vector3;
+    use strum::EnumCount;
 
     const SENSOR_CALIBRATION: SensorCalibration = SensorCalibration {
         x0: 0.1,
@@ -200,10 +209,16 @@ pub mod tests_data {
     };
 
     pub const PACKET_TEST_DEFAULTS: [Packet; Packet::COUNT] = [
-        Packet::SetSolenoidValve { valve: EcuSolenoidValve::IgniterFuelMain, state: true },
+        Packet::SetSolenoidValve {
+            valve: EcuSolenoidValve::IgniterFuelMain,
+            state: true,
+        },
         Packet::SetSparking(true),
         Packet::DeviceBooted,
-        Packet::ConfigureSensor {sensor: EcuSensor::IgniterGOxInjectorPressure, config: SENSOR_CONFIG },
+        Packet::ConfigureSensor {
+            sensor: EcuSensor::IgniterGOxInjectorPressure,
+            config: SENSOR_CONFIG,
+        },
         Packet::ConfigureIgniter(IgniterConfig::default()),
         Packet::ConfigureFcu(FcuConfig::default()),
         Packet::EraseDataLogFlash,
@@ -219,9 +234,31 @@ pub mod tests_data {
         Packet::RequestFcuDetailedState,
         Packet::FcuDetailedState(FcuDetailedStateFrame::default()),
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
+        Packet::FcuRawSensorData(FcuRawSensorData {
+            timestamp: 1895,
+            accelerometer: Vector3 {
+                x: 1,
+                y: 11,
+                z: 111,
+            },
+            gyroscope: Vector3 {
+                x: 1,
+                y: 11,
+                z: 111,
+            },
+            magnetometer: Vector3 {
+                x: 1,
+                y: 11,
+                z: 111,
+            },
+            barometer: 420,
+        }),
         Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),
         Packet::Heartbeat,
-        Packet::ComponentIpAddress { addr: NetworkAddress::GroundCamera(42), ip: [169, 254, 9, 41] },
+        Packet::ComponentIpAddress {
+            addr: NetworkAddress::GroundCamera(42),
+            ip: [169, 254, 9, 41],
+        },
         Packet::StopApplication,
         Packet::DoNothing,
     ];
@@ -229,9 +266,9 @@ pub mod tests_data {
 
 #[cfg(test)]
 pub mod tests {
-    use std::io::Write;
-    use super::*;
     use super::tests_data::*;
+    use super::*;
+    use std::io::Write;
 
     #[test]
     fn test_packet_sizes() {

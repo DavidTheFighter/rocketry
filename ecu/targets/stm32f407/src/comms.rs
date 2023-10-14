@@ -1,6 +1,6 @@
 use crate::app;
-use hal::comms_hal::{NetworkAddress, Packet};
-use rtic::mutex_prelude::{TupleExt02, TupleExt03};
+use hal::comms_hal::{NetworkAddress, Packet, UDP_RECV_PORT};
+use rtic::mutex_prelude::{TupleExt03, TupleExt04};
 use smoltcp::{
     iface::{self, SocketStorage},
     socket::{UdpSocket, UdpSocketBuffer},
@@ -21,8 +21,9 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
     let iface = ctx.shared.interface;
     let udp = ctx.shared.udp_socket_handle;
     let packet_queue = ctx.shared.packet_queue;
+    let comms_manager = ctx.shared.comms_manager;
 
-    (iface, udp, packet_queue).lock(|iface, udp_handle, packet_queue| {
+    (iface, udp, packet_queue, comms_manager).lock(|iface, udp_handle, packet_queue, comms_manager| {
         iface.device_mut().interrupt_handler();
         iface.poll(smoltcp_now()).ok();
 
@@ -33,9 +34,20 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
             return;
         }
 
-        while let Ok((recv_bytes, _sender)) = udp_socket.recv_slice(buffer) {
-            if let Ok(packet) = Packet::deserialize(&mut buffer[0..recv_bytes]) {
-                packet_queue.enqueue(packet).unwrap();
+        while let Ok((recv_bytes, sender)) = udp_socket.recv_slice(buffer) {
+            let source_address = match sender.addr {
+                wire::IpAddress::Unspecified => [255, 255, 255, 255],
+                wire::IpAddress::Ipv4(ip) => ip.0,
+                _ => [255, 255, 255, 255],
+            };
+
+            match comms_manager.extract_packet(buffer, source_address) {
+                Ok((packet, _addr)) => {
+                    packet_queue.enqueue(packet).unwrap();
+                },
+                Err(_) => {
+                    // TODO Handle error
+                }
             }
         }
 
@@ -43,11 +55,12 @@ pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
     });
 }
 
-pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, _address: NetworkAddress) {
+pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, address: NetworkAddress) {
     let iface = ctx.shared.interface;
     let udp = ctx.shared.udp_socket_handle;
+    let comms_manager = ctx.shared.comms_manager;
 
-    (iface, udp).lock(|iface, udp_handle| {
+    (iface, udp, comms_manager).lock(|iface, udp_handle, comms_manager| {
         let udp_socket = iface.get_socket::<UdpSocket>(*udp_handle);
         let buffer = ctx.local.data;
 
@@ -55,13 +68,20 @@ pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, _address: Net
             return;
         }
 
-        let ip_addr = wire::Ipv4Address::new(169, 254, 0, 5);
-        let endpoint = wire::IpEndpoint::new(ip_addr.into(), 25565);
+        let result = comms_manager.process_packet(packet, address, buffer);
 
-        if let Ok(result_length) = packet.serialize(buffer) {
-            udp_socket
-                .send_slice(&buffer[0..result_length], endpoint)
-                .ok();
+        match result {
+            Ok((size, ip)) => {
+                let ip = wire::Ipv4Address::from_bytes(&ip);
+                let endpoint = IpEndpoint::new(ip.into(), UDP_RECV_PORT);
+
+                udp_socket
+                    .send_slice(&buffer[0..size], endpoint)
+                    .expect("Failed to send packet");
+            },
+            Err(_) => {
+                // TODO Handle error
+            }
         }
 
         iface.poll(smoltcp_now()).ok();

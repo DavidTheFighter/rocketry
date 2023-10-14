@@ -17,6 +17,7 @@ pub struct Fcu<'a> {
     pub driver: &'a mut dyn FcuDriver,
     pub state_vector: StateVector,
     dev_stats: DevStatsCollector,
+    barometric_pressure: f32,
     vehicle_fsm_storage: vehicle_fsm::FsmStorage,
     time_since_last_telemetry: f32,
     time_since_last_ping: f32,
@@ -43,6 +44,7 @@ impl<'a> Fcu<'a> {
             driver,
             state_vector,
             dev_stats: DevStatsCollector::new(),
+            barometric_pressure: 0.0,
             vehicle_fsm_storage: vehicle_fsm::FsmStorage::Empty,
             time_since_last_telemetry: 0.0,
             time_since_last_ping: 0.0,
@@ -154,6 +156,7 @@ impl<'a> Fcu<'a> {
             velocity_error: self.state_vector.get_velocity_std_dev(),
             acceleration_error: self.state_vector.get_acceleration_std_dev(),
             magnetometer: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
+            barometric_pressure: self.barometric_pressure,
             output_channels: [false; OutputChannel::COUNT],
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: self.apogee,
@@ -175,6 +178,7 @@ impl<'a> Fcu<'a> {
     }
 
     pub fn update_barometric_pressure(&mut self, barometric_pressure: f32) {
+        self.barometric_pressure = barometric_pressure;
         self.state_vector.update_barometric_pressure(barometric_pressure.into());
     }
 

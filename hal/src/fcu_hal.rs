@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
 
-use crate::{comms_hal::{NetworkAddress, Packet}, fcu_log::DataPoint};
+use crate::{
+    comms_hal::{NetworkAddress, Packet},
+    fcu_log::DataPoint,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum VehicleState {
@@ -63,6 +66,7 @@ pub struct FcuDetailedStateFrame {
     pub angular_velocity: Vector3<f32>,
     pub angular_acceleration: Vector3<f32>,
     pub magnetometer: Vector3<f32>,
+    pub barometric_pressure: f32,
     pub position_error: Vector3<f32>,     // Standard deviation
     pub velocity_error: Vector3<f32>,     // Standard deviation
     pub acceleration_error: Vector3<f32>, // Standard deviation
@@ -71,6 +75,15 @@ pub struct FcuDetailedStateFrame {
     pub apogee: f32,
     pub battery_voltage: f32,
     pub data_logged_bytes: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct FcuRawSensorData {
+    pub timestamp: u64,
+    pub accelerometer: Vector3<u16>,
+    pub gyroscope: Vector3<u16>,
+    pub magnetometer: Vector3<u16>,
+    pub barometer: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -208,7 +221,7 @@ impl FcuConfig {
                 x: 5.0,
                 y: 10.0,
                 z: 5.0,
-            }
+            },
         }
     }
 }

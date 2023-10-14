@@ -1,8 +1,9 @@
 <template>
   <div>
     <div class="row">
-      <RealtimeLineGraph
+      <RealtimeLineGraphChartjs
       :datasets="igniterDataset"
+      :dataset="dataset"
       :yrange="[0, 250]"
       :xTitle="'Time (sec)'"
       :yTitle="'Pressure (PSI)'"
@@ -37,6 +38,7 @@
 
 <script>
 import RealtimeLineGraph from '../components/RealtimeLineGraph.vue';
+import RealtimeLineGraphChartjs from '../components/RealtimeLineGraphChartjs.vue';
 import RocketTerminal from '../components/RocketTerminal.vue';
 import HardwareDisplay from '../components/HardwareDisplay.vue';
 import SoftwareDisplay from '../components/SoftwareDisplay.vue';
@@ -45,6 +47,7 @@ export default {
   name: 'IgniterPage',
   components: {
     RealtimeLineGraph,
+    RealtimeLineGraphChartjs,
     RocketTerminal,
     HardwareDisplay,
     SoftwareDisplay
@@ -61,19 +64,19 @@ export default {
         {
           name: 'IG GOx',
           color: 'cyan',
-          data: this.dataset.igniter_gox_pressure,
+          dataName: 'igniter_gox_pressure',
           units: "PSI",
         },
         {
           name: 'IG Fuel',
           color: 'orange',
-          data: this.dataset.igniter_fuel_pressure,
+          dataName: 'igniter_fuel_pressure',
           units: "PSI",
         },
         {
           name: 'IG Chamber',
           color: 'red',
-          data: this.dataset.igniter_chamber_pressure,
+          dataName: 'igniter_chamber_pressure',
           units: "PSI",
         },
       ];
@@ -185,7 +188,7 @@ export default {
   data() {
     return {
       timer: 0,
-      dataset: [],
+      dataset: {},
     }
   }
 }
