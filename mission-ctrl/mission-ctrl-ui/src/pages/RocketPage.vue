@@ -33,7 +33,11 @@
       <EmptyComponent class="columnRight" />
     </div>
     <div class="row">
-      <EmptyComponent class="columnLeft" />
+      <DatasetDisplay
+        :states="debugInfo"
+        :title="'Debug Info'"
+        class="columnLeft"
+      />
       <DatasetDisplay
         :states="this.dataset.problems"
         :title="'Problems'"
@@ -156,6 +160,36 @@ export default {
         }
       ];
     },
+    debugInfo() {
+      return [
+        {
+          name: "Raw Accel",
+          value: this.vec3Str(this.dataset.debug_data?.raw_accelerometer, 0, 0),
+          badValue: false,
+        },
+        {
+          name: "Raw Gyro",
+          value: this.vec3Str(this.dataset.debug_data?.raw_gyroscope, 0, 0),
+          badValue: false,
+        },
+        {
+          name: "Raw Magno",
+          value: this.vec3Str(this.dataset.debug_data?.raw_magnetometer, 0, 0),
+          badValue: false,
+        },
+        {
+          name: "Raw Baro",
+          value: this.dataset.debug_data?.raw_barometer,
+          badValue: false,
+        },
+        {
+          name: "Raw Baro Alt",
+          value: this.nzero(this.dataset.debug_data?.raw_barometric_altitude).toFixed(2),
+          units: "m",
+          badValue: false,
+        },
+      ];
+    },
     rocketOrientation() {
       return this.dataset.orientation;
     },
@@ -174,15 +208,25 @@ export default {
   },
   methods: {
     async generateData() {
+      let debug_data = undefined;
+
+      try {
+        const response = await fetch('http://localhost:8000/fcu-telemetry/debug-data');
+        debug_data = await response.json();
+      } catch (error) {
+        console.log(error);
+      }
+
       try {
         const response = await fetch('http://localhost:8000/fcu-telemetry');
-        const data = await response.json();
+        let data = await response.json();
+        data.debug_data = debug_data;
 
         this.dataset = data;
       } catch (error) {
         console.log(error);
 
-        this.dataset = [];
+        this.dataset = {};
       }
     },
     lastElementOrNull(array) {
@@ -205,6 +249,17 @@ export default {
       } else {
         return "0";
       }
+    },
+    vec3Str(value, defaultValue, precision=3) {
+      if (value) {
+        const x = value[0].toFixed(precision);
+        const y = value[1].toFixed(precision);
+        const z = value[2].toFixed(precision);
+
+        return `(${x}, ${y}, ${z})`;
+      }
+
+      return `(${defaultValue}, ${defaultValue}, ${defaultValue})`;
     },
     accelerationStr() {
       if (this.dataset.acceleration) {

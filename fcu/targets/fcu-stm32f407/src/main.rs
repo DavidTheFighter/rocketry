@@ -51,7 +51,7 @@ mod app {
     use crate::sensors::{bmi088_interrupt, bmm150_interrupt, ms5611_update};
 
     const CRYSTAL_FREQ: u32 = 25_000_000;
-    const MCU_FREQ: u32 = 75_000_000;
+    pub const MCU_FREQ: u32 = 75_000_000;
     const PCLK1_FREQ: u32 = 37_500_000;
     const PCLK2_FREQ: u32 = 37_500_000;
 
@@ -307,19 +307,20 @@ mod app {
             0x10,
             bmm150::MagDataRate::Hz20,
         );
-        let ms5611 = ms5611_rs::Ms5611::new(i2c1_bus.acquire_i2c(), 0x76);
+        let mut ms5611 = ms5611_rs::Ms5611::new(i2c1_bus.acquire_i2c(), 0x77);
         let w25x05 = w25x05::W25X05::new(log_flash_csn, log_flash_hold);
 
         bmi088_accel.reset().unwrap();
         bmi088_gyro.reset().unwrap();
+        ms5611.reset().expect("MS5611 failed init");
         // bmm150.reset(&mut i2c1);
         // Delay for 100ms
         cortex_m::asm::delay((MCU_FREQ * 1) / 10);
 
         bmi088_accel.set_on(true).unwrap();
         bmi088_gyro.set_on(true).unwrap();
+        ms5611.read_prom().expect("MS5611 failed read prom");
         // bmm150.turn_on(&mut i2c1);
-
 
         // Delay for 50ms
         cortex_m::asm::delay((MCU_FREQ * 5) / 100);

@@ -43,15 +43,15 @@ impl SoftwareInLoop {
     }
 
     pub fn update_acceleration(&mut self, accel: &PyList) {
-        self.fcu.update_acceleration(list_to_vec3(accel));
+        self.fcu.update_acceleration(list_to_vec3(accel), Vector3 { x: 42, y: 42, z: 42 });
     }
 
     pub fn update_barometric_altitude(&mut self, altitude: f32) {
-        self.fcu.update_barometric_pressure(altitude);
+        self.fcu.update_barometric_pressure(altitude, 20.0, 42);
     }
 
     pub fn update_angular_velocity(&mut self, ang_vel: &PyList) {
-        self.fcu.update_angular_velocity(list_to_vec3(ang_vel));
+        self.fcu.update_angular_velocity(list_to_vec3(ang_vel), Vector3 { x: 42, y: 42, z: 42 });
     }
 
     pub fn update_gps(&mut self, gps: &PyList) {
@@ -123,7 +123,7 @@ impl SoftwareInLoop {
     }
 
     pub fn get_fcu_detailed_state(&mut self, py: Python) -> PyResult<PyObject> {
-        let state = self.fcu.generate_detailed_state_frame();
+        let state = self.fcu.generate_debug_info();
 
         Ok(dict_from_obj(py, state).into())
     }

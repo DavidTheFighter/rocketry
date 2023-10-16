@@ -13,9 +13,10 @@ use crate::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum VehicleState {
     Idle = 0,
-    Ascent = 1,
-    Descent = 2,
-    Landed = 3,
+    Calibrating = 1,
+    Ascent = 2,
+    Descent = 3,
+    Landed = 4,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
@@ -34,6 +35,14 @@ pub enum PwmChannel {
     PwmChannel3 = 3,
     PwmChannel4 = 4,
     PwmChannel5 = 5,
+}
+
+pub enum FcuAlertEvent {
+
+}
+
+pub enum FcuAlertCondition {
+
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -56,7 +65,7 @@ pub struct FcuTelemetryFrame {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FcuDetailedStateFrame {
+pub struct FcuDebugInfo {
     pub timestamp: u64,
     pub vehicle_state: VehicleState,
     pub position: Vector3<f32>,
@@ -65,8 +74,6 @@ pub struct FcuDetailedStateFrame {
     pub orientation: Quaternion<f32>,
     pub angular_velocity: Vector3<f32>,
     pub angular_acceleration: Vector3<f32>,
-    pub magnetometer: Vector3<f32>,
-    pub barometric_pressure: f32,
     pub position_error: Vector3<f32>,     // Standard deviation
     pub velocity_error: Vector3<f32>,     // Standard deviation
     pub acceleration_error: Vector3<f32>, // Standard deviation
@@ -75,15 +82,11 @@ pub struct FcuDetailedStateFrame {
     pub apogee: f32,
     pub battery_voltage: f32,
     pub data_logged_bytes: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct FcuRawSensorData {
-    pub timestamp: u64,
-    pub accelerometer: Vector3<u16>,
-    pub gyroscope: Vector3<u16>,
-    pub magnetometer: Vector3<u16>,
-    pub barometer: u32,
+    pub raw_accelerometer: Vector3<i16>,
+    pub raw_gyroscope: Vector3<i16>,
+    pub raw_magnetometer: Vector3<i16>,
+    pub raw_barometer: u32,
+    pub raw_barometric_altitude: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -102,6 +105,7 @@ pub struct FcuConfig {
     pub telemetry_rate: f32,
     pub startup_acceleration_threshold: f32,
     pub position_kalman_process_variance: f32,
+    pub calibration_duration: f32,
     pub accelerometer_noise_std_dev: Vector3<f32>,
     pub barometer_noise_std_dev: f32,
     pub gps_noise_std_dev: Vector3<f32>,
@@ -181,7 +185,7 @@ impl FcuTelemetryFrame {
     }
 }
 
-impl FcuDetailedStateFrame {
+impl FcuDebugInfo {
     pub const fn default() -> Self {
         Self {
             timestamp: 0,
@@ -192,7 +196,6 @@ impl FcuDetailedStateFrame {
             orientation: Quaternion { v: Vector3 { x: 0.0, y: 0.0, z: 0.0 }, s: 1.0 },
             angular_velocity: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             angular_acceleration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-            magnetometer: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             position_error: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             velocity_error: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
             acceleration_error: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
@@ -201,7 +204,11 @@ impl FcuDetailedStateFrame {
             apogee: -1.0,
             battery_voltage: 0.0,
             data_logged_bytes: 0,
-            barometric_pressure: 0.0,
+            raw_accelerometer: Vector3 { x: 0, y: 0, z: 0 },
+            raw_gyroscope: Vector3 { x: 0, y: 0, z: 0 },
+            raw_magnetometer: Vector3 { x: 0, y: 0, z: 0 },
+            raw_barometer: 0,
+            raw_barometric_altitude: 0.0,
         }
     }
 }
@@ -212,6 +219,7 @@ impl FcuConfig {
             telemetry_rate: 0.02,
             startup_acceleration_threshold: 0.1,
             position_kalman_process_variance: 1e-3,
+            calibration_duration: 5.0,
             accelerometer_noise_std_dev: Vector3 {
                 x: 1e-2,
                 y: 1e-2,

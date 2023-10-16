@@ -1,1 +1,1 @@
-DEFMT_LOG=debug cargo run --bin fcu-stm32f407
+DEFMT_LOG=debug cargo run --release --bin fcu-stm32f407

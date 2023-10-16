@@ -24,7 +24,7 @@ use rocket::http::Header;
 use rocket::{Request, Response, Rocket, Build};
 use comms::send::send_thread;
 use ecu_telemetry::{telemetry_thread, ecu_telemetry_endpoint};
-use fcu_telemetry::{fcu_telemetry_thread, fcu_telemetry_endpoint};
+use fcu_telemetry::{fcu_telemetry_thread, fcu_telemetry_endpoint, fcu_debug_data};
 
 use crate::cameras::camera_streaming_thread;
 use crate::comms::NETWORK_MAP_SIZE;
@@ -43,6 +43,7 @@ fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
             all_options,
             ecu_telemetry_endpoint,
             fcu_telemetry_endpoint,
+            fcu_debug_data,
             browser_stream,
         ])
         .mount("/commands", commands::get_routes())

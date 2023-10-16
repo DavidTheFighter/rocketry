@@ -28,6 +28,7 @@ impl StateVector {
     }
 
     pub fn update_acceleration(&mut self, acceleration: Vector3<f32>) {
+        let acceleration = acceleration + self.sensor_calibration.accelerometer;
         let acceleration =  self.orientation.orientation.transform_vector(&acceleration);
 
         let mut measurement = SVector::<f32, MEASURE_LEN>::zeros();
@@ -41,9 +42,9 @@ impl StateVector {
         self.position_kalman.update(&measurement, &measurement_matrix);
     }
 
-    pub fn update_barometric_pressure(&mut self, barometric_pressure: f32) {
+    pub fn update_barometric_pressure(&mut self, barometric_altitude: f32) {
         let mut measurement = SVector::<f32, MEASURE_LEN>::zeros();
-        measurement[3] = barometric_pressure;
+        measurement[3] = barometric_altitude + self.sensor_calibration.barometric_altitude;
 
         let mut measurement_matrix = SMatrix::<f32, MEASURE_LEN, STATE_LEN>::zeros();
         measurement_matrix[(3, 1)] = 1.0;

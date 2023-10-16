@@ -15,7 +15,7 @@ mint = "0.5.9"
 defmt = { version = "0.3", features = ["encoding-rzcobs"] }
 defmt-brtt = { version = "0.1", default-features = false, features = ["rtt"] }
 panic-probe = { version = "0.3.1", features = ["print-defmt"] }
-ms5611-rs = { git = "https://github.com/DavidTheFighter/ms5611-rs" }
+ms5611-rs = { path = "../../../../driver-rs/ms5611-rs" }
 bmi088-rs = { git = "https://github.com/DavidTheFighter/bmi088-rs" }
 
 [dependencies.hal]

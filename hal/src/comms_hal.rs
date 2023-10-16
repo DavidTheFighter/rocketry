@@ -9,7 +9,7 @@ use crate::{
     ecu_hal::{
         EcuDAQFrame, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame, FuelTankState, IgniterConfig,
     },
-    fcu_hal::{FcuConfig, FcuDevStatsFrame, FcuRawSensorData, FcuTelemetryFrame, FcuDetailedStateFrame},
+    fcu_hal::{FcuConfig, FcuDevStatsFrame, FcuTelemetryFrame, FcuDebugInfo},
     SensorConfig,
 };
 
@@ -71,15 +71,15 @@ pub enum Packet {
         port: u16,
     },
     StopCameraStream,
+    StartCalibration,
 
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
     EcuTelemetry(EcuTelemetryFrame),
-    RequestFcuDetailedState,
-    FcuDetailedState(FcuDetailedStateFrame),
+    RequestFcuDebugInfo,
+    FcuDebugInfo(FcuDebugInfo),
     FcuDevStatsFrame(FcuDevStatsFrame),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
-    FcuRawSensorData(FcuRawSensorData),
     // FcuDataLogPage(DataLogBuffer),
 
     // -- Misc -- //
@@ -190,7 +190,6 @@ fn postcard_serialization_err_to_hal_err(err: postcard::Error) -> SerializationE
 pub mod tests_data {
     use super::*;
     use crate::SensorCalibration;
-    use mint::Vector3;
     use strum::EnumCount;
 
     const SENSOR_CALIBRATION: SensorCalibration = SensorCalibration {
@@ -229,30 +228,12 @@ pub mod tests_data {
         Packet::FireIgniter,
         Packet::StartCameraStream { port: 42 },
         Packet::StopCameraStream,
+        Packet::StartCalibration,
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
-        Packet::RequestFcuDetailedState,
-        Packet::FcuDetailedState(FcuDetailedStateFrame::default()),
+        Packet::RequestFcuDebugInfo,
+        Packet::FcuDebugInfo(FcuDebugInfo::default()),
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
-        Packet::FcuRawSensorData(FcuRawSensorData {
-            timestamp: 1895,
-            accelerometer: Vector3 {
-                x: 1,
-                y: 11,
-                z: 111,
-            },
-            gyroscope: Vector3 {
-                x: 1,
-                y: 11,
-                z: 111,
-            },
-            magnetometer: Vector3 {
-                x: 1,
-                y: 11,
-                z: 111,
-            },
-            barometer: 420,
-        }),
         Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),
         Packet::Heartbeat,
         Packet::ComponentIpAddress {

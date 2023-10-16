@@ -8,6 +8,13 @@ mod kalman;
 pub mod orientation;
 pub mod position;
 
+pub struct SensorCalibrationData {
+    pub accelerometer: Vector3<f32>,
+    pub gyroscope: Vector3<f32>,
+    pub magnetometer: Vector3<f32>,
+    pub barometric_altitude: f32,
+}
+
 pub struct StateVector {
     pub(crate) position: Vector3<f32>,
     pub(crate) position_std_dev: Vector3<f32>,
@@ -16,7 +23,7 @@ pub struct StateVector {
     pub(crate) acceleration: Vector3<f32>,
     pub(crate) acceleration_std_dev: Vector3<f32>,
     pub(crate) orientation: OrientationFilter,
-    last_angular_velocity_timestamp: f32,
+    pub(crate) sensor_calibration: SensorCalibrationData,
     position_kalman: KalmanFilter<{ position::STATE_LEN }, { position::MEASURE_LEN }>,
 }
 
@@ -30,8 +37,13 @@ impl StateVector {
             acceleration: Vector3::new(0.0, 0.0, 0.0),
             acceleration_std_dev: Vector3::new(0.0, 0.0, 0.0),
             orientation: OrientationFilter::new(),
-            last_angular_velocity_timestamp: 0.0,
             position_kalman: Self::init_position_kalman(config),
+            sensor_calibration: SensorCalibrationData {
+                accelerometer: Vector3::new(0.0, 0.0, 0.0),
+                gyroscope: Vector3::new(0.0, 0.0, 0.0),
+                magnetometer: Vector3::new(0.0, 0.0, 0.0),
+                barometric_altitude: 0.0,
+            },
         }
     }
 
@@ -43,6 +55,10 @@ impl StateVector {
     pub fn update_config(&mut self, config: &FcuConfig) {
         self.update_config_position(config);
         // self.update_config_orientation(config);
+    }
+
+    pub fn update_calibration(&mut self, sensor_calibration: SensorCalibrationData) {
+        self.sensor_calibration = sensor_calibration;
     }
 
     pub fn get_position(&self) -> mint::Vector3<f32> {

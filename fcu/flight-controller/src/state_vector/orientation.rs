@@ -127,11 +127,11 @@ impl OrientationFilter {
 
 impl StateVector {
     pub fn update_angular_velocity(&mut self, angular_velocity: Vector3<f32>) {
-        self.orientation.update_gyroscope(angular_velocity);
+        self.orientation.update_gyroscope(angular_velocity + self.sensor_calibration.gyroscope);
     }
 
     pub fn update_magnetic_field(&mut self, magnetic_field: Vector3<f32>) {
-        self.orientation.update_magnetic_field(magnetic_field);
+        self.orientation.update_magnetic_field(magnetic_field + self.sensor_calibration.magnetometer);
     }
 }
 

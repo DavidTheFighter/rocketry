@@ -1,4 +1,4 @@
-use hal::fcu_hal::{FcuTelemetryFrame, FcuDetailedStateFrame, FcuDevStatsFrame};
+use hal::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame};
 use pyo3::{prelude::*, types::{PyDict, PyList}};
 use serde::{Serialize, Deserialize};
 use std::{io::Write, thread};
@@ -13,7 +13,7 @@ pub struct Logger {
     #[pyo3(get, set)]
     pub dt: Scalar,
     pub telemetry: Vec<FcuTelemetryFrame>,
-    pub detailed_state: Vec<FcuDetailedStateFrame>,
+    pub detailed_state: Vec<FcuDebugInfo>,
     pub dev_stats: Vec<FcuDevStatsFrame>,
     #[pyo3(get, set)]
     pub position: Vec<Vec<Scalar>>,
@@ -61,7 +61,7 @@ impl Logger {
     }
 
     pub fn log_detailed_state(&mut self, fcu: &mut SoftwareInLoop) {
-        let state = fcu.fcu.generate_detailed_state_frame();
+        let state = fcu.fcu.generate_debug_info();
 
         self.detailed_state.push(state);
     }

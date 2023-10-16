@@ -5,9 +5,12 @@ use super::{Idle, FsmStorage};
 impl FiniteStateMachine<VehicleState> for Idle {
     fn update(fcu: &mut Fcu, _dt: f32, _packets: &[(NetworkAddress, Packet)]) -> Option<VehicleState> {
         let begun_accelerating = Idle::begun_accelerating(fcu);
+        let should_start_calibration = Idle::should_start_calibration(_packets);
 
         if begun_accelerating {
             return Some(VehicleState::Ascent);
+        } else if should_start_calibration {
+            return Some(VehicleState::Calibrating);
         }
 
         None
@@ -23,6 +26,16 @@ impl Idle {
         let acceleration = fcu.state_vector.acceleration.magnitude();
         if acceleration - GRAVITY > fcu.config.startup_acceleration_threshold {
             return true;
+        }
+
+        false
+    }
+
+    fn should_start_calibration(packets: &[(NetworkAddress, Packet)]) -> bool {
+        for (_address, packet) in packets {
+            if let Packet::StartCalibration = packet {
+                return true;
+            }
         }
 
         false

@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use hal::comms_hal::Packet;
-use hal::fcu_hal::FcuTelemetryFrame;
+use hal::comms_hal::{Packet, NetworkAddress};
+use hal::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo};
 use rocket::serde::{json::Json, Serialize};
 
 use crate::observer::{ObserverHandler, ObserverEvent};
@@ -42,6 +42,7 @@ pub struct FcuTelemetryData<'a> {
 }
 
 static LATEST_FCU_TELEMETRY_STATE: Mutex<Option<FcuTelemetryData>> = Mutex::new(None);
+static LATEST_FCU_DEBUG_INFO: Mutex<Option<FcuDebugInfo>> = Mutex::new(None);
 
 struct FcuTelemetryHandler {
     observer_handler: Arc<ObserverHandler>,
@@ -79,6 +80,10 @@ impl FcuTelemetryHandler {
                         self.last_telemetry_timestamp = timestamp();
                         telemetry_counter += 1;
                     },
+                    Packet::FcuDebugInfo(debug_info) => {
+                        let mut latest_debug_info = LATEST_FCU_DEBUG_INFO.lock().expect("Failed to lock debug info");
+                        latest_debug_info.replace(debug_info);
+                    },
                     _ => {}
                 }
             }
@@ -86,6 +91,11 @@ impl FcuTelemetryHandler {
             let now = timestamp();
             if now - last_refresh_time >= self.data_refresh_time {
                 last_refresh_time = now;
+
+                self.observer_handler.notify(ObserverEvent::SendPacket {
+                    address: NetworkAddress::FlightController,
+                    packet: Packet::RequestFcuDebugInfo },
+                );
 
                 self.packet_queue.drain(0..1);
                 self.packet_queue.push(self.last_fcu_telem_frame.clone());
@@ -183,5 +193,16 @@ pub fn fcu_telemetry_endpoint<'a>() -> Json<FcuTelemetryData<'a>> {
         Json(telem.clone())
     } else {
         Json(FcuTelemetryData::default())
+    }
+}
+
+#[get("/fcu-telemetry/debug-data")]
+pub fn fcu_debug_data() -> Json<FcuDebugInfo> {
+    let latest_debug_info = LATEST_FCU_DEBUG_INFO.lock().expect("Failed to lock debug info");
+
+    if let Some(latest_debug_info) = latest_debug_info.as_ref() {
+        Json(latest_debug_info.clone())
+    } else {
+        Json(FcuDebugInfo::default())
     }
 }
