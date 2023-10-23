@@ -98,7 +98,6 @@ mod app {
     #[task(local = [blue_led], priority = 1)]
     fn heartbeat_blink_led(ctx: heartbeat_blink_led::Context) {
         heartbeat_blink_led::spawn_after(1000.millis().into()).unwrap();
-        send_packet::spawn(Packet::Heartbeat, NetworkAddress::Broadcast).unwrap();
         ctx.local.blue_led.toggle();
     }
 

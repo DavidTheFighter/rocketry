@@ -1,6 +1,6 @@
 use crate::app;
 use bmi088_rs::{AccelRange, GyroRange, Bmi088Accelerometer, Bmi088Gyroscope};
-use hal::fcu_log;
+use hal::{fcu_log, fcu_hal::FcuSensorData};
 use mint::Vector3;
 use ms5611_rs::OversampleRatio;
 use stm32f4xx_hal::prelude::*;
@@ -25,9 +25,12 @@ pub fn bmi088_interrupt(mut ctx: app::bmi088_interrupt::Context) {
                         data_logger.log_data_point(data_point);
                     });
 
-                    let raw_values = Vector3 { x, y, z };
+                    let raw_data = Vector3 { x, y, z };
                     let (x, y, z) = convert_raw_to_m_s2(bmi088_accel.get_range(), (x, y, z));
-                    fcu.update_acceleration(Vector3 { x, y, z }, raw_values);
+                    fcu.update_sensor_data(FcuSensorData::Accelerometer {
+                        acceleration: Vector3 { x, y, z },
+                        raw_data,
+                    });
                 },
                 Err(_) => {
                     panic!("Error reading accelerometer data")
@@ -45,9 +48,12 @@ pub fn bmi088_interrupt(mut ctx: app::bmi088_interrupt::Context) {
                         data_logger.log_data_point(data_point);
                     });
 
-                    let raw_values = Vector3 { x, y, z };
+                    let raw_data = Vector3 { x, y, z };
                     let (x, y, z) = convert_raw_to_rps(bmi088_gyro.get_range(), (x, y, z));
-                    fcu.update_angular_velocity(Vector3 { x, y, z }, raw_values);
+                    fcu.update_sensor_data(FcuSensorData::Gyroscope {
+                        angular_velocity: Vector3 { x, y, z },
+                        raw_data,
+                    });
                 },
                 Err(_) => {
                     panic!("Error reading gyroscope data")
@@ -100,7 +106,11 @@ pub fn ms5611_update(ctx: app::ms5611_update::Context) {
         match ms5611.read(OversampleRatio::Osr4096, delay_fn) {
             Ok((pressure, temperature)) => {
                 // Units of pressure are in mbar * 100 which is equal to one pascal
-                fcu.update_barometric_pressure(pressure as f32, (temperature as f32) * 0.01, pressure);
+                fcu.update_sensor_data(FcuSensorData::Barometer {
+                    pressure: pressure as f32,
+                    temperature: (temperature as f32) * 0.01,
+                    raw_data: pressure,
+                });
             },
             Err(_) => {
                 panic!("Error reading pressure")
@@ -121,7 +131,7 @@ fn convert_raw_to_m_s2(accel_range: AccelRange, raw_values: (i16, i16, i16)) -> 
         AccelRange::G24 => 24.0,
     };
 
-    let scale = range / 32767.0;
+    let scale = 9.80665 * range / 32768.0;
 
     let x = x_int16 as f32 * scale;
     let y = y_int16 as f32 * scale;

@@ -6,21 +6,12 @@ pub mod state_vector;
 pub mod vehicle_fsm;
 
 use dev_stats::DevStatsCollector;
-use hal::{fcu_hal::{FcuDriver, VehicleState, FcuTelemetryFrame, OutputChannel, PwmChannel, FcuConfig, FcuDebugInfo}, comms_hal::{Packet, NetworkAddress}, fcu_log::DataPoint};
+use hal::{fcu_hal::{FcuDriver, VehicleState, FcuTelemetryFrame, OutputChannel, PwmChannel, FcuConfig, FcuDebugInfo, FcuSensorData}, comms_hal::{Packet, NetworkAddress}, fcu_log::DataPoint};
 use mint::Vector3;
 use state_vector::StateVector;
 use strum::EnumCount;
 
-pub(crate) struct FcuSensorData {
-    pub accelerometer: Vector3<f32>,
-    pub raw_accelerometer: Vector3<i16>,
-    pub gyroscope: Vector3<f32>,
-    pub raw_gyroscope: Vector3<i16>,
-    pub magnetometer: Vector3<f32>,
-    pub raw_magnetometer: Vector3<i16>,
-    pub raw_barometer: u32,
-    pub barometric_altitude: f32,
-}
+pub const HEARTBEAT_RATE: f32 = 0.25;
 
 pub struct Fcu<'a> {
     config: FcuConfig,
@@ -28,10 +19,9 @@ pub struct Fcu<'a> {
     pub driver: &'a mut dyn FcuDriver,
     pub state_vector: StateVector,
     dev_stats: DevStatsCollector,
-    sensor_data: FcuSensorData,
     vehicle_fsm_storage: vehicle_fsm::FsmStorage,
     time_since_last_telemetry: f32,
-    time_since_last_ping: f32,
+    time_since_last_heartbeat: f32,
     data_logged_bytes: u32,
     apogee: f32,
 }
@@ -56,19 +46,9 @@ impl<'a> Fcu<'a> {
             driver,
             state_vector,
             dev_stats: DevStatsCollector::new(),
-            sensor_data: FcuSensorData {
-                accelerometer: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-                raw_accelerometer: Vector3 { x: 0, y: 0, z: 0 },
-                gyroscope: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-                raw_gyroscope: Vector3 { x: 0, y: 0, z: 0 },
-                magnetometer: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
-                raw_magnetometer: Vector3 { x: 0, y: 0, z: 0 },
-                raw_barometer: 0,
-                barometric_altitude: 0.0,
-            },
             vehicle_fsm_storage: vehicle_fsm::FsmStorage::Empty,
             time_since_last_telemetry: 0.0,
-            time_since_last_ping: 0.0,
+            time_since_last_heartbeat: 0.0,
             data_logged_bytes: 0,
             apogee: 0.0,
         };
@@ -86,7 +66,7 @@ impl<'a> Fcu<'a> {
         self.apogee = self.apogee.max(self.state_vector.get_position().y);
 
         self.time_since_last_telemetry += dt;
-        self.time_since_last_ping += dt;
+        self.time_since_last_heartbeat += dt;
 
         if self.time_since_last_telemetry >= self.config.telemetry_rate {
             self.driver.send_packet(
@@ -96,8 +76,9 @@ impl<'a> Fcu<'a> {
             self.time_since_last_telemetry = 0.0;
         }
 
-        if self.time_since_last_ping >= 0.5 {
-            self.time_since_last_ping = 0.0;
+        if self.time_since_last_heartbeat >= HEARTBEAT_RATE {
+            self.driver.send_packet(Packet::Heartbeat, NetworkAddress::MissionControl);
+            self.time_since_last_heartbeat = 0.0;
         }
 
         for (source, packet) in packets {
@@ -147,14 +128,14 @@ impl<'a> Fcu<'a> {
         FcuTelemetryFrame {
             timestamp: (self.driver.timestamp() * 1e3) as u64,
             vehicle_state: self.vehicle_state,
-            position: self.state_vector.get_position(),
-            velocity: self.state_vector.get_velocity(),
-            acceleration: self.state_vector.get_acceleration(),
-            orientation: self.state_vector.get_orientation(),
-            angular_velocity: self.state_vector.get_angular_velocity(),
-            position_error: self.state_vector.get_position_std_dev_scalar(),
-            velocity_error: self.state_vector.get_velocity_std_dev_scalar(),
-            acceleration_error: self.state_vector.get_acceleration_std_dev_scalar(),
+            position: self.state_vector.get_position().into(),
+            velocity: self.state_vector.get_velocity().into(),
+            acceleration: self.state_vector.get_acceleration().into(),
+            orientation: self.state_vector.get_orientation().into(),
+            angular_velocity: self.state_vector.get_angular_velocity().into(),
+            position_error: self.state_vector.get_acceleration_std_dev().norm(),
+            velocity_error: self.state_vector.get_velocity_std_dev().norm(),
+            acceleration_error: self.state_vector.get_acceleration_std_dev().norm(),
             output_channels: [false; OutputChannel::COUNT],
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: self.apogee,
@@ -167,65 +148,31 @@ impl<'a> Fcu<'a> {
         FcuDebugInfo {
             timestamp: (self.driver.timestamp() * 1e3) as u64,
             vehicle_state: self.vehicle_state,
-            position: self.state_vector.get_position(),
-            velocity: self.state_vector.get_velocity(),
-            acceleration: self.state_vector.get_acceleration(),
-            orientation: self.state_vector.get_orientation(),
-            angular_velocity: self.state_vector.get_angular_velocity(),
+            position: self.state_vector.get_position().into(),
+            velocity: self.state_vector.get_velocity().into(),
+            acceleration: self.state_vector.get_acceleration().into(),
+            orientation: self.state_vector.get_orientation().into(),
+            angular_velocity: self.state_vector.get_angular_velocity().into(),
             angular_acceleration: self.state_vector.get_angular_acceleration(),
-            position_error: self.state_vector.get_position_std_dev(),
-            velocity_error: self.state_vector.get_velocity_std_dev(),
-            acceleration_error: self.state_vector.get_acceleration_std_dev(),
+            position_error: self.state_vector.get_position_std_dev().into(),
+            velocity_error: self.state_vector.get_velocity_std_dev().into(),
+            acceleration_error: self.state_vector.get_acceleration_std_dev().into(),
             output_channels: [false; OutputChannel::COUNT],
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: self.apogee,
             battery_voltage: 11.1169875,
             data_logged_bytes: self.data_logged_bytes,
-            raw_accelerometer: self.sensor_data.raw_accelerometer,
-            raw_gyroscope: self.sensor_data.raw_gyroscope,
-            raw_magnetometer: self.sensor_data.raw_magnetometer,
-            raw_barometer: self.sensor_data.raw_barometer,
-            raw_barometric_altitude: self.sensor_data.barometric_altitude,
+            raw_accelerometer: self.state_vector.sensor_data.accelerometer_raw.into(),
+            raw_gyroscope: self.state_vector.sensor_data.gyroscope_raw.into(),
+            raw_magnetometer: self.state_vector.sensor_data.magnetometer_raw.into(),
+            raw_barometer: self.state_vector.sensor_data.barometer_raw,
+            raw_barometric_altitude: self.state_vector.sensor_data.barometer_altitude,
+            accelerometer_calibration: self.state_vector.sensor_calibration.accelerometer.into()
         }
     }
 
-    pub fn update_acceleration(&mut self, acceleration: Vector3<f32>, raw: Vector3<i16>) {
-        self.state_vector.update_acceleration(acceleration.into());
-        self.sensor_data.accelerometer = acceleration;
-        self.sensor_data.raw_accelerometer = raw;
-    }
-
-    pub fn update_angular_velocity(&mut self, angular_velocity: Vector3<f32>, raw: Vector3<i16>) {
-        self.state_vector.update_angular_velocity(angular_velocity.into());
-        self.sensor_data.gyroscope = angular_velocity;
-        self.sensor_data.raw_gyroscope = raw;
-    }
-
-    pub fn update_magnetic_field(&mut self, magnetic_field: Vector3<f32>, raw: Vector3<i16>) {
-        self.state_vector.update_magnetic_field(magnetic_field.into());
-        self.sensor_data.magnetometer = magnetic_field;
-        self.sensor_data.raw_magnetometer = raw;
-    }
-
-    pub fn update_barometric_pressure(
-        &mut self,
-        barometric_pressure: f32,
-        temperature: f32,
-        raw_pressure: u32,
-    ) {
-        self.state_vector.update_barometric_pressure(barometric_pressure.into());
-        self.sensor_data.raw_barometer = raw_pressure;
-
-        let barometric_altitude = shared::standard_atmosphere::convert_pressure_to_altitude(
-            barometric_pressure,
-            temperature,
-        );
-
-        self.sensor_data.barometric_altitude = barometric_altitude;
-    }
-
-    pub fn update_gps(&mut self, gps: Vector3<f32>) {
-        self.state_vector.update_gps(gps.into());
+    pub fn update_sensor_data(&mut self, data: FcuSensorData) {
+        self.state_vector.update_sensor_data(data);
     }
 
     pub fn log_data_point(&mut self, _data: DataPoint) {

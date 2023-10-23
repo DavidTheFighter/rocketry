@@ -7,7 +7,7 @@ use driver::FcuDriverSim;
 use dynamics::Dynamics;
 use flight_controller::Fcu;
 use hal::comms_hal::{Packet, NetworkAddress};
-use hal::fcu_hal::{FcuTelemetryFrame, FcuDevStatsFrame};
+use hal::fcu_hal::{FcuTelemetryFrame, FcuDevStatsFrame, FcuSensorData};
 use logging::{Logger, load_logs_from_file};
 use mint::Vector3;
 use pyo3::prelude::*;
@@ -43,19 +43,29 @@ impl SoftwareInLoop {
     }
 
     pub fn update_acceleration(&mut self, accel: &PyList) {
-        self.fcu.update_acceleration(list_to_vec3(accel), Vector3 { x: 42, y: 42, z: 42 });
+        self.fcu.update_sensor_data(FcuSensorData::Accelerometer {
+            acceleration: list_to_vec3(accel),
+            raw_data: Vector3 { x: 42, y: 42, z: 42 },
+        });
     }
 
-    pub fn update_barometric_altitude(&mut self, altitude: f32) {
-        self.fcu.update_barometric_pressure(altitude, 20.0, 42);
+    pub fn update_angular_velocity(&mut self, angular_velocity: &PyList) {
+        self.fcu.update_sensor_data(FcuSensorData::Gyroscope{
+            angular_velocity: list_to_vec3(angular_velocity),
+            raw_data: Vector3 { x: 42, y: 42, z: 42 },
+        });
     }
 
-    pub fn update_angular_velocity(&mut self, ang_vel: &PyList) {
-        self.fcu.update_angular_velocity(list_to_vec3(ang_vel), Vector3 { x: 42, y: 42, z: 42 });
+    pub fn update_barometric_altitude(&mut self, pressure: f32) {
+        self.fcu.update_sensor_data(FcuSensorData::Barometer {
+            pressure: pressure,
+            temperature: 20.0,
+            raw_data: 42,
+        });
     }
 
-    pub fn update_gps(&mut self, gps: &PyList) {
-        self.fcu.update_gps(list_to_vec3(gps));
+    pub fn update_gps(&mut self, _gps: &PyList) {
+        // TOOD
     }
 
     pub fn get_fcu_position(&self, py: Python) -> PyResult<PyObject> {
@@ -84,8 +94,7 @@ impl SoftwareInLoop {
     }
 
     pub fn get_fcu_angular_acceleration(&self, py: Python) -> PyResult<PyObject> {
-        let ang_accel = self.fcu.state_vector.get_angular_acceleration();
-        Ok(vec3_to_list(py, ang_accel).into())
+        Ok(PyList::empty(py).into())
     }
 
     pub fn get_fcu_telemetry(&mut self, py: Python) -> PyResult<PyObject> {
@@ -154,7 +163,7 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-fn vec3_to_list(py: Python, vec: Vector3<f32>) -> PyObject {
+fn vec3_to_list(py: Python, vec: nalgebra::Vector3<f32>) -> PyObject {
     let list = PyList::new(py, &[vec.x, vec.y, vec.z]);
     list.into()
 }
@@ -171,7 +180,7 @@ fn list_to_vec3(list: &PyList) -> Vector3<f32> {
     }
 }
 
-fn quat_to_list(py: Python, quat: mint::Quaternion<f32>) -> PyObject {
-    let list = PyList::new(py, &[quat.s, quat.v.x, quat.v.y, quat.v.z]);
+fn quat_to_list(py: Python, quat: nalgebra::UnitQuaternion<f32>) -> PyObject {
+    let list = PyList::new(py, &[quat.w, quat.i, quat.j, quat.k]);
     list.into()
 }

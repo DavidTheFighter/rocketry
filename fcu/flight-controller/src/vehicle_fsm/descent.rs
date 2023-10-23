@@ -20,7 +20,7 @@ impl FiniteStateMachine<VehicleState> for Descent {
 
 impl Descent {
     fn has_landed(fcu: &mut Fcu) -> bool {
-        if fcu.state_vector.position.y < 1e-3 {
+        if fcu.state_vector.get_position().y < 1e-3 {
             return true;
         }
 

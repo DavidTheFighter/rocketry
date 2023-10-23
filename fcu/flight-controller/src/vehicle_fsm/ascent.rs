@@ -20,7 +20,7 @@ impl FiniteStateMachine<VehicleState> for Ascent {
 
 impl Ascent {
     fn begun_falling(fcu: &mut Fcu) -> bool {
-        if fcu.state_vector.velocity.y < 0.0 {
+        if fcu.state_vector.get_velocity().y < 0.0 {
             return true;
         }
 

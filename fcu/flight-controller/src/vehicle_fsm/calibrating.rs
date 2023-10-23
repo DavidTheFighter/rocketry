@@ -8,7 +8,7 @@ impl FiniteStateMachine<VehicleState> for Calibrating {
         if Calibrating::calibration_time_ended(fcu) {
             Calibrating::update_calibration(fcu);
 
-            return Some(VehicleState::Idle);
+            return Some(VehicleState::Zeroing);
         }
 
         Calibrating::accumulate_sensor_data(fcu);
@@ -22,7 +22,7 @@ impl FiniteStateMachine<VehicleState> for Calibrating {
             accelerometer: Vector3::new(0.0, 0.0, 0.0),
             gyroscope: Vector3::new(0.0, 0.0, 0.0),
             magnetometer: Vector3::new(0.0, 0.0, 0.0),
-            barometric_altitude: 0.0,
+            barometer_pressure: 0.0,
             data_count: 0,
         });
     }
@@ -42,16 +42,16 @@ impl Calibrating {
     }
 
     fn accumulate_sensor_data(fcu: &mut Fcu) {
-        let accelerometer = fcu.sensor_data.accelerometer;
-        let gyroscope = fcu.sensor_data.gyroscope;
-        let magnetometer = fcu.sensor_data.magnetometer;
-        let barometric_altitude = fcu.sensor_data.barometric_altitude;
+        let accelerometer = fcu.state_vector.sensor_data.accelerometer;
+        let gyroscope = fcu.state_vector.sensor_data.gyroscope;
+        let magnetometer = fcu.state_vector.sensor_data.magnetometer;
+        let barometer_pressure = fcu.state_vector.sensor_data.barometer_pressure;
 
         if let FsmStorage::Calibrating(storage) = &mut fcu.vehicle_fsm_storage {
             storage.accelerometer += Vector3::<f32>::from(accelerometer);
             storage.gyroscope += Vector3::<f32>::from(gyroscope);
             storage.magnetometer += Vector3::<f32>::from(magnetometer);
-            storage.barometric_altitude += barometric_altitude;
+            storage.barometer_pressure += barometer_pressure;
 
             storage.data_count += 1;
         }
@@ -59,11 +59,16 @@ impl Calibrating {
 
     fn update_calibration(fcu: &mut Fcu) {
         if let FsmStorage::Calibrating(storage) = &mut fcu.vehicle_fsm_storage {
+            let mut accelerometer_avg = storage.accelerometer / (storage.data_count as f32);
+            // let acceleration_by_gravity = accelerometer_avg.normalize() * 9.80665;
+
+            // accelerometer_avg -= acceleration_by_gravity;
+
             let sensor_calibration = SensorCalibrationData {
-                accelerometer: -storage.accelerometer / (storage.data_count as f32),
+                accelerometer: -accelerometer_avg,
                 gyroscope: -storage.gyroscope / (storage.data_count as f32),
                 magnetometer: -storage.magnetometer / (storage.data_count as f32),
-                barometric_altitude: -storage.barometric_altitude / (storage.data_count as f32),
+                barometer_pressure: -storage.barometer_pressure / (storage.data_count as f32),
             };
 
             fcu.state_vector.update_calibration(sensor_calibration);

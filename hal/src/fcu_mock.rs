@@ -63,8 +63,6 @@ impl FcuDriver for FcuDriverMock {
     fn as_mut_any(&mut self) -> &mut dyn Any {
         self
     }
-
-    fn broadcast_heartbeat(&mut self) {}
 }
 
 impl FcuDriverMock {

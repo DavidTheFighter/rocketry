@@ -23,7 +23,7 @@ impl FiniteStateMachine<VehicleState> for Idle {
 
 impl Idle {
     fn begun_accelerating(fcu: &mut Fcu) -> bool {
-        let acceleration = fcu.state_vector.acceleration.magnitude();
+        let acceleration = fcu.state_vector.get_acceleration().magnitude();
         if acceleration - GRAVITY > fcu.config.startup_acceleration_threshold {
             return true;
         }

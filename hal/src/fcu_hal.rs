@@ -17,6 +17,7 @@ pub enum VehicleState {
     Ascent = 2,
     Descent = 3,
     Landed = 4,
+    Zeroing = 5,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
@@ -43,6 +44,27 @@ pub enum FcuAlertEvent {
 
 pub enum FcuAlertCondition {
 
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FcuSensorData {
+    Accelerometer {
+        acceleration: Vector3<f32>,
+        raw_data: Vector3<i16>,
+    },
+    Gyroscope {
+        angular_velocity: Vector3<f32>,
+        raw_data: Vector3<i16>,
+    },
+    Magnetometer {
+        magnetic_field: Vector3<f32>,
+        raw_data: Vector3<i16>,
+    },
+    Barometer {
+        pressure: f32,
+        temperature: f32,
+        raw_data: u32,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -87,6 +109,7 @@ pub struct FcuDebugInfo {
     pub raw_magnetometer: Vector3<i16>,
     pub raw_barometer: u32,
     pub raw_barometric_altitude: f32,
+    pub accelerometer_calibration: Vector3<f32>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -135,7 +158,6 @@ pub trait FcuDriver {
     fn retrieve_log_flash_page(&mut self, addr: u32);
 
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
-    fn broadcast_heartbeat(&mut self);
 
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
@@ -209,6 +231,7 @@ impl FcuDebugInfo {
             raw_magnetometer: Vector3 { x: 0, y: 0, z: 0 },
             raw_barometer: 0,
             raw_barometric_altitude: 0.0,
+            accelerometer_calibration: Vector3 { x: 0.0, y: 0.0, z: 0.0 },
         }
     }
 }

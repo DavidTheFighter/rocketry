@@ -84,10 +84,6 @@ pub enum Packet {
 
     // -- Misc -- //
     Heartbeat,
-    ComponentIpAddress {
-        addr: NetworkAddress,
-        ip: [u8; 4],
-    },
     StopApplication,
     DoNothing,
 }
@@ -236,10 +232,6 @@ pub mod tests_data {
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
         Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),
         Packet::Heartbeat,
-        Packet::ComponentIpAddress {
-            addr: NetworkAddress::GroundCamera(42),
-            ip: [169, 254, 9, 41],
-        },
         Packet::StopApplication,
         Packet::DoNothing,
     ];

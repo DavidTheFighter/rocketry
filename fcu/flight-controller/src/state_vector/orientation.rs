@@ -108,6 +108,21 @@ impl OrientationFilter {
         self.state_cov = (ident - k * measurement_model) * &self.state_cov;
     }
 
+    pub fn zero(&mut self, zeroed_orientation: UnitQuaternion<f32>) {
+        self.orientation = zeroed_orientation;
+        self.angular_velocity = Vector3::new(0.0, 0.0, 0.0);
+
+        self.state[0] = zeroed_orientation.w;
+        self.state[1] = zeroed_orientation.i;
+        self.state[2] = zeroed_orientation.j;
+        self.state[3] = zeroed_orientation.k;
+        self.state[4] = 0.0;
+        self.state[5] = 0.0;
+        self.state[6] = 0.0;
+
+        self.state_cov = SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * 1e-4;
+    }
+
     pub fn update_gyroscope(&mut self, angular_velocity: Vector3<f32>) {
         let mut measurement = SVector::<f32, MEASURE_LEN>::zeros();
         measurement.fixed_rows_mut::<3>(0).copy_from(&angular_velocity);
@@ -122,16 +137,6 @@ impl OrientationFilter {
 
     pub fn update_magnetic_field(&mut self, _magnetic_field: Vector3<f32>) {
         // something
-    }
-}
-
-impl StateVector {
-    pub fn update_angular_velocity(&mut self, angular_velocity: Vector3<f32>) {
-        self.orientation.update_gyroscope(angular_velocity + self.sensor_calibration.gyroscope);
-    }
-
-    pub fn update_magnetic_field(&mut self, magnetic_field: Vector3<f32>) {
-        self.orientation.update_magnetic_field(magnetic_field + self.sensor_calibration.magnetometer);
     }
 }
 

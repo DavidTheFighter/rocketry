@@ -188,6 +188,11 @@ export default {
           units: "m",
           badValue: false,
         },
+        {
+          name: "Accel Calib",
+          value: this.vec3Str(this.dataset.debug_data?.accelerometer_calibration, 0, 2),
+          badValue: false,
+        },
       ];
     },
     rocketOrientation() {

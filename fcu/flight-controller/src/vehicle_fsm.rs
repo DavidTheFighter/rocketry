@@ -7,6 +7,7 @@ mod calibrating;
 mod ascent;
 mod descent;
 mod landed;
+mod zeroing;
 
 pub struct Idle;
 
@@ -15,7 +16,7 @@ pub struct Calibrating {
     accelerometer: Vector3<f32>,
     gyroscope: Vector3<f32>,
     magnetometer: Vector3<f32>,
-    barometric_altitude: f32,
+    barometer_pressure: f32,
     data_count: u32,
 }
 
@@ -25,6 +26,11 @@ pub struct Descent;
 
 pub struct Landed;
 
+pub struct Zeroing {
+    start_time: f32,
+    accelerometer: Vector3<f32>,
+}
+
 pub enum FsmStorage {
     Empty,
     Idle(Idle),
@@ -32,6 +38,7 @@ pub enum FsmStorage {
     Ascent(Ascent),
     Descent(Descent),
     Landed(Landed),
+    Zeroing(Zeroing),
 }
 
 impl<'a> Fcu<'a> {
@@ -42,6 +49,7 @@ impl<'a> Fcu<'a> {
             VehicleState::Ascent => Ascent::update(self, dt, packets),
             VehicleState::Descent => Descent::update(self, dt, packets),
             VehicleState::Landed => Landed::update(self, dt, packets),
+            VehicleState::Zeroing => Zeroing::update(self, dt, packets),
         };
 
         if let Some(new_state) = new_state {
@@ -58,6 +66,7 @@ impl<'a> Fcu<'a> {
             VehicleState::Ascent => Ascent::setup_state(self),
             VehicleState::Descent => Descent::setup_state(self),
             VehicleState::Landed => Landed::setup_state(self),
+            VehicleState::Zeroing => Zeroing::setup_state(self),
         }
     }
 

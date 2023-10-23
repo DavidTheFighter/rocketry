@@ -87,7 +87,6 @@ impl Streamish {
 
                 std::process::exit(0);
             },
-            Packet::ComponentIpAddress { addr: _, ip: _ } => {},
             Packet::Heartbeat => {},
             _ => eprintln!("Streamish: Received unhandled packet: {:?}", packet),
         }
