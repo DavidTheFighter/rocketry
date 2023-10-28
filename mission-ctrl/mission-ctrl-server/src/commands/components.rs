@@ -1,6 +1,6 @@
 use std::{sync::Arc, thread, time::Duration};
 
-use hal::{
+use shared::{
     comms_hal::{Packet, NetworkAddress}, ecu_hal::EcuSolenoidValve,
 };
 use rocket::{

@@ -1,6 +1,6 @@
 use chrono::{Datelike, FixedOffset, TimeZone, Timelike, Utc};
-use hal::ecu_hal::{ECUSensor, ECUSolenoidValve};
-use hal::{
+use shared::ecu_hal::{ECUSensor, ECUSolenoidValve};
+use shared::{
     comms_hal::DAQ_PACKET_FRAMES,
     ecu_hal::{ECUDAQFrame, ECUTelemetryFrame, IgniterState},
 };

@@ -2,7 +2,7 @@ use core::borrow::BorrowMut;
 
 use super::{FsmStorage, Shutdown};
 use crate::{Ecu, FiniteStateMachine};
-use hal::{
+use shared::{
     comms_hal::Packet,
     ecu_hal::{EcuSolenoidValve, IgniterState, EcuDriver},
 };

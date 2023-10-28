@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hal::{
+use shared::{
     comms_hal::{Packet, NetworkAddress}, ecu_hal::FuelTankState,
 };
 use rocket::{

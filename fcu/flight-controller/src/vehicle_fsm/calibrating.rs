@@ -1,10 +1,13 @@
 use super::{Calibrating, ComponentStateMachine, FsmState, Idle};
-use crate::{silprintln, state_vector::SensorCalibrationData, Fcu};
-use hal::{
+use crate::{state_vector::SensorCalibrationData, Fcu};
+use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::VehicleState,
 };
 use nalgebra::{Vector3, UnitVector3, UnitQuaternion};
+
+#[allow(unused_imports)]
+use num_traits::Float;
 
 impl ComponentStateMachine<FsmState> for Calibrating {
     fn update(

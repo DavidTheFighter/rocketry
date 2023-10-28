@@ -17,8 +17,5 @@ webrtc = "0.8"
 tokio = { version = "1.15", features = ["full"] }
 base64 = "0.21.2"
 
-[dependencies.hal]
-path = "../../hal"
-
-[dependencies.comms-manager]
-path = "../../comms-manager"
+[dependencies.shared]
+path = "../../shared"

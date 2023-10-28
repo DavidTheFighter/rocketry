@@ -13,8 +13,8 @@ use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 use cameras::browser_stream;
-use comms_manager::CommsManager;
-use hal::comms_hal::NetworkAddress;
+use shared::comms_manager::CommsManager;
+use shared::comms_hal::NetworkAddress;
 use input::input_thread;
 use observer::ObserverHandler;
 use comms::recv::recv_thread;

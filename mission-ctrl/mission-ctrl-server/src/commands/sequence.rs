@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use hal::comms_hal::{Packet, NetworkAddress};
+use shared::comms_hal::{Packet, NetworkAddress};
 use rocket::{
     serde::json::Json,
     State,

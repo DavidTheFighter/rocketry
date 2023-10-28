@@ -1,4 +1,4 @@
-use hal::fcu_hal::FcuConfig;
+use shared::fcu_hal::FcuConfig;
 use nalgebra::{SMatrix, SVector, Vector3};
 use num_traits::float::Float;
 

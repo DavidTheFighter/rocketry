@@ -1,6 +1,6 @@
 use super::{Ascent, ComponentStateMachine, Descent, FsmState};
 use crate::Fcu;
-use hal::{
+use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::VehicleState,
 };

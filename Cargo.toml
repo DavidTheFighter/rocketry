@@ -1,9 +1,8 @@
 [workspace]
+
 members = [
-    "comms-manager/",
     "ecu/engine-controller",
     "fcu/flight-controller",
-    "hal",
     "mission-ctrl/mission-ctrl-server",
     "shared",
     "simulation/core/software-in-loop",

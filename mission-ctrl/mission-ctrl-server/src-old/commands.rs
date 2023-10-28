@@ -3,7 +3,7 @@ use std::{
     time::Duration,
 };
 
-use hal::{
+use shared::{
     comms_hal::Packet,
     ecu_hal::{ECUSolenoidValve, FuelTankState},
 };

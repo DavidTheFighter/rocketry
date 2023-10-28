@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use hal::comms_hal::{NetworkAddress, Packet};
+use crate::comms_hal::{NetworkAddress, Packet};
 use serde::Serialize;
 
 

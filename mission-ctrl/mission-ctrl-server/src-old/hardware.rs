@@ -1,4 +1,4 @@
-use hal::{
+use shared::{
     comms_hal::Packet,
     ecu_hal::{ECUSensor, ECUTelemetryFrame, IgniterConfig},
     SensorConfig,

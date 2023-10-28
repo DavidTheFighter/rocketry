@@ -8,8 +8,8 @@ use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use commands::{depressurize, fire, pressurize, tankidle, testspark, testvalve, valve};
-use hal::comms_hal;
-use hal::ecu_hal::{ECUSensor, ECUSolenoidValve, ECUTelemetryFrame};
+use shared::comms_hal;
+use shared::ecu_hal::{ECUSensor, ECUSolenoidValve, ECUTelemetryFrame};
 use hardware::hardware_thread;
 use recording::recording_thread;
 use rocket::fairing::{Fairing, Info, Kind};

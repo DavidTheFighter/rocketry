@@ -1,4 +1,3 @@
-
 use libm::powf;
 
 pub fn convert_pressure_to_altitude(pressure_pa: f32, temperature_c: f32) -> f32 {
@@ -27,7 +26,6 @@ pub fn convert_altitude_to_pressure(altitude_m: f32, temperature_c: f32) -> f32 
 
     pressure_pa
 }
-
 
 #[cfg(test)]
 mod tests {

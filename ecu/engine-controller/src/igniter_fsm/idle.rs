@@ -1,6 +1,6 @@
 use core::borrow::BorrowMut;
 
-use hal::{
+use shared::{
     comms_hal::Packet,
     ecu_hal::{EcuSolenoidValve, FuelTankState, IgniterState, EcuDriver},
 };

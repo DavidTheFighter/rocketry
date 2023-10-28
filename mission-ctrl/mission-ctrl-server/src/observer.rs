@@ -2,7 +2,7 @@ use std::{sync::{RwLock, mpsc}, thread, time::{Duration, Instant}};
 
 use dashmap::DashMap;
 use rand::Rng;
-use hal::comms_hal::{Packet, NetworkAddress};
+use shared::comms_hal::{Packet, NetworkAddress};
 
 #[derive(Debug, Clone)]
 pub enum ObserverEvent {

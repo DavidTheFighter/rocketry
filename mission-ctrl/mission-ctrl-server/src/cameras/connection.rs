@@ -1,6 +1,6 @@
 use std::{process::{Child, Command, Stdio}, net::{Ipv4Addr, UdpSocket}, sync::{Arc, atomic::{AtomicBool, Ordering, AtomicU64}, RwLock}, time::Duration};
 
-use hal::comms_hal::{NetworkAddress, Packet};
+use shared::comms_hal::{NetworkAddress, Packet};
 
 use crate::{timestamp, observer::{ObserverHandler, ObserverEvent}};
 

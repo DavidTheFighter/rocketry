@@ -1,4 +1,4 @@
-use hal::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
+use shared::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
 use crate::Fcu;
 use super::{ComponentStateMachine, FsmState, Calibrating};
 

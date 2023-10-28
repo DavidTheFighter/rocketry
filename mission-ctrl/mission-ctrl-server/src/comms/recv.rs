@@ -1,5 +1,5 @@
 use std::{net::{UdpSocket, Ipv4Addr, IpAddr, SocketAddr}, time::Duration, sync::{Arc, RwLock}, io::ErrorKind};
-use comms_manager::CommsManager;
+use shared::comms_manager::CommsManager;
 
 use crate::{observer::{ObserverEvent, ObserverHandler}, process_is_running};
 

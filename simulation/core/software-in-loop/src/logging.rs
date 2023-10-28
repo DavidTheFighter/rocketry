@@ -1,4 +1,4 @@
-use hal::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame};
+use shared::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame};
 use pyo3::{prelude::*, types::{PyDict, PyList}};
 use serde::{Serialize, Deserialize};
 use std::{io::Write, thread};

@@ -1,4 +1,4 @@
-use hal::{fcu_hal::{FcuConfig, FcuSensorData}, GRAVITY};
+use shared::{fcu_hal::{FcuConfig, FcuSensorData}, GRAVITY};
 use nalgebra::{UnitQuaternion, Vector3};
 
 use shared::standard_atmosphere::convert_pressure_to_altitude;

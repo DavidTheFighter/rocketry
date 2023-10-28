@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use hal::comms_hal::{Packet, DAQ_PACKET_FRAMES};
-use hal::ecu_hal::{EcuTelemetryFrame, EcuSolenoidValve, EcuSensor};
+use shared::comms_hal::{Packet, DAQ_PACKET_FRAMES};
+use shared::ecu_hal::{EcuTelemetryFrame, EcuSolenoidValve, EcuSensor};
 use rocket::serde::{json::Json, Serialize};
 
 use crate::observer::{ObserverHandler, ObserverEvent};

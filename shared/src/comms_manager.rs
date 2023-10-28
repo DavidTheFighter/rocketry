@@ -1,7 +1,4 @@
-#![deny(unsafe_code)]
-#![cfg_attr(not(test), no_std)]
-
-use hal::comms_hal::{NetworkAddress, Packet, self};
+use crate::comms_hal::{self, NetworkAddress, Packet};
 
 // Serialization format:
 // u8: to_address_size
@@ -211,8 +208,7 @@ impl CommsError {
 
 #[cfg(test)]
 pub mod tests {
-    use hal::comms_hal::{NetworkAddress, PACKET_BUFFER_SIZE};
-    use hal::comms_hal::tests_data::PACKET_TEST_DEFAULTS;
+    use crate::comms_hal::{tests_data::PACKET_TEST_DEFAULTS, NetworkAddress, PACKET_BUFFER_SIZE};
 
     #[test]
     fn test_serialization_deserialization() {
@@ -225,8 +221,12 @@ pub mod tests {
             comms_manager.map_network_address(address, dummy_address);
             for packet in &PACKET_TEST_DEFAULTS {
                 println!("Testing packet: {:?} to address: {:?}", packet, address);
-                let (size, _) = comms_manager.process_packet(packet.clone(), address.clone(), &mut buffer).unwrap();
-                let (deserialized_packet, deserialized_address) = comms_manager.extract_packet(&mut buffer[0..size], dummy_address).unwrap();
+                let (size, _) = comms_manager
+                    .process_packet(packet.clone(), address.clone(), &mut buffer)
+                    .unwrap();
+                let (deserialized_packet, deserialized_address) = comms_manager
+                    .extract_packet(&mut buffer[0..size], dummy_address)
+                    .unwrap();
 
                 assert_eq!(deserialized_packet, *packet);
                 assert_eq!(deserialized_address, host_addr);
@@ -251,7 +251,8 @@ pub mod tests {
 
         let mut i = 0;
         for address in &NETWORK_ADDRESS_TEST_DEFAULTS {
-            comms_manager.network_map[(i as usize) * 2] = Some((*address, [123 + i, 0 + i, 200 + i, 42 + i]));
+            comms_manager.network_map[(i as usize) * 2] =
+                Some((*address, [123 + i, 0 + i, 200 + i, 42 + i]));
             i += 1;
         }
 

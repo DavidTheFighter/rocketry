@@ -3,7 +3,7 @@ mod webrtc;
 
 use std::{sync::{Arc, RwLock}, time::Duration, net::Ipv4Addr};
 
-use hal::comms_hal::{Packet, NetworkAddress};
+use shared::comms_hal::{Packet, NetworkAddress};
 use rocket::{State, serde::{json::Json, Serialize, Deserialize}};
 
 use crate::{observer::{ObserverHandler, ObserverEvent, ObserverResponse}, process_is_running, commands::CommandResponse};

@@ -1,6 +1,6 @@
 use std::{net::UdpSocket, sync::{Arc, RwLock}, time::Duration};
-use comms_manager::CommsManager;
-use hal::comms_hal::{Packet, NetworkAddress, PACKET_BUFFER_SIZE};
+use shared::comms_manager::CommsManager;
+use shared::comms_hal::{Packet, NetworkAddress, PACKET_BUFFER_SIZE};
 
 use crate::{observer::{ObserverEvent, ObserverHandler, ObserverResponse}, process_is_running, timestamp};
 

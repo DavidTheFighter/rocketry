@@ -1,8 +1,8 @@
 use std::any::Any;
 use std::net::UdpSocket;
 
-use hal::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuTelemetryFrame, FcuDevStatsFrame};
-use hal::comms_hal::{Packet, NetworkAddress};
+use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuTelemetryFrame, FcuDevStatsFrame};
+use shared::comms_hal::{Packet, NetworkAddress};
 use strum::EnumCount;
 
 const BUFFER_SIZE: usize = 1024;
@@ -72,27 +72,23 @@ impl FcuDriver for FcuDriverSim {
     }
 
     fn erase_flash_chip(&mut self) {
-        
+        // Nothing
     }
 
     fn enable_logging_to_flash(&mut self) {
-        
+        // Nothing
     }
 
     fn disable_logging_to_flash(&mut self) {
-        
+        // Nothing
     }
 
     fn retrieve_log_flash_page(&mut self, _addr: u32) {
-        
+        // Nothing
     }
 
     fn as_mut_any(&mut self) -> &mut dyn Any {
         self
-    }
-
-    fn log_data_point(&mut self, _datapoint: hal::fcu_log::DataPoint) {
-        // Nothing for now
     }
 }
 

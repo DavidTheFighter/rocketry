@@ -1,4 +1,4 @@
-use hal::{
+use shared::{
     comms_hal::Packet,
     ecu_hal::{EcuDriver, EcuSensor, IgniterState},
 };
@@ -84,7 +84,7 @@ fn reset_igniter_daq_collections(driver: &mut dyn EcuDriver) {
 
 #[cfg(test)]
 mod tests {
-    use hal::ecu_mock::EcuDriverMock;
+    use shared::ecu_mock::EcuDriverMock;
 
     use super::*;
     use strum::IntoEnumIterator;

@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
-use hal::comms_hal::NetworkAddress;
+use shared::comms_hal::NetworkAddress;
 use rocket::serde::json::serde_json;
 use tokio::{sync::mpsc::{Sender, Receiver}, runtime::Runtime};
 use webrtc::{peer_connection::{configuration::RTCConfiguration, peer_connection_state::RTCPeerConnectionState, sdp::session_description::RTCSessionDescription}, ice_transport::{ice_server::RTCIceServer, ice_connection_state::RTCIceConnectionState}, api::{media_engine::{MediaEngine, MIME_TYPE_H264}, interceptor_registry::register_default_interceptors, APIBuilder}, interceptor::registry::Registry, track::track_local::{track_local_static_rtp::TrackLocalStaticRTP, TrackLocal, TrackLocalWriter}, rtp_transceiver::rtp_codec::RTCRtpCodecCapability};

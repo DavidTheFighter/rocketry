@@ -9,7 +9,6 @@ name = "software_in_loop"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-hal = { path = "../../../hal" }
 shared = { path = "../../../shared" }
 pyo3 = { version = "0.18.2", features = ["abi3-py38"] }
 static-alloc = "0.2.4"

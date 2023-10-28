@@ -3,7 +3,7 @@
 pub(crate) mod fuel_tank_fsm;
 pub(crate) mod igniter_fsm;
 
-use hal::{
+use shared::{
     comms_hal::{Packet, NetworkAddress},
     ecu_hal::{EcuDriver, FuelTankState, IgniterConfig, IgniterState},
 };

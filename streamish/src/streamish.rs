@@ -1,7 +1,7 @@
 use std::{net::{UdpSocket, IpAddr, Ipv4Addr}, time::Duration};
 
-use comms_manager::CommsManager;
-use hal::comms_hal::{PACKET_BUFFER_SIZE, Packet, UDP_RECV_PORT, NetworkAddress};
+use shared::comms_manager::CommsManager;
+use shared::comms_hal::{PACKET_BUFFER_SIZE, Packet, UDP_RECV_PORT, NetworkAddress};
 
 use crate::stream::Stream;
 
@@ -20,7 +20,7 @@ impl Streamish {
         Self {
             socket: UdpSocket::bind(addr).expect("Failed to bind socket"),
             stream: None,
-            comms_manager: CommsManager::<NETWORK_MAP_SIZE>::new(hal::comms_hal::NetworkAddress::GroundCamera(0)),
+            comms_manager: CommsManager::<NETWORK_MAP_SIZE>::new(shared::comms_hal::NetworkAddress::GroundCamera(0)),
         }
     }
 

@@ -1,4 +1,4 @@
-use hal::fcu_hal::FcuDevStatsFrame;
+use shared::fcu_hal::FcuDevStatsFrame;
 
 pub struct DevStatsCollector {
     is_collecting: bool,

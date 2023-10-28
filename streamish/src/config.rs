@@ -1,6 +1,6 @@
 use std::process::Command;
 
-use hal::comms_hal::NetworkAddress;
+use shared::comms_hal::NetworkAddress;
 use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -50,7 +50,7 @@ impl StreamishCommand {
 
 #[cfg(test)]
 mod tests {
-    use hal::comms_hal::NetworkAddress;
+    use shared::comms_hal::NetworkAddress;
 
     #[test]
     fn test_host_serialization() {

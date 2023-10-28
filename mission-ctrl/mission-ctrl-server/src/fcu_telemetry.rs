@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use hal::comms_hal::{Packet, NetworkAddress};
-use hal::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo};
+use shared::comms_hal::{Packet, NetworkAddress};
+use shared::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo};
 use rocket::serde::{json::Json, Serialize};
 
 use crate::observer::{ObserverHandler, ObserverEvent};

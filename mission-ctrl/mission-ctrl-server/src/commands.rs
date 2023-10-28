@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 
-use hal::comms_hal::{Packet, NetworkAddress};
+use shared::comms_hal::{Packet, NetworkAddress};
 use rocket::{
     serde::{json::Json, Serialize},
     State,

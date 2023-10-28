@@ -1,9 +1,8 @@
 use super::{Calibrating, ComponentStateMachine, FsmState, Idle, Ascent};
-use crate::{silprintln, Fcu};
-use hal::{
+use crate::Fcu;
+use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::VehicleState,
-    GRAVITY,
 };
 
 impl ComponentStateMachine<FsmState> for Idle {
@@ -24,11 +23,11 @@ impl ComponentStateMachine<FsmState> for Idle {
     }
 
     fn enter_state<'a>(&mut self, _fcu: &'a mut Fcu) {
-
+        // Nothing
     }
 
     fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
-        silprintln!("vehicle_fms: Idle -> Exit");
+        // Nothing
     }
 
     fn hal_state(&self) -> VehicleState {

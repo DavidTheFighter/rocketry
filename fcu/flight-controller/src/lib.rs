@@ -3,9 +3,12 @@
 #![deny(unsafe_code)]
 
 #[cfg(any(test, feature = "sil"))]
-use std::println as silprintln;
+macro_rules! silprintln {
+    () => { println!() };
+    ($($arg:tt)*) => { println!($($arg)*) };
+}
 
-#[cfg(not(feature = "sil"))]
+#[cfg(not(any(test, feature = "sil")))]
 macro_rules! silprintln {
     () => { };
     ($($arg:tt)*) => { };
@@ -16,13 +19,12 @@ pub mod state_vector;
 pub mod vehicle_fsm;
 
 use dev_stats::DevStatsCollector;
-use hal::{
+use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::{
         FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame, OutputChannel,
         PwmChannel, VehicleState,
     },
-    fcu_log::DataPoint,
 };
 use mint::Vector3;
 use state_vector::StateVector;
@@ -204,8 +206,6 @@ impl<'a> Fcu<'a> {
     pub fn update_sensor_data(&mut self, data: FcuSensorData) {
         self.state_vector.update_sensor_data(data);
     }
-
-    pub fn log_data_point(&mut self, _data: DataPoint) {}
 
     pub fn update_data_logged_bytes(&mut self, bytes: u32) {
         self.data_logged_bytes = bytes;
