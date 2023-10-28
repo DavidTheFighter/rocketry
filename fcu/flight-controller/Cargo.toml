@@ -19,3 +19,7 @@ path = "../../hal"
 
 [dependencies.shared]
 path = "../../shared"
+
+[features]
+default = []
+sil = []

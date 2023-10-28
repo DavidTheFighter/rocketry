@@ -1,25 +1,43 @@
-use hal::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
-use crate::{FiniteStateMachine, Fcu};
-use super::{FsmStorage, Ascent};
+use super::{Ascent, ComponentStateMachine, Descent, FsmState};
+use crate::Fcu;
+use hal::{
+    comms_hal::{NetworkAddress, Packet},
+    fcu_hal::VehicleState,
+};
 
-impl FiniteStateMachine<VehicleState> for Ascent {
-    fn update(fcu: &mut Fcu, _dt: f32, _packets: &[(NetworkAddress, Packet)]) -> Option<VehicleState> {
-        let begun_falling = Ascent::begun_falling(fcu);
-
-        if begun_falling {
-            return Some(VehicleState::Descent);
+impl ComponentStateMachine<FsmState> for Ascent {
+    fn update(
+        &mut self,
+        fcu: &mut Fcu,
+        _dt: f32,
+        _packets: &[(NetworkAddress, Packet)],
+    ) -> Option<FsmState> {
+        if self.begun_falling(fcu) {
+            return Some(Descent::new());
         }
 
         None
     }
 
-    fn setup_state(fcu: &mut Fcu) {
-        fcu.vehicle_fsm_storage = FsmStorage::Ascent(Ascent {});
+    fn enter_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+        // Nothing
+    }
+
+    fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+        // Nothing
+    }
+
+    fn hal_state(&self) -> VehicleState {
+        VehicleState::Ascent
     }
 }
 
 impl Ascent {
-    fn begun_falling(fcu: &mut Fcu) -> bool {
+    pub fn new() -> FsmState {
+        FsmState::Ascent(Self {})
+    }
+
+    fn begun_falling(&mut self, fcu: &mut Fcu) -> bool {
         if fcu.state_vector.get_velocity().y < 0.0 {
             return true;
         }

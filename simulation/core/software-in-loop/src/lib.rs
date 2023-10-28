@@ -56,67 +56,17 @@ impl SoftwareInLoop {
         });
     }
 
-    pub fn update_barometric_altitude(&mut self, pressure: f32) {
+    pub fn update_barometric_altitude(&mut self, altitude: f32) {
+        let pressure = shared::standard_atmosphere::convert_altitude_to_pressure(altitude, 20.0);
         self.fcu.update_sensor_data(FcuSensorData::Barometer {
             pressure: pressure,
             temperature: 20.0,
-            raw_data: 42,
+            raw_data: (pressure * 100.0) as u32,
         });
     }
 
     pub fn update_gps(&mut self, _gps: &PyList) {
         // TOOD
-    }
-
-    pub fn get_fcu_position(&self, py: Python) -> PyResult<PyObject> {
-        let pos = self.fcu.state_vector.get_position();
-        Ok(vec3_to_list(py, pos).into())
-    }
-
-    pub fn get_fcu_velocity(&self, py: Python) -> PyResult<PyObject> {
-        let vel = self.fcu.state_vector.get_velocity();
-        Ok(vec3_to_list(py, vel).into())
-    }
-
-    pub fn get_fcu_acceleration(&self, py: Python) -> PyResult<PyObject> {
-        let accel = self.fcu.state_vector.get_acceleration();
-        Ok(vec3_to_list(py, accel).into())
-    }
-
-    pub fn get_fcu_orientation(&self, py: Python) -> PyResult<PyObject> {
-        let orientation = self.fcu.state_vector.get_orientation();
-        Ok(quat_to_list(py, orientation).into())
-    }
-
-    pub fn get_fcu_angular_velocity(&self, py: Python) -> PyResult<PyObject> {
-        let ang_vel = self.fcu.state_vector.get_angular_velocity();
-        Ok(vec3_to_list(py, ang_vel).into())
-    }
-
-    pub fn get_fcu_angular_acceleration(&self, py: Python) -> PyResult<PyObject> {
-        Ok(PyList::empty(py).into())
-    }
-
-    pub fn get_fcu_telemetry(&mut self, py: Python) -> PyResult<PyObject> {
-        let driver = self.fcu.driver.as_mut_any().downcast_mut::<FcuDriverSim>().unwrap();
-        let telem = &driver.last_telem_packet;
-
-        if telem.is_none() {
-            return Ok(PyDict::new(py).into());
-        }
-
-        Ok(dict_from_obj(py, telem.as_ref().unwrap()).into())
-    }
-
-    pub fn get_fcu_dev_stats(&mut self, py: Python) -> PyResult<PyObject> {
-        let driver = self.fcu.driver.as_mut_any().downcast_mut::<FcuDriverSim>().unwrap();
-        let stats: &Option<FcuDevStatsFrame> = &driver.last_dev_stats_packet;
-
-        if stats.is_none() {
-            return Ok(PyDict::new(py).into());
-        }
-
-        Ok(dict_from_obj(py, stats.as_ref().unwrap()).into())
     }
 
     pub fn update_fcu_config(&mut self, dict: &PyDict) {
@@ -129,12 +79,6 @@ impl SoftwareInLoop {
 
     pub fn start_dev_stats_frame(&mut self) {
         self.pending_packets.push((NetworkAddress::MissionControl, Packet::StartDevStatsFrame));
-    }
-
-    pub fn get_fcu_detailed_state(&mut self, py: Python) -> PyResult<PyObject> {
-        let state = self.fcu.generate_debug_info();
-
-        Ok(dict_from_obj(py, state).into())
     }
 
     pub fn update_timestamp(&mut self, sim_time: f32) {
@@ -163,10 +107,10 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     Ok(())
 }
 
-fn vec3_to_list(py: Python, vec: nalgebra::Vector3<f32>) -> PyObject {
-    let list = PyList::new(py, &[vec.x, vec.y, vec.z]);
-    list.into()
-}
+// fn vec3_to_list(py: Python, vec: nalgebra::Vector3<f32>) -> PyObject {
+//     let list = PyList::new(py, &[vec.x, vec.y, vec.z]);
+//     list.into()
+// }
 
 fn list_to_vec3(list: &PyList) -> Vector3<f32> {
     if list.len() != 3 {
@@ -180,7 +124,7 @@ fn list_to_vec3(list: &PyList) -> Vector3<f32> {
     }
 }
 
-fn quat_to_list(py: Python, quat: nalgebra::UnitQuaternion<f32>) -> PyObject {
-    let list = PyList::new(py, &[quat.w, quat.i, quat.j, quat.k]);
-    list.into()
-}
+// fn quat_to_list(py: Python, quat: nalgebra::UnitQuaternion<f32>) -> PyObject {
+//     let list = PyList::new(py, &[quat.w, quat.i, quat.j, quat.k]);
+//     list.into()
+// }

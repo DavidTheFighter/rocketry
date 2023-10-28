@@ -29,14 +29,18 @@ impl Dynamics {
         let gravity_accel_body_frame = self.orientation.inverse() * gravity;
 
         self.acceleration_body_frame = self.motor_thrust;
-        if !self.landed {
-            self.acceleration_body_frame += gravity_accel_body_frame;
-        }
+        let acceleration_body_frame_minus_gravity = self.acceleration_body_frame;
+        self.acceleration_body_frame += gravity_accel_body_frame;
 
         self.acceleration_world_frame = self.orientation * self.acceleration_body_frame;
+        let acceleration_world_frame_minus_gravity = self.orientation * acceleration_body_frame_minus_gravity;
 
         // Time step
-        self.velocity += self.acceleration_world_frame * dt;
+        if self.landed {
+            self.velocity += acceleration_world_frame_minus_gravity * dt;
+        } else {
+            self.velocity += self.acceleration_world_frame * dt;
+        }
         self.position += self.velocity * dt;
 
         self.angular_velocity += (self.angular_acceleration + self.angular_forces) * dt;

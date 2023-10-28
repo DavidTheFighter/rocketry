@@ -112,6 +112,7 @@ impl FcuDriverSim {
 
     pub fn init(&mut self) {
         self.socket = Some(UdpSocket::bind("0.0.0.0:25564").unwrap());
+        self.last_sim_timestamp_update_timestamp = get_timestamp();
     }
 
     pub fn update_timestamp(&mut self, sim_time: f32) {

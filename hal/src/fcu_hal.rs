@@ -12,12 +12,11 @@ use crate::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum VehicleState {
-    Idle = 0,
-    Calibrating = 1,
-    Ascent = 2,
-    Descent = 3,
-    Landed = 4,
-    Zeroing = 5,
+    Idle,
+    Calibrating,
+    Ascent,
+    Descent,
+    Landed,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]

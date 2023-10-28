@@ -147,7 +147,7 @@ export default {
   props: {
     refreshTimeMillis: {
       type: Number,
-      default: 50,
+      default: 33,
     },
   },
   computed: {
@@ -428,7 +428,7 @@ export default {
       return [
         {
           name: "Vehicle State",
-          value: this.dataset?.telemetry?.vehicle_state,
+          value: this.dataset.telemetry?.vehicle_state,
         },
         // {
         //   name: 'Battery Voltage',
@@ -507,7 +507,7 @@ export default {
       try {
         this.dataset = await this.timeoutFetch('http://localhost:5000/simdata', this.refreshTimeMillis - 1);
       } catch (error) {
-        // this.dataset = [];
+        this.dataset = [];
       }
     },
     async timeoutFetch(url, timeout) {

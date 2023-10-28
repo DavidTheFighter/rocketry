@@ -1,5 +1,5 @@
-use hal::fcu_hal::{FcuConfig, FcuSensorData};
-use nalgebra::{Vector3, UnitQuaternion};
+use hal::{fcu_hal::{FcuConfig, FcuSensorData}, GRAVITY};
+use nalgebra::{UnitQuaternion, Vector3};
 
 use shared::standard_atmosphere::convert_pressure_to_altitude;
 
@@ -31,6 +31,7 @@ pub struct StateVector {
     pub(crate) orientation_filter: OrientationFilter,
     pub(crate) sensor_calibration: SensorCalibrationData,
     pub(crate) sensor_data: SensorData,
+    pub landed: bool,
 }
 
 impl StateVector {
@@ -55,6 +56,7 @@ impl StateVector {
                 barometer_altitude: 0.0,
                 barometer_raw: 0,
             },
+            landed: true,
         }
     }
 
@@ -73,18 +75,30 @@ impl StateVector {
 
     pub fn update_sensor_data(&mut self, data: FcuSensorData) {
         match data {
-            FcuSensorData::Accelerometer { acceleration, raw_data } => {
+            FcuSensorData::Accelerometer {
+                acceleration,
+                raw_data,
+            } => {
                 self.sensor_data.accelerometer = acceleration.into();
                 self.sensor_data.accelerometer_raw = raw_data.into();
 
                 let mut acceleration = acceleration.into();
                 acceleration += self.sensor_calibration.accelerometer;
-                acceleration = self.orientation_filter.orientation.transform_vector(&acceleration);
-                acceleration.y += -9.80665;
+                acceleration = self
+                    .orientation_filter
+                    .orientation
+                    .transform_vector(&acceleration);
+
+                if self.landed {
+                    acceleration.y += GRAVITY;
+                }
 
                 self.position_filter.update_acceleration(acceleration);
-            },
-            FcuSensorData::Gyroscope { angular_velocity, raw_data } => {
+            }
+            FcuSensorData::Gyroscope {
+                angular_velocity,
+                raw_data,
+            } => {
                 self.sensor_data.gyroscope = angular_velocity.into();
                 self.sensor_data.gyroscope_raw = raw_data.into();
 
@@ -92,26 +106,35 @@ impl StateVector {
                 angular_velocity += self.sensor_calibration.gyroscope;
 
                 self.orientation_filter.update_gyroscope(angular_velocity);
-            },
-            FcuSensorData::Magnetometer { magnetic_field, raw_data } => {
+            }
+            FcuSensorData::Magnetometer {
+                magnetic_field,
+                raw_data,
+            } => {
                 self.sensor_data.magnetometer = magnetic_field.into();
                 self.sensor_data.magnetometer_raw = raw_data.into();
 
                 let mut magnetic_field = magnetic_field.into();
                 magnetic_field += self.sensor_calibration.magnetometer;
 
-                self.orientation_filter.update_magnetic_field(magnetic_field);
-            },
-            FcuSensorData::Barometer { pressure, temperature, raw_data } => {
+                self.orientation_filter
+                    .update_magnetic_field(magnetic_field);
+            }
+            FcuSensorData::Barometer {
+                pressure,
+                temperature,
+                raw_data,
+            } => {
                 self.sensor_data.barometer_pressure = pressure;
-                self.sensor_data.barometer_altitude = convert_pressure_to_altitude(pressure, temperature);
+                self.sensor_data.barometer_altitude =
+                    convert_pressure_to_altitude(pressure, temperature);
                 self.sensor_data.barometer_raw = raw_data;
 
                 // let pressure = pressure + self.sensor_calibration.barometer_pressure;
                 // let altitude = convert_pressure_to_altitude(pressure, temperature);
 
                 // self.position_filter.update_barometric_pressure(altitude);
-            },
+            }
         }
     }
 
@@ -153,5 +176,13 @@ impl StateVector {
             y: 0.0,
             z: 0.0,
         }
+    }
+
+    pub fn set_landed(&mut self, landed: bool) {
+        self.landed = landed;
+    }
+
+    pub fn get_landed(&self) -> bool {
+        self.landed
     }
 }

@@ -1,16 +1,20 @@
-use hal::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
+use crate::Fcu;
+use hal::{
+    comms_hal::{NetworkAddress, Packet},
+    fcu_hal::VehicleState,
+};
 use nalgebra::Vector3;
-use crate::{Fcu, FiniteStateMachine};
 
-mod idle;
-mod calibrating;
 mod ascent;
+mod calibrating;
 mod descent;
+mod idle;
 mod landed;
-mod zeroing;
 
+#[derive(Debug)]
 pub struct Idle;
 
+#[derive(Debug)]
 pub struct Calibrating {
     start_time: f32,
     accelerometer: Vector3<f32>,
@@ -18,59 +22,76 @@ pub struct Calibrating {
     magnetometer: Vector3<f32>,
     barometer_pressure: f32,
     data_count: u32,
+    zero: bool,
 }
 
+#[derive(Debug)]
 pub struct Ascent;
 
+#[derive(Debug)]
 pub struct Descent;
 
+#[derive(Debug)]
 pub struct Landed;
 
-pub struct Zeroing {
-    start_time: f32,
-    accelerometer: Vector3<f32>,
-}
-
-pub enum FsmStorage {
-    Empty,
+#[derive(Debug)]
+pub enum FsmState {
     Idle(Idle),
     Calibrating(Calibrating),
     Ascent(Ascent),
     Descent(Descent),
     Landed(Landed),
-    Zeroing(Zeroing),
+}
+
+impl FsmState {
+    fn to_fsm_component(&mut self) -> &mut dyn ComponentStateMachine<FsmState> {
+        match self {
+            FsmState::Idle(state) => state,
+            FsmState::Calibrating(state) => state,
+            FsmState::Ascent(state) => state,
+            FsmState::Descent(state) => state,
+            FsmState::Landed(state) => state,
+        }
+    }
 }
 
 impl<'a> Fcu<'a> {
     pub fn update_vehicle_fsm(&mut self, dt: f32, packets: &[(NetworkAddress, Packet)]) {
-        let new_state = match self.vehicle_state {
-            VehicleState::Idle => Idle::update(self, dt, packets),
-            VehicleState::Calibrating => Calibrating::update(self, dt, packets),
-            VehicleState::Ascent => Ascent::update(self, dt, packets),
-            VehicleState::Descent => Descent::update(self, dt, packets),
-            VehicleState::Landed => Landed::update(self, dt, packets),
-            VehicleState::Zeroing => Zeroing::update(self, dt, packets),
-        };
+        let mut current_state = self.vehicle_fsm_state.take().unwrap();
+        let new_state = current_state.to_fsm_component().update(self, dt, packets);
 
         if let Some(new_state) = new_state {
-            self.transition_vehicle_state(new_state);
+            self.transition_vehicle_state(Some(current_state), new_state);
+        } else {
+            self.vehicle_fsm_state = Some(current_state);
         }
     }
 
-    fn transition_vehicle_state(&mut self, new_state: VehicleState) {
-        self.vehicle_state = new_state;
-
-        match new_state {
-            VehicleState::Idle => Idle::setup_state(self),
-            VehicleState::Calibrating => Calibrating::setup_state(self),
-            VehicleState::Ascent => Ascent::setup_state(self),
-            VehicleState::Descent => Descent::setup_state(self),
-            VehicleState::Landed => Landed::setup_state(self),
-            VehicleState::Zeroing => Zeroing::setup_state(self),
+    fn transition_vehicle_state(&mut self, old_state: Option<FsmState>, mut new_state: FsmState) {
+        if let Some(mut old_state) = old_state {
+            old_state.to_fsm_component().exit_state(self);
         }
+
+        new_state.to_fsm_component().enter_state(self);
+
+        self.vehicle_state = new_state.to_fsm_component().hal_state();
+        self.vehicle_fsm_state = Some(new_state);
     }
 
     pub fn init_vehicle_fsm(&mut self) {
-        self.transition_vehicle_state(self.vehicle_state);
+        let new_state = Calibrating::new(self, true);
+        self.transition_vehicle_state(None, new_state);
     }
+}
+
+pub(crate) trait ComponentStateMachine<D> {
+    fn update<'a>(
+        &mut self,
+        fcu: &'a mut Fcu,
+        dt: f32,
+        packets: &[(NetworkAddress, Packet)],
+    ) -> Option<D>;
+    fn enter_state<'a>(&mut self, fcu: &'a mut Fcu);
+    fn exit_state<'a>(&mut self, fcu: &'a mut Fcu);
+    fn hal_state(&self) -> VehicleState;
 }

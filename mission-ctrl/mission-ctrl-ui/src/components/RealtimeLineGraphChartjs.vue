@@ -271,7 +271,7 @@ export default {
             data = data[datasetDesc.dataIndex];
           }
 
-          if (data.length == 0) {
+          if (data == null || data == undefined || data.length == 0) {
             continue;
           }
 

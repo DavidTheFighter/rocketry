@@ -71,7 +71,9 @@ pub enum Packet {
         port: u16,
     },
     StopCameraStream,
-    StartCalibration,
+    StartCalibration {
+        zero: bool,
+    },
 
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
@@ -224,7 +226,7 @@ pub mod tests_data {
         Packet::FireIgniter,
         Packet::StartCameraStream { port: 42 },
         Packet::StopCameraStream,
-        Packet::StartCalibration,
+        Packet::StartCalibration { zero: true },
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
         Packet::RequestFcuDebugInfo,

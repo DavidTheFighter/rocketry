@@ -1,43 +1,63 @@
-use hal::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}, GRAVITY};
-use crate::{FiniteStateMachine, Fcu};
-use super::{Idle, FsmStorage};
+use super::{Calibrating, ComponentStateMachine, FsmState, Idle, Ascent};
+use crate::{silprintln, Fcu};
+use hal::{
+    comms_hal::{NetworkAddress, Packet},
+    fcu_hal::VehicleState,
+    GRAVITY,
+};
 
-impl FiniteStateMachine<VehicleState> for Idle {
-    fn update(fcu: &mut Fcu, _dt: f32, _packets: &[(NetworkAddress, Packet)]) -> Option<VehicleState> {
-        let begun_accelerating = Idle::begun_accelerating(fcu);
-        let should_start_calibration = Idle::should_start_calibration(_packets);
-
-        if begun_accelerating {
-            return Some(VehicleState::Ascent);
-        } else if should_start_calibration {
-            return Some(VehicleState::Calibrating);
+impl ComponentStateMachine<FsmState> for Idle {
+    fn update<'a>(
+        &mut self,
+        fcu: &'a mut Fcu,
+        _dt: f32,
+        packets: &[(NetworkAddress, Packet)],
+    ) -> Option<FsmState> {
+        if self.begun_accelerating(fcu) {
+            fcu.state_vector.set_landed(false);
+            return Some(Ascent::new());
+        } else if let Some(zero) = self.received_start_calibration(packets) {
+            return Some(Calibrating::new(fcu, zero));
         }
 
         None
     }
 
-    fn setup_state(fcu: &mut Fcu) {
-        fcu.vehicle_fsm_storage = FsmStorage::Idle(Idle {});
+    fn enter_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+
+    }
+
+    fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+        silprintln!("vehicle_fms: Idle -> Exit");
+    }
+
+    fn hal_state(&self) -> VehicleState {
+        VehicleState::Idle
     }
 }
 
 impl Idle {
-    fn begun_accelerating(fcu: &mut Fcu) -> bool {
+    pub fn new() -> FsmState {
+        FsmState::Idle(Self {})
+    }
+
+    fn begun_accelerating(&self, fcu: &mut Fcu) -> bool {
         let acceleration = fcu.state_vector.get_acceleration().magnitude();
-        if acceleration - GRAVITY > fcu.config.startup_acceleration_threshold {
+        // silprintln!("Idle: Time {} - landed? {} - accel {:?} - accel sense {:?}", fcu.driver.timestamp(), fcu.state_vector.get_landed(), fcu.state_vector.get_acceleration(), fcu.state_vector.sensor_data.accelerometer);
+        if acceleration > fcu.config.startup_acceleration_threshold {
             return true;
         }
 
         false
     }
 
-    fn should_start_calibration(packets: &[(NetworkAddress, Packet)]) -> bool {
+    fn received_start_calibration(&self, packets: &[(NetworkAddress, Packet)]) -> Option<bool> {
         for (_address, packet) in packets {
-            if let Packet::StartCalibration = packet {
-                return true;
+            if let Packet::StartCalibration { zero } = packet {
+                return Some(*zero);
             }
         }
 
-        false
+        None
     }
 }

@@ -1,5 +1,5 @@
 use hal::fcu_hal::FcuConfig;
-use nalgebra::{Vector3, SMatrix, SVector};
+use nalgebra::{SMatrix, SVector, Vector3};
 use num_traits::float::Float;
 
 // state_vector = [x, y, z, vx, vy, vz, ax, ay, az]
@@ -24,13 +24,13 @@ pub struct PositionFilter {
 impl PositionFilter {
     pub fn new(config: &FcuConfig) -> Self {
         let mut measurement_noise_cov = SMatrix::<f32, MEASURE_LEN, MEASURE_LEN>::zeros();
-        measurement_noise_cov[(0, 0)] = config.gps_noise_std_dev.x.powi(2);                 // x
-        measurement_noise_cov[(1, 1)] = config.gps_noise_std_dev.y.powi(2);                 // y
-        measurement_noise_cov[(2, 2)] = config.gps_noise_std_dev.z.powi(2);                 // z
-        measurement_noise_cov[(3, 3)] = config.barometer_noise_std_dev.powi(2);             // baro
-        measurement_noise_cov[(4, 4)] = config.accelerometer_noise_std_dev.x.powi(2);       // ax
-        measurement_noise_cov[(5, 5)] = config.accelerometer_noise_std_dev.y.powi(2);       // ay
-        measurement_noise_cov[(6, 6)] = config.accelerometer_noise_std_dev.z.powi(2);       // az
+        measurement_noise_cov[(0, 0)] = config.gps_noise_std_dev.x.powi(2); // x
+        measurement_noise_cov[(1, 1)] = config.gps_noise_std_dev.y.powi(2); // y
+        measurement_noise_cov[(2, 2)] = config.gps_noise_std_dev.z.powi(2); // z
+        measurement_noise_cov[(3, 3)] = config.barometer_noise_std_dev.powi(2); // baro
+        measurement_noise_cov[(4, 4)] = config.accelerometer_noise_std_dev.x.powi(2); // ax
+        measurement_noise_cov[(5, 5)] = config.accelerometer_noise_std_dev.y.powi(2); // ay
+        measurement_noise_cov[(6, 6)] = config.accelerometer_noise_std_dev.z.powi(2); // az
 
         Self {
             position: Vector3::new(0.0, 0.0, 0.0),
@@ -41,7 +41,8 @@ impl PositionFilter {
             acceleration_std_dev: Vector3::new(0.0, 0.0, 0.0),
             state: SVector::<f32, STATE_LEN>::zeros(),
             state_cov: SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * 1e-4,
-            process_noise_cov: SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * config.position_kalman_process_variance,
+            process_noise_cov: SMatrix::<f32, STATE_LEN, STATE_LEN>::identity()
+                * config.position_kalman_process_variance,
             measurement_noise_cov,
         }
     }
@@ -51,10 +52,7 @@ impl PositionFilter {
 
         self.state = state_transition * &self.state;
 
-        self.state_cov =
-            state_transition
-            * &self.state_cov
-            * state_transition.transpose()
+        self.state_cov = state_transition * &self.state_cov * state_transition.transpose()
             + &self.process_noise_cov;
 
         self.position = self.state.fixed_rows::<3>(0).into();
@@ -70,17 +68,18 @@ impl PositionFilter {
     pub fn update(
         &mut self,
         measurement: &SVector<f32, MEASURE_LEN>,
-        measurement_model: &SMatrix<f32, MEASURE_LEN, STATE_LEN>
+        measurement_model: &SMatrix<f32, MEASURE_LEN, STATE_LEN>,
     ) {
-        let kalman_gain =
-            &self.state_cov
+        let kalman_gain = &self.state_cov
             * measurement_model.transpose()
             * (&(measurement_model * &self.state_cov * measurement_model.transpose())
-            + &self.measurement_noise_cov)
+                + &self.measurement_noise_cov)
                 .try_inverse()
                 .expect("Failed to invert matrix");
         self.state = &self.state + kalman_gain * &(measurement - measurement_model * &self.state);
-        self.state_cov = (SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() - kalman_gain * measurement_model) * &self.state_cov;
+        self.state_cov = (SMatrix::<f32, STATE_LEN, STATE_LEN>::identity()
+            - kalman_gain * measurement_model)
+            * &self.state_cov;
     }
 
     pub fn zero(&mut self) {

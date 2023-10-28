@@ -1,12 +1,29 @@
-#![cfg_attr(not(test), no_std)]
+// Define no_std except for testing and sil feature
+#![cfg_attr(not(any(test, feature = "sil")), no_std)]
 #![deny(unsafe_code)]
+
+#[cfg(any(test, feature = "sil"))]
+use std::println as silprintln;
+
+#[cfg(not(feature = "sil"))]
+macro_rules! silprintln {
+    () => { };
+    ($($arg:tt)*) => { };
+}
 
 mod dev_stats;
 pub mod state_vector;
 pub mod vehicle_fsm;
 
 use dev_stats::DevStatsCollector;
-use hal::{fcu_hal::{FcuDriver, VehicleState, FcuTelemetryFrame, OutputChannel, PwmChannel, FcuConfig, FcuDebugInfo, FcuSensorData}, comms_hal::{Packet, NetworkAddress}, fcu_log::DataPoint};
+use hal::{
+    comms_hal::{NetworkAddress, Packet},
+    fcu_hal::{
+        FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame, OutputChannel,
+        PwmChannel, VehicleState,
+    },
+    fcu_log::DataPoint,
+};
 use mint::Vector3;
 use state_vector::StateVector;
 use strum::EnumCount;
@@ -19,7 +36,7 @@ pub struct Fcu<'a> {
     pub driver: &'a mut dyn FcuDriver,
     pub state_vector: StateVector,
     dev_stats: DevStatsCollector,
-    vehicle_fsm_storage: vehicle_fsm::FsmStorage,
+    vehicle_fsm_state: Option<vehicle_fsm::FsmState>,
     time_since_last_telemetry: f32,
     time_since_last_heartbeat: f32,
     data_logged_bytes: u32,
@@ -33,9 +50,17 @@ impl<'a> Fcu<'a> {
             startup_acceleration_threshold: 0.1,
             position_kalman_process_variance: 1e-3,
             calibration_duration: 5.0,
-            accelerometer_noise_std_dev: Vector3 { x: 0.5, y: 0.5, z: 0.5 },
+            accelerometer_noise_std_dev: Vector3 {
+                x: 0.5,
+                y: 0.5,
+                z: 0.5,
+            },
             barometer_noise_std_dev: 0.01,
-            gps_noise_std_dev: Vector3 { x: 1.5, y: 3.0, z: 1.5 },
+            gps_noise_std_dev: Vector3 {
+                x: 1.5,
+                y: 3.0,
+                z: 1.5,
+            },
         };
 
         let state_vector = StateVector::new(&default_fcu_config);
@@ -46,7 +71,7 @@ impl<'a> Fcu<'a> {
             driver,
             state_vector,
             dev_stats: DevStatsCollector::new(),
-            vehicle_fsm_storage: vehicle_fsm::FsmStorage::Empty,
+            vehicle_fsm_state: None,
             time_since_last_telemetry: 0.0,
             time_since_last_heartbeat: 0.0,
             data_logged_bytes: 0,
@@ -60,7 +85,8 @@ impl<'a> Fcu<'a> {
     pub fn update(&mut self, dt: f32, packets: &[(NetworkAddress, Packet)]) {
         let timestamp = self.driver.timestamp();
 
-        self.dev_stats.log_update_start(timestamp, packets.len() as u32, 0.0);
+        self.dev_stats
+            .log_update_start(timestamp, packets.len() as u32, 0.0);
         self.state_vector.predict(dt);
 
         self.apogee = self.apogee.max(self.state_vector.get_position().y);
@@ -77,7 +103,8 @@ impl<'a> Fcu<'a> {
         }
 
         if self.time_since_last_heartbeat >= HEARTBEAT_RATE {
-            self.driver.send_packet(Packet::Heartbeat, NetworkAddress::MissionControl);
+            self.driver
+                .send_packet(Packet::Heartbeat, NetworkAddress::MissionControl);
             self.time_since_last_heartbeat = 0.0;
         }
 
@@ -86,7 +113,10 @@ impl<'a> Fcu<'a> {
         }
 
         if let Some(frame) = self.dev_stats.pop_stats_frame() {
-            self.driver.send_packet(Packet::FcuDevStatsFrame(frame), NetworkAddress::MissionControl);
+            self.driver.send_packet(
+                Packet::FcuDevStatsFrame(frame),
+                NetworkAddress::MissionControl,
+            );
         }
 
         self.update_vehicle_fsm(dt, packets);
@@ -97,29 +127,29 @@ impl<'a> Fcu<'a> {
         match packet {
             Packet::ConfigureFcu(config) => {
                 self.configure_fcu(config.clone());
-            },
+            }
             Packet::EraseDataLogFlash => {
                 self.driver.erase_flash_chip();
-            },
+            }
             Packet::EnableDataLogging(state) => {
                 if *state {
                     self.driver.enable_logging_to_flash();
                 } else {
                     self.driver.disable_logging_to_flash();
                 }
-            },
+            }
             Packet::RetrieveDataLogPage(addr) => {
                 self.driver.retrieve_log_flash_page(*addr);
-            },
+            }
             Packet::StartDevStatsFrame => {
                 self.dev_stats.start_collection(self.driver.timestamp());
-            },
+            }
             Packet::RequestFcuDebugInfo => {
                 let frame = self.generate_debug_info();
                 let packet = Packet::FcuDebugInfo(frame);
 
                 self.driver.send_packet(packet, source);
-            },
+            }
             _ => {}
         }
     }
@@ -167,7 +197,7 @@ impl<'a> Fcu<'a> {
             raw_magnetometer: self.state_vector.sensor_data.magnetometer_raw.into(),
             raw_barometer: self.state_vector.sensor_data.barometer_raw,
             raw_barometric_altitude: self.state_vector.sensor_data.barometer_altitude,
-            accelerometer_calibration: self.state_vector.sensor_calibration.accelerometer.into()
+            accelerometer_calibration: self.state_vector.sensor_calibration.accelerometer.into(),
         }
     }
 
@@ -175,9 +205,7 @@ impl<'a> Fcu<'a> {
         self.state_vector.update_sensor_data(data);
     }
 
-    pub fn log_data_point(&mut self, _data: DataPoint) {
-
-    }
+    pub fn log_data_point(&mut self, _data: DataPoint) {}
 
     pub fn update_data_logged_bytes(&mut self, bytes: u32) {
         self.data_logged_bytes = bytes;

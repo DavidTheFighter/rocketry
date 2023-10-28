@@ -2,8 +2,10 @@ import pysim.server
 import sys
 import time
 import multiprocessing
+import subprocess
+import os
 from threading import Thread
-from pysim.test import Simulation
+from pysim.simulation import Simulation
 from queue import Queue
 import json
 import software_in_loop

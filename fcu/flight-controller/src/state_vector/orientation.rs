@@ -1,4 +1,4 @@
-use nalgebra::{Vector3, Quaternion, UnitQuaternion, SVector, SMatrix};
+use nalgebra::{Quaternion, SMatrix, SVector, UnitQuaternion, Vector3};
 
 use super::StateVector;
 
@@ -33,19 +33,10 @@ impl OrientationFilter {
     }
 
     pub fn predict(&mut self, dt: f32) {
-        let mut quat = Quaternion::new(
-            self.state[0],
-            self.state[1],
-            self.state[2],
-            self.state[3],
-        );
+        let mut quat = Quaternion::new(self.state[0], self.state[1], self.state[2], self.state[3]);
         quat = quat / quat.norm();
 
-        let angular_velocity = Vector3::new(
-            self.state[4],
-            self.state[5],
-            self.state[6],
-        );
+        let angular_velocity = Vector3::new(self.state[4], self.state[5], self.state[6]);
 
         let k1 = q_dot(&quat, angular_velocity);
         let k2 = q_dot(&(quat + 0.5 * dt * k1), angular_velocity);
@@ -78,19 +69,13 @@ impl OrientationFilter {
         state_transition[(3, 5)] = 0.5 * dt * angular_velocity.y;
         state_transition[(3, 6)] = 0.5 * dt * angular_velocity.x;
 
-        self.state_cov = state_transition
-            * &self.state_cov
-            * state_transition.transpose()
+        self.state_cov = state_transition * &self.state_cov * state_transition.transpose()
             + &self.process_noise_cov;
 
         // Update our outward facing values
         self.orientation = UnitQuaternion::from_quaternion(quat);
 
-        self.angular_velocity = Vector3::new(
-            self.state[4],
-            self.state[5],
-            self.state[6],
-        );
+        self.angular_velocity = Vector3::new(self.state[4], self.state[5], self.state[6]);
     }
 
     fn update(
@@ -99,8 +84,12 @@ impl OrientationFilter {
         measurement_model: SMatrix<f32, MEASURE_LEN, STATE_LEN>,
     ) {
         let y = measurement - measurement_model * &self.state;
-        let s = measurement_model * &self.state_cov * measurement_model.transpose() + &self.measurement_noise_cov;
-        let k = &self.state_cov * measurement_model.transpose() * s.try_inverse().expect("Failed to invert s matrix for orientation");
+        let s = measurement_model * &self.state_cov * measurement_model.transpose()
+            + &self.measurement_noise_cov;
+        let k = &self.state_cov
+            * measurement_model.transpose()
+            * s.try_inverse()
+                .expect("Failed to invert s matrix for orientation");
 
         let ident = SMatrix::<f32, STATE_LEN, STATE_LEN>::identity();
 
@@ -125,7 +114,9 @@ impl OrientationFilter {
 
     pub fn update_gyroscope(&mut self, angular_velocity: Vector3<f32>) {
         let mut measurement = SVector::<f32, MEASURE_LEN>::zeros();
-        measurement.fixed_rows_mut::<3>(0).copy_from(&angular_velocity);
+        measurement
+            .fixed_rows_mut::<3>(0)
+            .copy_from(&angular_velocity);
 
         let mut measurement_model = SMatrix::<f32, MEASURE_LEN, STATE_LEN>::zeros();
         measurement_model[(0, 4)] = 1.0;

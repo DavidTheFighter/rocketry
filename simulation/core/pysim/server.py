@@ -1,4 +1,4 @@
-from pysim.test import Simulation
+from pysim.simulation import Simulation
 from threading import Thread
 import json
 import time
