@@ -1,5 +1,5 @@
 use crate::app;
-use hal::comms_hal::{NetworkAddress, Packet, UDP_RECV_PORT};
+use shared::comms_hal::{NetworkAddress, Packet, UDP_RECV_PORT};
 use rtic::mutex_prelude::{TupleExt03, TupleExt04};
 use smoltcp::{
     iface::{self, SocketStorage},

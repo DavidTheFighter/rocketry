@@ -5,7 +5,7 @@ pub mod ser;
 
 use driver::FcuDriverSim;
 use dynamics::Dynamics;
-use flight_controller::Fcu;
+use flight_controller_rs::Fcu;
 use shared::comms_hal::{Packet, NetworkAddress};
 use shared::fcu_hal::{FcuTelemetryFrame, FcuDevStatsFrame, FcuSensorData};
 use logging::{Logger, load_logs_from_file};

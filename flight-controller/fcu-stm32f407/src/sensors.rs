@@ -1,6 +1,6 @@
 use crate::app;
 use bmi088_rs::{AccelRange, GyroRange, Bmi088Accelerometer, Bmi088Gyroscope};
-use hal::{fcu_log, fcu_hal::FcuSensorData};
+use shared::fcu_hal::FcuSensorData;
 use mint::Vector3;
 use ms5611_rs::OversampleRatio;
 use stm32f4xx_hal::prelude::*;
@@ -20,11 +20,6 @@ pub fn bmi088_interrupt(mut ctx: app::bmi088_interrupt::Context) {
 
             match bmi088_accel.read_data() {
                 Ok((x, y, z)) => {
-                    let data_point = fcu_log::DataPoint::Accelerometer { x, y, z };
-                    ctx.shared.data_logger.lock(|data_logger| {
-                        data_logger.log_data_point(data_point);
-                    });
-
                     let raw_data = Vector3 { x, y, z };
                     let (x, y, z) = convert_raw_to_m_s2(bmi088_accel.get_range(), (x, y, z));
                     fcu.update_sensor_data(FcuSensorData::Accelerometer {
@@ -43,11 +38,6 @@ pub fn bmi088_interrupt(mut ctx: app::bmi088_interrupt::Context) {
 
             match bmi088_gyro.read_data() {
                 Ok((x, y, z)) => {
-                    let data_point = fcu_log::DataPoint::Gyroscope { x, y, z };
-                    ctx.shared.data_logger.lock(|data_logger| {
-                        data_logger.log_data_point(data_point);
-                    });
-
                     let raw_data = Vector3 { x, y, z };
                     let (x, y, z) = convert_raw_to_rps(bmi088_gyro.get_range(), (x, y, z));
                     fcu.update_sensor_data(FcuSensorData::Gyroscope {

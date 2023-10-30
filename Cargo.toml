@@ -1,8 +1,9 @@
 [workspace]
+resolver = "2"
 
 members = [
     "ecu/engine-controller",
-    "fcu/flight-controller",
+    "flight-controller/flight-controller-rs",
     "mission-ctrl/mission-ctrl-server",
     "shared",
     "simulation/core/software-in-loop",
@@ -11,5 +12,5 @@ members = [
 
 exclude = [
     "ecu/targets/stm32f407",
-    "fcu/targets/fcu-stm32f407",
+    "flight-controller/fcu-stm32f407",
 ]

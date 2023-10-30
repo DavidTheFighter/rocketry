@@ -1,4 +1,4 @@
-use hal::ecu_hal::EcuDAQFrame;
+use shared::ecu_hal::EcuDAQFrame;
 
 pub struct DAQHandler {
     first_buffer: [EcuDAQFrame; 10],

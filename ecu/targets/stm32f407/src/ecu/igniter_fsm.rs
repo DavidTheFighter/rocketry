@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
 
-use hal::{
+use shared::{
     comms_hal::Packet,
     ecu_hal::{FuelTankState, IgniterState, EcuSensor},
 };

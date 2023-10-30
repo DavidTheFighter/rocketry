@@ -26,11 +26,11 @@ mod app {
         cell::RefCell,
     };
     use bmi088_rs::{AccelFilterBandwidth, AccelDataRate, AccelRange, GyroRange, GyroBandwidth, Bmi088Accelerometer, Bmi088Gyroscope, Bmi088PinMode, Bmi088PinBehavior};
-    use comms_manager::CommsManager;
+    use shared::comms_manager::CommsManager;
     use cortex_m::peripheral::DWT;
     use cortex_m::interrupt::Mutex;
-    use flight_controller::Fcu;
-    use hal::comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE};
+    use flight_controller_rs::Fcu;
+    use shared::comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE};
     use rtic::export::Queue;
     use smoltcp::iface;
     use stm32_eth::{EthPins, EthernetDMA, RxRingEntry, TxRingEntry};

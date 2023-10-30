@@ -1,8 +1,8 @@
 use core::sync::atomic::Ordering;
 
-use hal::SensorConfig;
-use hal::comms_hal::{Packet, NetworkAddress};
-use hal::ecu_hal::{EcuDriver, EcuSensor, EcuDAQFrame, EcuTelemetryFrame, IgniterState, FuelTankState, EcuSolenoidValve};
+use shared::SensorConfig;
+use shared::comms_hal::{Packet, NetworkAddress};
+use shared::ecu_hal::{EcuDriver, EcuSensor, EcuDAQFrame, EcuTelemetryFrame, IgniterState, FuelTankState, EcuSolenoidValve};
 use rtic::Mutex;
 use stm32f4xx_hal::gpio::{PA12, PA11, PA10, PA9, Output, PinState};
 use stm32f4xx_hal::signature::{VtempCal30, VtempCal110};

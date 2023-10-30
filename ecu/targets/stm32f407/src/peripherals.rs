@@ -1,7 +1,7 @@
 use core::sync::atomic::{compiler_fence, Ordering};
 
 use crate::app;
-use hal::{
+use shared::{
     comms_hal::{NetworkAddress, Packet},
     ecu_hal::EcuDAQFrame,
 };

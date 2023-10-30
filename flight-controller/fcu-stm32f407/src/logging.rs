@@ -2,7 +2,7 @@ use core::fmt::Write;
 
 use cortex_m::prelude::_embedded_hal_serial_Read;
 use rtic::Mutex;
-use hal::{fcu_log::{DataPoint, DataLogBuffer}, comms_hal::{Packet, NetworkAddress}};
+use shared::comms_hal::{Packet, NetworkAddress};
 use stm32f4xx_hal::{nb, prelude::*};
 use crate::app;
 
@@ -31,50 +31,50 @@ impl DataLogger {
         }
     }
 
-    pub fn log_data_point(&mut self, data_point: DataPoint) {
-        if !self.logging_enabled {
-            return;
-        }
+    // pub fn log_data_point(&mut self, data_point: DataPoint) {
+    //     if !self.logging_enabled {
+    //         return;
+    //     }
 
-        let buffer = if self.active_buffer == 0 {
-            &mut self.buffer0
-        } else {
-            &mut self.buffer1
-        };
+    //     let buffer = if self.active_buffer == 0 {
+    //         &mut self.buffer0
+    //     } else {
+    //         &mut self.buffer1
+    //     };
 
-        let mut data_buffer = [0u8; 16];
-        let data_buffer = data_point.serialize(&mut data_buffer);
+    //     let mut data_buffer = [0u8; 16];
+    //     let data_buffer = data_point.serialize(&mut data_buffer);
 
-        self.bytes_logged += data_buffer.len() as u32;
+    //     self.bytes_logged += data_buffer.len() as u32;
 
-        if self.active_buffer_index + data_buffer.len() < BUFFER_SIZE {
-            for byte in data_buffer {
-                buffer[self.active_buffer_index] = *byte;
-                self.active_buffer_index += 1;
-            }
-        } else {
-            let bytes_remaining = BUFFER_SIZE - self.active_buffer_index;
-            for byte in &data_buffer[..bytes_remaining] {
-                buffer[self.active_buffer_index] = *byte;
-                self.active_buffer_index += 1;
-            }
+    //     if self.active_buffer_index + data_buffer.len() < BUFFER_SIZE {
+    //         for byte in data_buffer {
+    //             buffer[self.active_buffer_index] = *byte;
+    //             self.active_buffer_index += 1;
+    //         }
+    //     } else {
+    //         let bytes_remaining = BUFFER_SIZE - self.active_buffer_index;
+    //         for byte in &data_buffer[..bytes_remaining] {
+    //             buffer[self.active_buffer_index] = *byte;
+    //             self.active_buffer_index += 1;
+    //         }
 
-            self.active_buffer_index = 0;
-            self.active_buffer = (self.active_buffer + 1) % 2;
-            let buffer = if self.active_buffer == 0 {
-                &mut self.buffer0
-            } else {
-                &mut self.buffer1
-            };
+    //         self.active_buffer_index = 0;
+    //         self.active_buffer = (self.active_buffer + 1) % 2;
+    //         let buffer = if self.active_buffer == 0 {
+    //             &mut self.buffer0
+    //         } else {
+    //             &mut self.buffer1
+    //         };
 
-            for byte in &data_buffer[bytes_remaining..] {
-                buffer[self.active_buffer_index] = *byte;
-                self.active_buffer_index += 1;
-            }
+    //         for byte in &data_buffer[bytes_remaining..] {
+    //             buffer[self.active_buffer_index] = *byte;
+    //             self.active_buffer_index += 1;
+    //         }
 
-            app::log_data_to_flash::spawn().unwrap();
-        }
-    }
+    //         app::log_data_to_flash::spawn().unwrap();
+    //     }
+    // }
 
     pub fn enable_logging(&mut self) {
         self.logging_enabled = true;

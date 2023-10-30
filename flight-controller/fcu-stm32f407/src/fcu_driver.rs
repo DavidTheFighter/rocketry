@@ -1,5 +1,5 @@
-use hal::fcu_hal::{OutputChannel, PwmChannel, FcuDriver};
-use hal::comms_hal::{Packet, NetworkAddress};
+use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver};
+use shared::comms_hal::{Packet, NetworkAddress};
 use rtic::mutex_prelude::TupleExt03;
 use stm32f4xx_hal::prelude::*;
 use stm32f4xx_hal::gpio::{PE0, PE1, PE2, PE3, Output, PinState};
@@ -75,10 +75,6 @@ impl FcuDriver for Stm32F407FcuDriver {
 
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress) {
         app::send_packet::spawn(packet, destination).unwrap();
-    }
-
-    fn log_data_point(&mut self, _datapoint: hal::fcu_log::DataPoint) {
-        todo!()
     }
 
     fn as_mut_any(&mut self) -> &mut dyn core::any::Any {

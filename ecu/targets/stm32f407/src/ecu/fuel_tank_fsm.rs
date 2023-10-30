@@ -1,4 +1,4 @@
-use hal::{comms_hal::Packet, ecu_hal::FuelTankState};
+use shared::{comms_hal::Packet, ecu_hal::FuelTankState};
 
 use super::{ECUControlPins, ECUState};
 

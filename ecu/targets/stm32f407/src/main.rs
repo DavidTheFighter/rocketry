@@ -23,9 +23,9 @@ mod app {
         mem::MaybeUninit,
         sync::atomic::{compiler_fence, AtomicU32, Ordering},
     };
-    use comms_manager::CommsManager;
+    use shared::comms_manager::CommsManager;
     use cortex_m::peripheral::DWT;
-    use hal::comms_hal::{NetworkAddress, Packet};
+    use shared::comms_hal::{NetworkAddress, Packet};
     use rtic::export::Queue;
     use smoltcp::iface;
     use stm32_eth::{EthPins, EthernetDMA, RxRingEntry, TxRingEntry};

@@ -1,5 +1,5 @@
 [package]
-name = "flight-controller"
+name = "flight-controller-rs"
 version = "0.1.0"
 edition = "2021"
 

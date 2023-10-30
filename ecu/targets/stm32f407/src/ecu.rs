@@ -12,7 +12,7 @@ use stm32f4xx_hal::{
     timer::PwmChannel,
 };
 
-use hal::{
+use shared::{
     comms_hal::{NetworkAddress, Packet},
     ecu_hal::{
         IgniterConfig, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame, FuelTankState,
