@@ -3,23 +3,27 @@ pub mod dynamics;
 pub mod logging;
 pub mod ser;
 
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::sync::{Mutex, Arc};
+
 use driver::FcuDriverSim;
 use dynamics::Dynamics;
 use flight_controller_rs::Fcu;
 use shared::comms_hal::{Packet, NetworkAddress};
-use shared::fcu_hal::{FcuTelemetryFrame, FcuDevStatsFrame, FcuSensorData};
+use shared::fcu_hal::{FcuTelemetryFrame, FcuDevStatsFrame, FcuSensorData, FcuDriver};
 use logging::{Logger, load_logs_from_file};
 use mint::Vector3;
 use pyo3::prelude::*;
 use pyo3::types::{PyList, PyDict};
 use ser::{dict_from_obj, obj_from_dict};
 
-static mut MOCK: FcuDriverSim = FcuDriverSim::new();
-
-#[pyclass]
+#[pyclass(unsendable)]
 pub struct SoftwareInLoop {
     #[pyo3(get)]
     name: String,
+    driver: Rc<RefCell<FcuDriverSim>>,
     fcu: Fcu<'static>,
     pending_packets: Vec<(NetworkAddress, Packet)>,
 }
@@ -28,11 +32,15 @@ pub struct SoftwareInLoop {
 impl SoftwareInLoop {
     #[new]
     pub fn new() -> Self {
-        let mock = unsafe { &mut MOCK };
-        mock.init();
+        let driver = Rc::new(RefCell::new(FcuDriverSim::new()));
+        let driver_ref: &'static mut FcuDriverSim = unsafe {
+            std::mem::transmute(&mut *driver.borrow_mut())
+        };
+
         Self {
             name: "FCU".to_string(),
-            fcu: Fcu::new(mock),
+            driver,
+            fcu: Fcu::new(driver_ref),
             pending_packets: Vec::new(),
         }
     }
@@ -74,7 +82,11 @@ impl SoftwareInLoop {
 
         println!("Updating config: {:?}", config);
 
-        self.fcu.configure_fcu(config);
+        self.pending_packets.push((NetworkAddress::MissionControl, Packet::ConfigureFcu(config)));
+    }
+
+    pub fn fcu_config(&self, py: Python) -> PyResult<PyObject> {
+        Ok(dict_from_obj(py, &self.fcu.get_fcu_config()).into())
     }
 
     pub fn start_dev_stats_frame(&mut self) {
@@ -96,6 +108,31 @@ impl SoftwareInLoop {
             NetworkAddress::MissionControl,
         );
     }
+
+    // Returns general and widely needed fields from the FCU
+    fn __getitem__(&self, key: &str, py: Python) -> PyResult<PyObject> {
+        let debug_info = self.fcu.generate_debug_info();
+        let dict = dict_from_obj(py, &debug_info);
+
+        dict.get_item_with_error(key).map(|value| value.to_object(py))
+    }
+
+    // Returns fields related to the state vector of the FCU
+    fn state_vector(&self, py: Python) -> PyResult<PyObject> {
+        let dict = dict_from_obj(py, &self.fcu.state_vector);
+
+        Ok(dict.into())
+    }
+}
+
+#[pyfunction]
+fn convert_altitude_to_pressure(altitude: f32, temperature: f32) -> f32 {
+    shared::standard_atmosphere::convert_altitude_to_pressure(altitude, temperature)
+}
+
+#[pyfunction]
+fn convert_pressure_to_altitude(pressure: f32, temperature: f32) -> f32 {
+    shared::standard_atmosphere::convert_pressure_to_altitude(pressure, temperature)
 }
 
 #[pymodule]
@@ -104,6 +141,8 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<Dynamics>()?;
     m.add_class::<Logger>()?;
     m.add_function(wrap_pyfunction!(load_logs_from_file, m)?)?;
+    m.add_function(wrap_pyfunction!(convert_altitude_to_pressure, m)?)?;
+    m.add_function(wrap_pyfunction!(convert_pressure_to_altitude, m)?)?;
     Ok(())
 }
 

@@ -9,10 +9,11 @@ edition = "2021"
 strum = { version = "0.24", default-features = false, features = ["derive"] }
 strum_macros = "0.24"
 generic-array = "0.14"
-nalgebra = { version = "0.32", default-features = false, features = ["mint", "libm"] }
+nalgebra = { version = "0.32", default-features = false, features = ["mint", "libm", "serde-serialize"] }
 num-traits = { version = "0.2", default-features = false, features = ["libm"] }
 libm = "0.2"
 mint = { version = "0.5", default-features = false, features = ["serde"] }
+serde = { version = "1.0.150", default-features = false, features = ["derive"]  }
 
 [dependencies.shared]
 path = "../../shared"

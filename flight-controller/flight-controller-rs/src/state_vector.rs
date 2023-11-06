@@ -1,3 +1,4 @@
+use serde::Serialize;
 use shared::{fcu_hal::{FcuConfig, FcuSensorData}, GRAVITY};
 use nalgebra::{UnitQuaternion, Vector3};
 
@@ -8,6 +9,7 @@ use self::{orientation::OrientationFilter, position::PositionFilter};
 pub mod orientation;
 pub mod position;
 
+#[derive(Debug, Clone, Serialize)]
 pub struct SensorCalibrationData {
     pub accelerometer: Vector3<f32>,
     pub gyroscope: Vector3<f32>,
@@ -15,6 +17,7 @@ pub struct SensorCalibrationData {
     pub barometer_pressure: f32,
 }
 
+#[derive(Debug, Clone, Serialize)]
 pub struct SensorData {
     pub accelerometer: Vector3<f32>,
     pub accelerometer_raw: Vector3<i16>,
@@ -26,6 +29,8 @@ pub struct SensorData {
     pub barometer_altitude: f32,
     pub barometer_raw: u32,
 }
+
+#[derive(Debug, Clone, Serialize)]
 pub struct StateVector {
     pub(crate) position_filter: PositionFilter,
     pub(crate) orientation_filter: OrientationFilter,

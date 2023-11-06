@@ -6,7 +6,7 @@ members = [
     "flight-controller/flight-controller-rs",
     "mission-ctrl/mission-ctrl-server",
     "shared",
-    "simulation/core/software-in-loop",
+    "simulation/software-in-loop",
     "streamish",
 ]
 

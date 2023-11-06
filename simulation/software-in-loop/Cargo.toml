@@ -9,7 +9,7 @@ name = "software_in_loop"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-shared = { path = "../../../shared" }
+shared = { path = "../../shared" }
 pyo3 = { version = "0.18.2", features = ["abi3-py38"] }
 static-alloc = "0.2.4"
 nalgebra = { version = "0.32", default-features = false, features = ["mint", "libm"] }
@@ -22,5 +22,5 @@ serde = "1.0"
 serde_json = "1.0"
 
 [dependencies.flight-controller-rs]
-path = "../../../flight-controller/flight-controller-rs/"
+path = "../../flight-controller/flight-controller-rs/"
 features = ["sil"]

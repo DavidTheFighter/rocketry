@@ -1,6 +1,5 @@
 use nalgebra::{Quaternion, SMatrix, SVector, UnitQuaternion, Vector3};
-
-use super::StateVector;
+use serde::Serialize;
 
 // state_vector = [w, i, j, k, avx, avy, avz]
 // measure = [avx, avy, avz]
@@ -8,6 +7,7 @@ use super::StateVector;
 pub(super) const STATE_LEN: usize = 7;
 pub(super) const MEASURE_LEN: usize = 3;
 
+#[derive(Debug, Clone, Serialize)]
 pub struct OrientationFilter {
     pub orientation: UnitQuaternion<f32>,
     pub angular_velocity: Vector3<f32>,

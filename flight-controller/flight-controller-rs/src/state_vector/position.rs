@@ -1,3 +1,4 @@
+use serde::Serialize;
 use shared::fcu_hal::FcuConfig;
 use nalgebra::{SMatrix, SVector, Vector3};
 use num_traits::float::Float;
@@ -8,6 +9,7 @@ use num_traits::float::Float;
 pub(super) const STATE_LEN: usize = 9;
 pub(super) const MEASURE_LEN: usize = 7;
 
+#[derive(Debug, Clone, Serialize)]
 pub struct PositionFilter {
     pub position: Vector3<f32>,
     pub velocity: Vector3<f32>,

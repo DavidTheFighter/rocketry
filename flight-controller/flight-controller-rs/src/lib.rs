@@ -211,9 +211,13 @@ impl<'a> Fcu<'a> {
         self.data_logged_bytes = bytes;
     }
 
-    pub fn configure_fcu(&mut self, config: FcuConfig) {
+    fn configure_fcu(&mut self, config: FcuConfig) {
         self.config = config.clone();
         self.state_vector.update_config(&config);
+    }
+
+    pub fn get_fcu_config(&self) -> FcuConfig {
+        self.config.clone()
     }
 }
 

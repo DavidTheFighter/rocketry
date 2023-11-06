@@ -22,6 +22,7 @@ pub struct FcuDriverSim {
 impl FcuDriver for FcuDriverSim {
     fn timestamp(&self) -> f32 {
         let elapsed = get_timestamp() - self.last_sim_timestamp_update_timestamp;
+
         self.current_sim_timestamp + (elapsed as f32)
     }
 
@@ -46,27 +47,28 @@ impl FcuDriver for FcuDriverSim {
     }
 
     fn send_packet(&mut self, packet: Packet, _destination: NetworkAddress) {
-        let mut buffer = [0_u8; BUFFER_SIZE];
-        let socket = self.socket.as_mut().expect("FcuDriverSim: Socket not initialized");
+        if let Some(socket) = self.socket.as_mut() {
+            let mut buffer = [0_u8; BUFFER_SIZE];
 
-        if let Packet::FcuTelemetry(frame) = &packet {
-            self.last_telem_packet = Some(frame.clone());
-        }
-
-        if let Packet::FcuDevStatsFrame(frame) = &packet {
-            self.last_dev_stats_packet = Some(frame.clone());
-        }
-
-        match packet.serialize(&mut buffer) {
-            Ok(size) => {
-                let address = "127.0.0.1:25565";
-
-                if let Err(err) = socket.send_to(&buffer[0..size], address) {
-                    println!("FcuDriverSim: Failed to send packet: {err}");
-                }
+            if let Packet::FcuTelemetry(frame) = &packet {
+                self.last_telem_packet = Some(frame.clone());
             }
-            Err(err) => {
-                println!("FcuDriverSim: Failed to serialize packet: {:?}", err);
+
+            if let Packet::FcuDevStatsFrame(frame) = &packet {
+                self.last_dev_stats_packet = Some(frame.clone());
+            }
+
+            match packet.serialize(&mut buffer) {
+                Ok(size) => {
+                    let address = "127.0.0.1:25565";
+
+                    if let Err(err) = socket.send_to(&buffer[0..size], address) {
+                        println!("FcuDriverSim: Failed to send packet: {err}");
+                    }
+                }
+                Err(err) => {
+                    println!("FcuDriverSim: Failed to serialize packet: {:?}", err);
+                }
             }
         }
     }
@@ -93,22 +95,17 @@ impl FcuDriver for FcuDriverSim {
 }
 
 impl FcuDriverSim {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             outputs: [false; OutputChannel::COUNT],
             pwm: [0.0; PwmChannel::COUNT],
             continuities: [false; OutputChannel::COUNT],
             socket: None,
             current_sim_timestamp: 0.0,
-            last_sim_timestamp_update_timestamp: 0.0,
+            last_sim_timestamp_update_timestamp: get_timestamp(),
             last_telem_packet: None,
             last_dev_stats_packet: None,
         }
-    }
-
-    pub fn init(&mut self) {
-        self.socket = Some(UdpSocket::bind("0.0.0.0:25564").unwrap());
-        self.last_sim_timestamp_update_timestamp = get_timestamp();
     }
 
     pub fn update_timestamp(&mut self, sim_time: f32) {
