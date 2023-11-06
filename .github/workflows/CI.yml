@@ -28,7 +28,7 @@ jobs:
         with:
           name: streamish-binary
           path: target/arm-unknown-linux-gnueabihf/release/streamish
-  tests:
+  rust_unit_tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -40,3 +40,25 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
+
+  python_sil_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.8.17'
+          cache: 'pip' # caching pip dependencies
+      - run: |
+          pip install --upgrade pip
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+      - run: |
+          source .venv/bin/activate
+          ./run-sil
