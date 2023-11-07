@@ -12,6 +12,14 @@ def test_fcu_init_state(config):
 
     assert sim.fcu['vehicle_state'] == 'Calibrating'
 
+def test_sim_until_idle(config):
+    sim = Simulation(config)
+    sim.simulate_until_idle()
+    assert sim.fcu['vehicle_state'] == 'Idle'
+
+# def test_sim_until_arm(config)
+# def test_arming_safety(Config)
+
 # Tests that config is indeed updated via packet
 def test_send_fcu_config(config):
     sim = Simulation(config)
@@ -26,11 +34,18 @@ def test_send_fcu_config(config):
     sim.simulate_for(config.fcu_update_rate)
     assert abs(sim.fcu.fcu_config()['telemetry_rate'] - 0.1) < 1e-3
 
-# TODO parameterize this to do a bunch of different values
-def test_fcu_calibration(config):
-    config.accel_bias = 0.5
-    config.gyro_bias = 0.5
-    config.baro_bias = 0.5
+
+@pytest.mark.parametrize("accel_bias,gyro_bias,baro_bias", [
+    (-0.75, -0.75, -0.75), (0.75, 0.75, 0.75), (0.0, 0.0, 0.0),
+    (-0.75, 0.75, 0.2), (0.2, -0.4, 0.0), (0.1, -0.2, 0.3),
+])
+def test_fcu_calibration(config, accel_bias, gyro_bias, baro_bias):
+    config.accel_bias = accel_bias
+    config.gyro_bias = gyro_bias
+    config.baro_bias = baro_bias
+    config.accel_noise = 0.1
+    config.gyro_noise = 0.1
+    config.baro_noise = 0.1
     sim = Simulation(config)
 
     assert sim.fcu['vehicle_state'] == 'Calibrating'

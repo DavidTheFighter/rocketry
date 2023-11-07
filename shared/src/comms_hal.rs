@@ -74,6 +74,12 @@ pub enum Packet {
     StartCalibration {
         zero: bool,
     },
+    ArmVehicle {
+        magic_number: u64, // fcu_hal::ARMING_MAGIC_NUMBER
+    },
+    IgniteSolidMotor {
+        magic_number: u64, // fcu_hal::IGNITION_MAGIC_NUMBER
+    },
 
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
@@ -187,7 +193,7 @@ fn postcard_serialization_err_to_hal_err(err: postcard::Error) -> SerializationE
 
 pub mod tests_data {
     use super::*;
-    use crate::SensorCalibration;
+    use crate::{SensorCalibration, fcu_hal::{ARMING_MAGIC_NUMBER, IGNITION_MAGIC_NUMBER}};
     use strum::EnumCount;
 
     const SENSOR_CALIBRATION: SensorCalibration = SensorCalibration {
@@ -227,6 +233,8 @@ pub mod tests_data {
         Packet::StartCameraStream { port: 42 },
         Packet::StopCameraStream,
         Packet::StartCalibration { zero: true },
+        Packet::ArmVehicle { magic_number: ARMING_MAGIC_NUMBER },
+        Packet::IgniteSolidMotor { magic_number: IGNITION_MAGIC_NUMBER },
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
         Packet::RequestFcuDebugInfo,

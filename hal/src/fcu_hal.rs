@@ -14,8 +14,12 @@ use crate::{
 pub enum VehicleState {
     Idle,
     Calibrating,
+    Armed,
+    Launching,
     Ascent,
     Descent,
+    // DescentDrogueParachute,
+    // DescentMainParachute,
     Landed,
 }
 

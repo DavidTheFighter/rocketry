@@ -38,8 +38,14 @@ class Simulation:
     def simulate_for(self, seconds):
         start_time = self.t
 
-        while self.t - start_time < seconds:
+        while self.t - start_time <= seconds:
             self.advance_timestamp()
+
+    # Meant as an easy way for tests to simulate until in Idle state,
+    # leaving one place that has this logic instead of every test
+    def simulate_until_idle(self):
+        self.simulate_for(self.config.fcu_config['calibration_duration'] + self.config.fcu_update_rate)
+        assert self.fcu['vehicle_state'] == 'Idle'
 
     def advance_timestamp(self):
         self.fcu.update_timestamp(self.t)

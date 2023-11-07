@@ -1,6 +1,6 @@
 use shared::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
 use crate::Fcu;
-use super::{ComponentStateMachine, FsmState, Calibrating};
+use super::{ComponentStateMachine, FsmState, STATE};
 
 impl ComponentStateMachine<FsmState> for STATE {
     fn update<'a>(&mut self, fcu: &'a mut Fcu, dt: f32, packets: &[(NetworkAddress, Packet)]) -> Option<FsmState> {
@@ -20,7 +20,7 @@ impl ComponentStateMachine<FsmState> for STATE {
     }
 }
 
-impl Idle {
+impl STATE {
     pub fn new() -> FsmState {
         todo!()
     }

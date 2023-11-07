@@ -6,9 +6,11 @@ use shared::{
 use nalgebra::Vector3;
 
 mod ascent;
+mod armed;
 mod calibrating;
 mod descent;
 mod idle;
+mod ignition;
 mod landed;
 
 #[derive(Debug)]
@@ -26,6 +28,12 @@ pub struct Calibrating {
 }
 
 #[derive(Debug)]
+pub struct Armed;
+
+#[derive(Debug)]
+pub struct Ignition;
+
+#[derive(Debug)]
 pub struct Ascent;
 
 #[derive(Debug)]
@@ -38,6 +46,8 @@ pub struct Landed;
 pub enum FsmState {
     Idle(Idle),
     Calibrating(Calibrating),
+    Armed(Armed),
+    Ignition(Ignition),
     Ascent(Ascent),
     Descent(Descent),
     Landed(Landed),
@@ -48,6 +58,8 @@ impl FsmState {
         match self {
             FsmState::Idle(state) => state,
             FsmState::Calibrating(state) => state,
+            FsmState::Armed(state) => state,
+            FsmState::Ignition(state) => state,
             FsmState::Ascent(state) => state,
             FsmState::Descent(state) => state,
             FsmState::Landed(state) => state,

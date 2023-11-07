@@ -7,12 +7,19 @@ use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
 
 use crate::comms_hal::{NetworkAddress, Packet};
 
+pub const ARMING_MAGIC_NUMBER: u64 = 0x12345678_042069AB;
+pub const IGNITION_MAGIC_NUMBER: u64 = 0x12345678_042069AC;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum VehicleState {
     Idle,
     Calibrating,
+    Armed,
+    Ignition,
     Ascent,
     Descent,
+    // DescentDrogueParachute,
+    // DescentMainParachute,
     Landed,
 }
 
