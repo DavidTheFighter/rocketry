@@ -23,24 +23,27 @@ use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::{
         FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame, OutputChannel,
-        PwmChannel, VehicleState,
-    },
+        PwmChannel, VehicleState, FcuAlertCondition,
+    }, alerts::AlertManager,
 };
 use mint::Vector3;
 use state_vector::StateVector;
 use strum::EnumCount;
 
 pub const HEARTBEAT_RATE: f32 = 0.25;
+pub const ALERT_RATE: f32 = 1.0;
 
 pub struct Fcu<'a> {
     config: FcuConfig,
     pub vehicle_state: VehicleState,
     pub driver: &'a mut dyn FcuDriver,
     pub state_vector: StateVector,
+    alert_manager: AlertManager<FcuAlertCondition>,
     dev_stats: DevStatsCollector,
     vehicle_fsm_state: Option<vehicle_fsm::FsmState>,
     time_since_last_telemetry: f32,
     time_since_last_heartbeat: f32,
+    time_since_last_alert_update: f32,
     data_logged_bytes: u32,
     apogee: f32,
 }
@@ -72,10 +75,12 @@ impl<'a> Fcu<'a> {
             vehicle_state: VehicleState::Calibrating,
             driver,
             state_vector,
+            alert_manager: AlertManager::new(),
             dev_stats: DevStatsCollector::new(),
             vehicle_fsm_state: None,
             time_since_last_telemetry: 0.0,
             time_since_last_heartbeat: 0.0,
+            time_since_last_alert_update: 0.0,
             data_logged_bytes: 0,
             apogee: 0.0,
         };
@@ -108,6 +113,14 @@ impl<'a> Fcu<'a> {
             self.driver
                 .send_packet(Packet::Heartbeat, NetworkAddress::MissionControl);
             self.time_since_last_heartbeat = 0.0;
+        }
+
+        if self.time_since_last_alert_update > ALERT_RATE || self.alert_manager.has_pending_update() {
+            self.driver.send_packet(
+                self.alert_manager.get_condition_packet(),
+                NetworkAddress::MissionControl,
+            );
+            self.time_since_last_alert_update = 0.0;
         }
 
         for (source, packet) in packets {

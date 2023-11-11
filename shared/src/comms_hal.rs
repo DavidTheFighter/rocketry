@@ -88,6 +88,7 @@ pub enum Packet {
     FcuDebugInfo(FcuDebugInfo),
     FcuDevStatsFrame(FcuDevStatsFrame),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
+    AlertBitmask(u32),
     // FcuDataLogPage(DataLogBuffer),
 
     // -- Misc -- //
@@ -237,6 +238,7 @@ pub mod tests_data {
         Packet::IgniteSolidMotor { magic_number: IGNITION_MAGIC_NUMBER },
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
+        Packet::AlertBitmask(0x1234),
         Packet::RequestFcuDebugInfo,
         Packet::FcuDebugInfo(FcuDebugInfo::default()),
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),

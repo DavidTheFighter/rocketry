@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use strum::EnumCount;
 use strum_macros::{EnumCount as EnumCountMacro, EnumIter, EnumDiscriminants, EnumString};
 
-use crate::comms_hal::{NetworkAddress, Packet};
+use crate::{comms_hal::{NetworkAddress, Packet}, alerts::AlertBitmaskType};
 
 pub const ARMING_MAGIC_NUMBER: u64 = 0x12345678_042069AB;
 pub const IGNITION_MAGIC_NUMBER: u64 = 0x12345678_042069AC;
@@ -43,9 +43,16 @@ pub enum PwmChannel {
     PwmChannel5 = 5,
 }
 
-pub enum FcuAlertEvent {}
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FcuAlertCondition {
+    NoIgniterContinuity,
+}
 
-pub enum FcuAlertCondition {}
+impl Into<AlertBitmaskType> for FcuAlertCondition {
+    fn into(self) -> AlertBitmaskType {
+        self as AlertBitmaskType
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum FcuSensorData {

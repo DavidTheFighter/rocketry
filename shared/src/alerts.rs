@@ -1,52 +1,47 @@
 use core::marker::PhantomData;
 
-use crate::comms_hal::{NetworkAddress, Packet};
-use serde::Serialize;
+use crate::comms_hal::Packet;
 
+pub type AlertBitmaskType = u32;
 
-pub struct AlertManager<E, C, F> {
-    _marker_e: PhantomData<E>,
-    _marker_c: PhantomData<C>,
-    send_packet_fn: F,
-    host_address: NetworkAddress,
-    condition_bitmask: u64,
+pub struct AlertManager<T> {
+    _marker: PhantomData<T>,
+    condition_bitmask: AlertBitmaskType,
+    pending_update: bool,
 }
 
-impl<E, C, F> AlertManager<E, C, F>
+impl<T> AlertManager<T>
 where
-    E: Into<u64>,
-    C: Into<u64>,
-    F: Fn((NetworkAddress, Packet)),
+    T: Into<AlertBitmaskType>,
 {
-    pub fn new(send_packet_fn: F, host_address: NetworkAddress) -> Self {
+    pub fn new() -> Self {
         Self {
-            _marker_e: PhantomData,
-            _marker_c: PhantomData,
-            send_packet_fn,
-            host_address,
+            _marker: PhantomData,
             condition_bitmask: 0,
+            pending_update: false,
         }
     }
 
-    pub fn report_event(&mut self, event: E) {
-
-    }
-
-    pub fn set_condition(&mut self, condition: C) {
+    pub fn set_condition(&mut self, condition: T) {
         self.condition_bitmask |= 1 << condition.into();
-
-        self.send_condition_update();
+        self.pending_update = true;
     }
 
-    pub fn clear_condition(&mut self, condition: C) {
+    pub fn clear_condition(&mut self, condition: T) {
         self.condition_bitmask &= !(1 << condition.into());
-
-        self.send_condition_update();
+        self.pending_update = true;
     }
 
-    fn send_condition_update(&mut self) {
-        // let packet = Packet::AlertCondition { condition_bitmask };
+    pub fn get_condition_bitmask(&mut self) -> AlertBitmaskType {
+        self.pending_update = false;
+        self.condition_bitmask
+    }
 
-        // self.send_packet_fn((self.host_address, packet));
+    pub fn get_condition_packet(&mut self) -> Packet {
+        Packet::AlertBitmask(self.get_condition_bitmask())
+    }
+
+    pub fn has_pending_update(&self) -> bool {
+        self.pending_update
     }
 }

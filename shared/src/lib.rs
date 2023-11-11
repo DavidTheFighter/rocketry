@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 
-// pub mod alerts;
+pub mod alerts;
 pub mod comms_hal;
 pub mod comms_manager;
 pub mod ecu_hal;
