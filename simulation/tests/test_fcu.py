@@ -17,8 +17,52 @@ def test_sim_until_idle(config):
     sim.simulate_until_idle()
     assert sim.fcu['vehicle_state'] == 'Idle'
 
-# def test_sim_until_arm(config)
-# def test_arming_safety(Config)
+def test_sim_until_arm(config):
+    sim = Simulation(config)
+    sim.simulate_until_idle()
+    assert sim.fcu['vehicle_state'] == 'Idle'
+
+    sim.fcu.send_arm_vehicle_packet()
+    sim.simulate_for(config.fcu_update_rate)
+    assert sim.fcu['vehicle_state'] == 'Armed'
+
+def test_ignition(config):
+    sim = Simulation(config)
+    sim.simulate_until_idle()
+    assert sim.fcu['vehicle_state'] == 'Idle'
+
+    sim.fcu.send_arm_vehicle_packet()
+    sim.simulate_for(config.fcu_update_rate)
+    assert sim.fcu['vehicle_state'] == 'Armed'
+
+    sim.fcu.send_ignite_solid_motor_packet()
+    sim.simulate_for(config.fcu_update_rate)
+    assert sim.fcu['vehicle_state'] == 'Ignition'
+
+def test_sim_no_continuity_ignition(config, timeout_s = 5.0):
+    sim = Simulation(config)
+    sim.vehicle_components.set_solid_motor_igniter_continuity(False)
+    sim.simulate_until_idle()
+    assert sim.fcu['vehicle_state'] == 'Idle'
+
+    sim.fcu.send_arm_vehicle_packet()
+    sim.simulate_for(config.fcu_update_rate)
+    assert sim.fcu['vehicle_state'] == 'Armed'
+
+    start_time = sim.t
+    sim.fcu.send_ignite_solid_motor_packet()
+    sim.vehicle_components.try_ignite_solid_motor(sim.t)
+
+    while sim.t - start_time < timeout_s:
+        sim.advance_timestep()
+
+    assert sim.fcu['vehicle_state'] == 'Armed'
+    assert sim.vehicle_components.solid_motor_ignited == False
+
+def test_sim_until_ascent(config):
+    sim = Simulation(config)
+    sim.simulate_until_ascent()
+    assert sim.fcu['vehicle_state'] == 'Ascent'
 
 # Tests that config is indeed updated via packet
 def test_send_fcu_config(config):

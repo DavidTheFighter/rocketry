@@ -27,6 +27,9 @@ class SimConfig:
     gyro_bias: float = 0.001 # Radians per second
     baro_bias: float = 0.01 # Meters
 
+    # Vehicle config
+    auto_ignite_solid_motor: bool = False # Auto ignite motor in sim after arming
+
     fcu_config: dict = field(default_factory=lambda: {
         "telemetry_rate": 0.02, # Seconds
         "startup_acceleration_threshold": 0.5, # Meters per second squared

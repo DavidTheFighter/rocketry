@@ -3,7 +3,7 @@ use pyo3::{prelude::*, types::{PyDict, PyList}};
 use serde::{Serialize, Deserialize};
 use std::{io::Write, thread};
 
-use crate::{SoftwareInLoop, driver::FcuDriverSim, ser::dict_from_obj};
+use crate::{FcuSil, driver::FcuDriverSim, ser::dict_from_obj};
 
 type Scalar = f64;
 
@@ -47,7 +47,7 @@ impl Logger {
         }
     }
 
-    pub fn log_telemetry(&mut self, fcu: &mut SoftwareInLoop) {
+    pub fn log_telemetry(&mut self, fcu: &mut FcuSil) {
         let driver = fcu
             .fcu
             .driver
@@ -60,13 +60,13 @@ impl Logger {
         }
     }
 
-    pub fn log_detailed_state(&mut self, fcu: &mut SoftwareInLoop) {
+    pub fn log_detailed_state(&mut self, fcu: &mut FcuSil) {
         let state = fcu.fcu.generate_debug_info();
 
         self.detailed_state.push(state);
     }
 
-    pub fn log_dev_stats(&mut self, fcu: &mut SoftwareInLoop) {
+    pub fn log_dev_stats(&mut self, fcu: &mut FcuSil) {
         let driver = fcu
             .fcu
             .driver

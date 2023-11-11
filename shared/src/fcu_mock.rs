@@ -20,7 +20,7 @@ impl FcuDriver for FcuDriverMock {
     }
 
     fn set_output_channel(&mut self, channel: OutputChannel, state: bool) {
-        self.outputs[channel as usize] = state;
+        self.outputs[0] = state;
     }
 
     fn set_pwm_channel(&mut self, channel: PwmChannel, duty_cycle: f32) {
@@ -28,11 +28,11 @@ impl FcuDriver for FcuDriverMock {
     }
 
     fn get_output_channel(&self, channel: OutputChannel) -> bool {
-        self.outputs[channel as usize]
+        self.outputs[0]
     }
 
     fn get_output_channel_continuity(&self, channel: OutputChannel) -> bool {
-        self.continuities[channel as usize]
+        self.continuities[0]
     }
 
     fn get_pwm_channel(&self, channel: PwmChannel) -> f32 {

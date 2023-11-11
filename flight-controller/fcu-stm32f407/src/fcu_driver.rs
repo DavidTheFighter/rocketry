@@ -31,13 +31,14 @@ impl FcuDriver for Stm32F407FcuDriver {
     fn set_output_channel(&mut self, channel: OutputChannel, state: bool) {
         let pin_state = if state { PinState::High } else { PinState::Low };
         match channel {
-            OutputChannel::OutputChannel0 => self.pins.output1_ctrl.set_state(pin_state),
-            OutputChannel::OutputChannel1 => self.pins.output2_ctrl.set_state(pin_state),
-            OutputChannel::OutputChannel2 => self.pins.output3_ctrl.set_state(pin_state),
-            OutputChannel::OutputChannel3 => self.pins.output4_ctrl.set_state(pin_state),
+            OutputChannel::SolidMotorIgniter => self.pins.output1_ctrl.set_state(pin_state),
+            OutputChannel::Extra { index: _ } => {},
+            // OutputChannel::OutputChannel1 => self.pins.output2_ctrl.set_state(pin_state),
+            // OutputChannel::OutputChannel2 => self.pins.output3_ctrl.set_state(pin_state),
+            // OutputChannel::OutputChannel3 => self.pins.output4_ctrl.set_state(pin_state),
         }
 
-        self.outputs[channel as usize] = state;
+        self.outputs[channel.index()] = state;
     }
 
     fn set_pwm_channel(&mut self, channel: PwmChannel, duty_cycle: f32) {
@@ -45,11 +46,11 @@ impl FcuDriver for Stm32F407FcuDriver {
     }
 
     fn get_output_channel(&self, channel: OutputChannel) -> bool {
-        self.outputs[channel as usize]
+        self.outputs[channel.index()]
     }
 
     fn get_output_channel_continuity(&self, channel: OutputChannel) -> bool {
-        self.continuities[channel as usize]
+        self.continuities[channel.index()]
     }
 
     fn get_pwm_channel(&self, channel: PwmChannel) -> f32 {

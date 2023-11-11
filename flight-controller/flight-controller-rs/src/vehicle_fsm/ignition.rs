@@ -1,4 +1,4 @@
-use shared::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
+use shared::{fcu_hal::{VehicleState, OutputChannel}, comms_hal::{Packet, NetworkAddress}};
 use crate::Fcu;
 use super::{ComponentStateMachine, FsmState, Ignition, Ascent};
 
@@ -12,16 +12,16 @@ impl ComponentStateMachine<FsmState> for Ignition {
         None
     }
 
-    fn enter_state<'a>(&mut self, _fcu: &'a mut Fcu) {
-        // TODO Ignite motor
+    fn enter_state<'a>(&mut self, fcu: &'a mut Fcu) {
+        fcu.driver.set_output_channel(OutputChannel::SolidMotorIgniter, true);
     }
 
-    fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
-        todo!()
+    fn exit_state<'a>(&mut self, fcu: &'a mut Fcu) {
+        fcu.driver.set_output_channel(OutputChannel::SolidMotorIgniter, false);
     }
 
     fn hal_state(&self) -> VehicleState {
-        todo!()
+        VehicleState::Ignition
     }
 }
 

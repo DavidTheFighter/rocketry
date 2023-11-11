@@ -27,7 +27,7 @@ impl FcuDriver for FcuDriverSim {
     }
 
     fn set_output_channel(&mut self, channel: OutputChannel, state: bool) {
-        self.outputs[channel as usize] = state;
+        self.outputs[channel.index()] = state;
     }
 
     fn set_pwm_channel(&mut self, channel: PwmChannel, duty_cycle: f32) {
@@ -35,11 +35,11 @@ impl FcuDriver for FcuDriverSim {
     }
 
     fn get_output_channel(&self, channel: OutputChannel) -> bool {
-        self.outputs[channel as usize]
+        self.outputs[channel.index()]
     }
 
     fn get_output_channel_continuity(&self, channel: OutputChannel) -> bool {
-        self.continuities[channel as usize]
+        self.continuities[channel.index()]
     }
 
     fn get_pwm_channel(&self, channel: PwmChannel) -> f32 {
@@ -111,6 +111,10 @@ impl FcuDriverSim {
     pub fn update_timestamp(&mut self, sim_time: f32) {
         self.current_sim_timestamp = sim_time;
         self.last_sim_timestamp_update_timestamp = get_timestamp();
+    }
+
+    pub fn set_output_channel_continuity(&mut self, channel: OutputChannel, state: bool) {
+        self.continuities[channel.index()] = state;
     }
 }
 

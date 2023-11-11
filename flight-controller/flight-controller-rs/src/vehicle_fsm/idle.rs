@@ -42,7 +42,7 @@ impl Idle {
     fn received_arming_command(&self, packets: &[(NetworkAddress, Packet)]) -> bool {
         for (_address, packet) in packets {
             if let Packet::ArmVehicle { magic_number } = packet {
-                return *magic_number == fcu_hal::IGNITION_MAGIC_NUMBER;
+                return *magic_number == fcu_hal::ARMING_MAGIC_NUMBER;
             }
         }
 
@@ -57,5 +57,36 @@ impl Idle {
         }
 
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use shared::{fcu_hal, comms_hal::NetworkAddress};
+
+    use crate::vehicle_fsm::Idle;
+
+    #[test]
+    fn test_no_packets_arming() {
+        let state = Idle {};
+        let packets = vec![];
+
+        assert_eq!(state.received_arming_command(&packets), false);
+    }
+
+    #[test]
+    fn test_arming_packet_good() {
+        let state = Idle {};
+        let packets = vec![(NetworkAddress::MissionControl, shared::comms_hal::Packet::ArmVehicle { magic_number: fcu_hal::ARMING_MAGIC_NUMBER })];
+
+        assert_eq!(state.received_arming_command(&packets), true);
+    }
+
+    #[test]
+    fn test_arming_packet_bad_magic_number() {
+        let state = Idle {};
+        let packets = vec![(NetworkAddress::MissionControl, shared::comms_hal::Packet::ArmVehicle { magic_number: 0xdeadbeef })];
+
+        assert_eq!(state.received_arming_command(&packets), false);
     }
 }

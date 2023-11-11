@@ -3,33 +3,34 @@ pub mod dynamics;
 pub mod logging;
 pub mod ser;
 
+use std::str::FromStr;
 use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
-use std::sync::{Mutex, Arc};
 
 use driver::FcuDriverSim;
 use dynamics::Dynamics;
 use flight_controller_rs::Fcu;
 use shared::comms_hal::{Packet, NetworkAddress};
-use shared::fcu_hal::{FcuTelemetryFrame, FcuDevStatsFrame, FcuSensorData, FcuDriver};
+use shared::fcu_hal::{self, FcuTelemetryFrame, FcuSensorData, OutputChannel};
 use logging::{Logger, load_logs_from_file};
 use mint::Vector3;
 use pyo3::prelude::*;
+use pyo3::exceptions::PyTypeError;
 use pyo3::types::{PyList, PyDict};
 use ser::{dict_from_obj, obj_from_dict};
+use strum::IntoEnumIterator;
 
 #[pyclass(unsendable)]
-pub struct SoftwareInLoop {
+pub struct FcuSil {
     #[pyo3(get)]
     name: String,
-    driver: Rc<RefCell<FcuDriverSim>>,
+    _driver: Rc<RefCell<FcuDriverSim>>,
     fcu: Fcu<'static>,
     pending_packets: Vec<(NetworkAddress, Packet)>,
 }
 
 #[pymethods]
-impl SoftwareInLoop {
+impl FcuSil {
     #[new]
     pub fn new() -> Self {
         let driver = Rc::new(RefCell::new(FcuDriverSim::new()));
@@ -39,7 +40,7 @@ impl SoftwareInLoop {
 
         Self {
             name: "FCU".to_string(),
-            driver,
+            _driver: driver,
             fcu: Fcu::new(driver_ref),
             pending_packets: Vec::new(),
         }
@@ -102,6 +103,29 @@ impl SoftwareInLoop {
             .update_timestamp(sim_time);
     }
 
+    pub fn set_output(&mut self, channel: &str, state: bool) -> PyResult<()> {
+        let channel = OutputChannel::from_str(channel)
+            .map_err(|_| PyTypeError::new_err("Failed to parse output channel string"))?;
+
+        self.fcu.driver.set_output_channel(channel, state);
+
+        Ok(())
+    }
+
+    pub fn set_output_continuity(&mut self, channel: &str, state: bool) -> PyResult<()> {
+        let channel = OutputChannel::from_str(channel)
+            .map_err(|_| PyTypeError::new_err("Failed to parse output channel string"))?;
+
+        self.fcu
+            .driver
+            .as_mut_any()
+            .downcast_mut::<FcuDriverSim>()
+            .ok_or(PyTypeError::new_err("Failed to retrieve driver from FCU object"))?
+            .set_output_channel_continuity(channel, state);
+
+        Ok(())
+    }
+
     pub fn reset_telemetry(&mut self) {
         self.fcu.driver.send_packet(
             Packet::FcuTelemetry(FcuTelemetryFrame::default()),
@@ -109,10 +133,36 @@ impl SoftwareInLoop {
         );
     }
 
+    pub fn send_arm_vehicle_packet(&mut self) {
+        self.pending_packets.push((NetworkAddress::MissionControl, Packet::ArmVehicle { magic_number: fcu_hal::ARMING_MAGIC_NUMBER }));
+    }
+
+    pub fn send_ignite_solid_motor_packet(&mut self) {
+        self.pending_packets.push((NetworkAddress::MissionControl, Packet::IgniteSolidMotor { magic_number: fcu_hal::IGNITION_MAGIC_NUMBER }));
+    }
+
     // Returns general and widely needed fields from the FCU
     fn __getitem__(&self, key: &str, py: Python) -> PyResult<PyObject> {
         let debug_info = self.fcu.generate_debug_info();
         let dict = dict_from_obj(py, &debug_info);
+
+        let output_channels = PyDict::new(py);
+        for channel in OutputChannel::iter() {
+            output_channels.set_item(
+                format!("{:?}", channel),
+                self.fcu.driver.get_output_channel(channel),
+            )?;
+        }
+        dict.set_item("outputs", output_channels)?;
+
+        let output_channel_continuities = PyDict::new(py);
+        for channel in OutputChannel::iter() {
+            output_channel_continuities.set_item(
+                format!("{:?}", channel),
+                self.fcu.driver.get_output_channel_continuity(channel),
+            )?;
+        }
+        dict.set_item("output_continuities", output_channel_continuities)?;
 
         dict.get_item_with_error(key).map(|value| value.to_object(py))
     }
@@ -137,7 +187,7 @@ fn convert_pressure_to_altitude(pressure: f32, temperature: f32) -> f32 {
 
 #[pymodule]
 fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<SoftwareInLoop>()?;
+    m.add_class::<FcuSil>()?;
     m.add_class::<Dynamics>()?;
     m.add_class::<Logger>()?;
     m.add_function(wrap_pyfunction!(load_logs_from_file, m)?)?;

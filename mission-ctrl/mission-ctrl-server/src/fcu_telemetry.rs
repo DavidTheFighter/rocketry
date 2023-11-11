@@ -121,7 +121,7 @@ impl FcuTelemetryHandler {
         telem.vehicle_state = format!("{:?}", last_frame.vehicle_state);
         telem.telemetry_rate = self.current_telemetry_rate_hz;
         telem.telemetry_delta_t = (timestamp() - self.last_telemetry_timestamp) as f32;
-        telem.output_channels = Vec::from(last_frame.output_channels);
+        telem.output_channels = Vec::new(); // TODO Vec::from(last_frame.output_channels);
         telem.pwm_channels = Vec::from(last_frame.pwm_channels);
         telem.battery_voltage = last_frame.battery_voltage;
         telem.bytes_logged = last_frame.data_logged_bytes;

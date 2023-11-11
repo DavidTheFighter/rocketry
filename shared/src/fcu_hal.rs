@@ -3,7 +3,7 @@ use core::any::Any;
 use mint::{Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
-use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
+use strum_macros::{EnumCount as EnumCountMacro, EnumIter, EnumDiscriminants, EnumString};
 
 use crate::comms_hal::{NetworkAddress, Packet};
 
@@ -23,12 +23,14 @@ pub enum VehicleState {
     Landed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter, EnumString, EnumDiscriminants)]
+#[strum_discriminants(name(OutputChannelIndex))]
+#[strum_discriminants(derive(EnumIter))]
 pub enum OutputChannel {
-    OutputChannel0 = 0,
-    OutputChannel1 = 1,
-    OutputChannel2 = 2,
-    OutputChannel3 = 3,
+    SolidMotorIgniter,
+    Extra {
+        index: u8,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
@@ -78,7 +80,8 @@ pub struct FcuTelemetryFrame {
     pub position_error: f32,     // Standard deviation
     pub velocity_error: f32,     // Standard deviation
     pub acceleration_error: f32, // Standard deviation
-    pub output_channels: [bool; OutputChannel::COUNT],
+    pub output_channels_bitmask: u16,
+    pub output_channels_continuity_bitmask: u16,
     pub pwm_channels: [f32; PwmChannel::COUNT],
     pub apogee: f32,
     pub battery_voltage: f32,
@@ -98,7 +101,8 @@ pub struct FcuDebugInfo {
     pub position_error: Vector3<f32>,     // Standard deviation
     pub velocity_error: Vector3<f32>,     // Standard deviation
     pub acceleration_error: Vector3<f32>, // Standard deviation
-    pub output_channels: [bool; OutputChannel::COUNT],
+    pub output_channels_bitmask: u32,
+    pub output_channels_continuity_bitmask: u32,
     pub pwm_channels: [f32; PwmChannel::COUNT],
     pub apogee: f32,
     pub battery_voltage: f32,
@@ -197,7 +201,8 @@ impl FcuTelemetryFrame {
             position_error: 0.0,
             velocity_error: 0.0,
             acceleration_error: 0.0,
-            output_channels: [false; OutputChannel::COUNT],
+            output_channels_bitmask: 0,
+            output_channels_continuity_bitmask: 0,
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: 0.0,
             battery_voltage: 0.0,
@@ -259,7 +264,8 @@ impl FcuDebugInfo {
                 y: 0.0,
                 z: 0.0,
             },
-            output_channels: [false; OutputChannel::COUNT],
+            output_channels_bitmask: 0,
+            output_channels_continuity_bitmask: 0,
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: -1.0,
             battery_voltage: 0.0,
@@ -275,6 +281,18 @@ impl FcuDebugInfo {
                 z: 0.0,
             },
         }
+    }
+}
+
+impl OutputChannel {
+    pub fn index(&self) -> usize {
+        let mut channel_index = OutputChannelIndex::from(self) as usize;
+
+        if let OutputChannel::Extra { index } = &self {
+            channel_index += *index as usize;
+        }
+
+        channel_index
     }
 }
 
@@ -311,5 +329,50 @@ impl FcuDevStatsFrame {
             packet_queue_length_max: 0,
             fcu_update_elapsed_avg: 0.0,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::fcu_hal::OutputChannel;
+
+    use super::*;
+
+    #[test]
+    fn test_output_channel_index() {
+        let solid_motor_igniter_index = OutputChannelIndex::SolidMotorIgniter as usize;
+
+        assert_eq!(
+            solid_motor_igniter_index,
+            OutputChannelIndex::from(OutputChannel::SolidMotorIgniter) as usize,
+        );
+
+        let extra_channel_index = OutputChannelIndex::Extra as usize;
+
+        assert_eq!(
+            extra_channel_index,
+            OutputChannelIndex::from(OutputChannel::Extra { index: 0 }) as usize,
+        );
+    }
+
+    #[test]
+    fn test_output_channel_index_fn() {
+        let extra_channel_index = OutputChannelIndex::Extra as usize;
+        let solid_motor_igniter_index = OutputChannelIndex::SolidMotorIgniter as usize;
+
+        assert_eq!(
+            OutputChannel::Extra { index: 0 }.index(),
+            extra_channel_index,
+        );
+
+        assert_eq!(
+            OutputChannel::Extra { index: 4 }.index(),
+            extra_channel_index + 4,
+        );
+
+        assert_eq!(
+            OutputChannel::SolidMotorIgniter.index(),
+            solid_motor_igniter_index,
+        );
     }
 }
