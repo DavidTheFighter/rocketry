@@ -30,7 +30,7 @@ impl<const NETWORK_MAP_SIZE: usize> CommsManager<NETWORK_MAP_SIZE> {
 
     pub fn process_packet(
         &self,
-        packet: Packet,
+        packet: &Packet,
         destination: NetworkAddress,
         buffer: &mut [u8],
     ) -> Result<(usize, [u8; 4]), CommsError> {
@@ -222,7 +222,7 @@ pub mod tests {
             for packet in &PACKET_TEST_DEFAULTS {
                 println!("Testing packet: {:?} to address: {:?}", packet, address);
                 let (size, _) = comms_manager
-                    .process_packet(packet.clone(), address.clone(), &mut buffer)
+                    .process_packet(packet, address.clone(), &mut buffer)
                     .unwrap();
                 let (deserialized_packet, deserialized_address) = comms_manager
                     .extract_packet(&mut buffer[0..size], dummy_address)

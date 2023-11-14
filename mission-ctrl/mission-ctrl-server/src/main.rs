@@ -20,7 +20,6 @@ use observer::ObserverHandler;
 use comms::recv::recv_thread;
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
-// use rocket::serde::{json::Json, Serialize};
 use rocket::{Request, Response, Rocket, Build};
 use comms::send::send_thread;
 use ecu_telemetry::{telemetry_thread, ecu_telemetry_endpoint};

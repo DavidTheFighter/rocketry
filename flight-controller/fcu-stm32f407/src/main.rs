@@ -46,7 +46,7 @@ mod app {
 
     use crate::fcu_driver::{Stm32F407FcuDriver, FcuControlPins, fcu_update};
     use crate::drivers::{bmi088, bmm150, w25x05};
-    use crate::comms::{send_packet, eth_interrupt, init_comms, NetworkingStorage, RX_RING_ENTRY_DEFAULT, TX_RING_ENTRY_DEFAULT};
+    use crate::comms::{send_packet, eth_interrupt, init_comms, NetworkingStorage};
     use crate::logging::{DataLogger, log_data_to_flash, erase_data_log_flash, set_data_logging_state, read_log_page_and_transfer, usart2_interrupt};
     use crate::sensors::{bmi088_interrupt, bmm150_interrupt, ms5611_update};
 
@@ -186,8 +186,8 @@ mod app {
     type Monotonic = Systick<1000>;
 
     #[init(local = [
-        rx_ring: [RxRingEntry; 4] = [RX_RING_ENTRY_DEFAULT; 4],
-        tx_ring: [TxRingEntry; 4] = [TX_RING_ENTRY_DEFAULT; 4],
+        rx_ring: [RxRingEntry; 4] = [RxRingEntry::INIT; 4],
+        tx_ring: [TxRingEntry; 4] = [TxRingEntry::INIT; 4],
         net_storage: NetworkingStorage = NetworkingStorage::new(),
         dma: MaybeUninit<EthernetDMA<'static, 'static>> = MaybeUninit::uninit(),
         fcu_driver: MaybeUninit<Stm32F407FcuDriver> = MaybeUninit::uninit(),

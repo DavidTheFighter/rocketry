@@ -46,7 +46,7 @@ impl SendingThread {
     fn send_packet(&self, packet: Packet, destination: NetworkAddress, event_id: u64) {
         let mut buffer = [0_u8; PACKET_BUFFER_SIZE];
 
-        match self.comms().process_packet(packet, destination, &mut buffer) {
+        match self.comms().process_packet(&packet, destination, &mut buffer) {
             Ok((size, ip)) => {
                 let address = Self::ip_str_from_octets(ip, RECV_PORT);
 
@@ -62,7 +62,7 @@ impl SendingThread {
             Err(err) => {
                 self.send_packet_resonse(
                     event_id,
-                    Err(format!("send_thread: Failed to serialize packet: {:?}", err)),
+                    Err(format!("send_thread: Failed to serialize packet {:?} with error: {:?}", packet, err)),
                 );
             }
         }
@@ -72,7 +72,7 @@ impl SendingThread {
         let mut buffer = [0_u8; PACKET_BUFFER_SIZE];
         let packet = Packet::Heartbeat;
 
-        match self.comms().process_packet(packet, NetworkAddress::Broadcast, &mut buffer) {
+        match self.comms().process_packet(&packet, NetworkAddress::Broadcast, &mut buffer) {
             Ok((size, ip)) => {
                 let address = Self::ip_str_from_octets(ip, RECV_PORT);
 

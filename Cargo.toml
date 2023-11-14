@@ -11,6 +11,7 @@ members = [
 ]
 
 exclude = [
+    "bootloader/stm32f4xx-ethboot",
     "ecu/targets/stm32f407",
     "flight-controller/fcu-stm32f407",
 ]

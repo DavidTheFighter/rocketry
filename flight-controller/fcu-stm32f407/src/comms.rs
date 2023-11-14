@@ -13,9 +13,6 @@ pub const DEVICE_MAC_ADDR: [u8; 6] = [0x00, 0x80, 0xE1, 0x00, 0x00, 0x01];
 pub const DEVICE_IP_ADDR: wire::Ipv4Address = wire::Ipv4Address::new(169, 254, 0, 7);
 pub const DEVICE_CIDR_LENGTH: u8 = 16;
 
-pub const RX_RING_ENTRY_DEFAULT: RxRingEntry = RxRingEntry::new();
-pub const TX_RING_ENTRY_DEFAULT: TxRingEntry = TxRingEntry::new();
-
 pub fn eth_interrupt(ctx: app::eth_interrupt::Context) {
     let iface = ctx.shared.interface;
     let udp = ctx.shared.udp_socket_handle;
@@ -67,7 +64,7 @@ pub fn send_packet(ctx: app::send_packet::Context, packet: Packet, address: Netw
             return;
         }
 
-        let result = comms_manager.process_packet(packet, address, buffer);
+        let result = comms_manager.process_packet(&packet, address, buffer);
 
         match result {
             Ok((size, ip)) => {
