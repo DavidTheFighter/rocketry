@@ -96,7 +96,7 @@ impl Streamish {
         let mut buffer = [0u8; PACKET_BUFFER_SIZE];
         let packet = Packet::Heartbeat;
         let destination = NetworkAddress::Broadcast;
-        match self.comms_manager.process_packet(packet, destination, &mut buffer) {
+        match self.comms_manager.process_packet(&packet, destination, &mut buffer) {
             Ok((bytes_written, ip)) => {
                 let addr = Self::ip_str_from_octets(ip, UDP_RECV_PORT);
                 self.socket

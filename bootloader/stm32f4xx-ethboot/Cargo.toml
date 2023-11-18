@@ -8,27 +8,44 @@ edition = "2021"
 [dependencies]
 cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
+cortex-m-rtic = { version = "1.1.4", features = ["test-critical-section"] }
 panic-halt = "0.2.0"
+strum = { version = "0.24", default-features = false, features = ["derive"] }
+defmt = { version = "0.3", features = ["encoding-rzcobs"] }
+defmt-brtt = { version = "0.1", default-features = false, features = ["rtt"] }
+
+[dependencies.ethboot-shared]
+path = "../ethboot-shared"
 
 [dependencies.stm32f4]
-version = "0.15.1"
+version = "0.15"
 features = ["rt", "stm32f407"]
 
 [dependencies.stm32f4xx-hal]
-version = "0.14.0"
+version = "0.14"
 features = ["rt", "defmt", "stm32f407"]
 
 [dependencies.stm32-eth]
-version = "0.3.0"
+version = "0.5.2"
 features = ["stm32f407", "smoltcp-phy"]
 
 [dependencies.smoltcp]
-version = "0.8.2"
+version = "0.10"
 default-features = false
-features = ["medium-ethernet", "socket-udp", "proto-ipv4"]
+features = ["medium-ethernet", "socket-udp", "proto-ipv4", "defmt"]
 
-[patch.crates-io]
-stm32-eth = { git = "https://github.com/DavidTheFighter/stm32-eth" }
+[profile.dev]
+codegen-units = 1
+debug = 2
+debug-assertions = true # <-
+incremental = false
+opt-level = "s" # <-
+overflow-checks = true # <-
 
 [profile.release]
 opt-level = "z"
+codegen-units = 1
+debug = 2
+debug-assertions = true # <-
+incremental = false
+overflow-checks = true # <-

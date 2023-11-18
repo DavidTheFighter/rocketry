@@ -2,9 +2,10 @@
 MEMORY
 {
     /* NOTE 1 K = 1 KiBi = 1024 bytes */
-    RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 128K
-    CCMRAM (xrw)      : ORIGIN = 0x10000000, LENGTH = 64K
     FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 512K
+    RAM (xrw)       : ORIGIN = 0x20000000, LENGTH = 128K
+    CCMRAM (xrw)    : ORIGIN = 0x10000000, LENGTH = 64K
+    BKPSRAM (rw)    : ORIGIN = 0x40024000, LENGTH = 4K
 }
 
 /* This is where the call stack will be allocated. */

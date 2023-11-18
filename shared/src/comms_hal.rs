@@ -80,6 +80,7 @@ pub enum Packet {
     IgniteSolidMotor {
         magic_number: u64, // fcu_hal::IGNITION_MAGIC_NUMBER
     },
+    EnterBootloader,
 
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
@@ -236,6 +237,7 @@ pub mod tests_data {
         Packet::StartCalibration { zero: true },
         Packet::ArmVehicle { magic_number: ARMING_MAGIC_NUMBER },
         Packet::IgniteSolidMotor { magic_number: IGNITION_MAGIC_NUMBER },
+        Packet::EnterBootloader,
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
         Packet::AlertBitmask(0x1234),
