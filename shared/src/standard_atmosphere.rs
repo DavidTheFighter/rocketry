@@ -51,4 +51,18 @@ mod tests {
         println!("pressure_pa: {}", pressure_pa);
         assert!((pressure_pa - 101325.0).abs() < 1e-3);
     }
+
+    #[test]
+    fn test_sweep_altitude_backconversions() {
+        let temperature_c = 15.0;
+        let epsilon = 1e-2;
+
+        for altitude_m in 0..20000 {
+            let pressure_pa = convert_altitude_to_pressure(altitude_m as f32, temperature_c);
+            let altitude_m2 = convert_pressure_to_altitude(pressure_pa, temperature_c);
+
+            println!("altitude_m: {}, altitude_m2: {}", altitude_m, altitude_m2);
+            assert!((altitude_m2 - altitude_m as f32).abs() < epsilon);
+        }
+    }
 }

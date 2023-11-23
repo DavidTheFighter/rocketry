@@ -120,7 +120,7 @@ export default {
 .stateTitle {
   text-align: left;
   font-family: monospace;
-  font-size: 1.25em;
+  font-size: 1.15em;
   margin-top: 5px;
   margin-bottom: 5px;
 }
@@ -128,7 +128,7 @@ export default {
 .stateValue {
   text-align: center;
   font-family: monospace;
-  font-size: 1.25em;
+  font-size: 1.15em;
   color: #0BF;
   margin-top: 5px;
   margin-bottom: 5px;
@@ -137,7 +137,7 @@ export default {
 .stateValue.bad {
   text-align: center;
   font-family: monospace;
-  font-size: 1.25em;
+  font-size: 1.15em;
   color: #D00;
   margin-top: 5px;
   margin-bottom: 5px;

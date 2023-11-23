@@ -29,6 +29,8 @@ class Simulation:
     def simulate_until_done(self):
         start_time = time.time()
 
+        self.simulate_until_ascent()
+
         while self.advance_timestep():
             pass
 
@@ -114,11 +116,10 @@ class Simulation:
             self.fcu.update(self.config.fcu_update_rate)
 
         if math.fmod(self.t, self.config.dev_stats_rate) <= self.dt:
-            self.logger.log_dev_stats(self.fcu)
             self.fcu.start_dev_stats_frame()
 
-        self.logger.log_telemetry(self.fcu)
-        self.logger.log_detailed_state(self.fcu)
+        self.logger.log_fcu_data(self.fcu)
+        self.logger.log_dev_stats(self.fcu)
         self.logger.log_position(self.dynamics.position)
         self.logger.log_velocity(self.dynamics.velocity)
         self.logger.log_acceleration(self.dynamics.acceleration_world_frame)
@@ -131,7 +132,7 @@ class Simulation:
         return True
 
     def replay(self):
-        replay = SimReplay(self.logger)
+        replay = SimReplay(self.config, self.logger)
         replay.replay(self.logging)
 
 if __name__ == "__main__":

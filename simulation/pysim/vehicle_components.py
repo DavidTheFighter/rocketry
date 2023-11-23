@@ -27,16 +27,16 @@ class VehicleComponents:
             self.try_ignite_solid_motor(t)
 
         if self.solid_motor_burning:
-            thrust = self.config.thrust / self.config.vehicle_mass
-            thrust_t = (t - self.ignition_time) / self.config.thrust_time
-            thrust *= pow(math.cos(thrust_t * math.pi - math.pi / 2.0), 0.2)
-
-            self.dynamics.motor_thrust = [0.0, thrust, 0.0]
-            self.dynamics.landed = False # TODO Have dynamics figure this out on its own
-
             if t - self.ignition_time >= self.config.thrust_time:
                 self.solid_motor_burning = False
                 self.dynamics.motor_thrust = [0.0]*3
+            else:
+                thrust = self.config.thrust / self.config.vehicle_mass
+                thrust_t = (t - self.ignition_time) / self.config.thrust_time
+                thrust *= pow(math.cos(thrust_t * math.pi - math.pi / 2.0), 0.2)
+
+                self.dynamics.motor_thrust = [0.0, thrust, 0.0]
+                self.dynamics.landed = False # TODO Have dynamics figure this out on its own
 
     def set_solid_motor_igniter_continuity(self, state: bool):
         self.fcu.set_output_continuity(SOLID_MOTOR_IGNITER_NAME, state)

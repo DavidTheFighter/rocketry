@@ -35,8 +35,19 @@ export default {
   name: 'RealtimeLineGraphChartjs',
   components: { Line },
   props: {
-    datasets: {
+    dataDescription: {
       type: Array,
+    },
+    dataset: {
+      type: Object,
+    },
+    displayTimeSeconds: {
+      type: Number,
+      default: 10.0,
+    },
+    displayTickInterval: {
+      type: Number,
+      default: 1.0,
     },
     yrange: {
       type: Array,
@@ -70,21 +81,6 @@ export default {
       type: Number,
       default: 250,
     },
-    numXTicks: {
-      type: Number,
-      default: 10.0,
-    },
-    scaleXTicks: {
-      type: Number,
-      default: 1.0,
-    },
-    bufferLength: {
-      type: Number,
-      default: 150,
-    },
-    dataset: {
-      type: Object,
-    }
   },
   data() {
     let dataDict = {
@@ -130,9 +126,11 @@ export default {
               maxRotation: 0,
               autoSkip: false,
               callback: (_value, index, ticks) => {
-                if (Math.fmod(index, (ticks.length - 1.0) / this.numXTicks) < 1.0) {
-                  const val =  Math.floor(index / ((ticks.length - 1) / this.numXTicks));
-                  return (val - this.numXTicks) * this.scaleXTicks;
+                const numXTicks = this.displayTimeSeconds / this.displayTickInterval;
+
+                if (Math.fmod(index, (ticks.length - 1.0) / numXTicks) < 1.0) {
+                  const val =  Math.floor(index / ((ticks.length - 1) / numXTicks));
+                  return (val - numXTicks) * this.displayTickInterval;
                 } else {
                   return null;
                 }
@@ -216,24 +214,26 @@ export default {
     return dataDict;
   },
   created() {
+    this.bufferLength = 100;
+
     this.workingDatasets = [];
-    for (let i = 0; i < this.datasets.length; i++) {
+    for (let i = 0; i < this.dataDescription.length; i++) {
       const workingDataset = [];
       for (let j = 0; j < this.bufferLength; j++) {
         workingDataset.push(0.0);
       }
 
       this.workingDatasets.push(workingDataset);
-      this.chartLabels.push(this.datasets[i].name);
+      this.chartLabels.push(this.dataDescription[i].name);
     }
 
     if (this.labelLegend) {
       this.workingDatasets.push([this.workingDatasets[0][0]]); // Invisible middle element
       this.chartLabels.push("");
 
-      for (let i = 0; i < this.datasets.length; i++) {
+      for (let i = 0; i < this.dataDescription.length; i++) {
         this.workingDatasets.push([this.workingDatasets[i][0]]);
-        this.chartLabels.push("");
+        this.chartLabels.push("?");
       }
     }
   },
@@ -251,9 +251,9 @@ export default {
   },
   methods: {
     updateish() {
-      if (this.datasets != null && this.datasets != undefined) {
-        for (let i = 0; i < this.datasets.length; i++) {
-          const datasetDesc = this.datasets[i];
+      if (this.dataDescription != null && this.dataDescription != undefined) {
+        for (let i = 0; i < this.dataDescription.length; i++) {
+          const datasetDesc = this.dataDescription[i];
           if (datasetDesc.dataName == undefined) {
             continue;
           }
@@ -280,53 +280,52 @@ export default {
 
           data = data.map((x) => x * scale + offset);
 
-          this.workingDatasets[i].splice(0, data.length);
-          this.workingDatasets[i].push(...data);
+          this.bufferLength = data.length;
+          this.workingDatasets[i] = [...data];
         }
       }
 
       this.counter += 1;
-      // setTimeout(() => this.updateish(), Math.max(0, 33 - (Date.now() - start)));
     },
     chartData() {
       let chartDatasets = [];
       let maxSize = 0;
 
-      this.datasets.forEach((dataset, index) => {
+      this.dataDescription.forEach((description, index) => {
         chartDatasets.push({
             label: this.chartLabels[index],
-            backgroundColor: dataset.color,
-            borderColor: dataset.color,
+            backgroundColor: description.color,
+            borderColor: description.color,
             borderWidth: 2,
             data: this.workingDatasets[index],
         });
 
-        maxSize = Math.max(maxSize, dataset.data?.length);
+        maxSize = Math.max(maxSize, description.data?.length);
       });
 
       if (this.labelLegend) {
         chartDatasets.push({
-          label: this.chartLabels[this.datasets.length],
+          label: this.chartLabels[this.dataDescription.length],
           backgroundColor: 'rgba(0, 0, 0, 0.0)',
           borderColor: 'rgba(0, 0, 0, 0.0)',
           borderWidth: 0,
-          data: this.workingDatasets[this.datasets.length],
+          data: this.workingDatasets[this.dataDescription.length],
         });
 
-        this.datasets.forEach((dataset, index) => {
+        this.dataDescription.forEach((dataset, index) => {
           chartDatasets.push({
-              label: this.chartLabels[this.datasets.length + 1 + index],
+              label: this.chartLabels[this.dataDescription.length + 1 + index],
               backgroundColor: dataset.color,
               borderColor: dataset.color,
               borderWidth: 0,
-              data: this.workingDatasets[this.datasets.length + 1 + index],
+              data: this.workingDatasets[this.dataDescription.length + 1 + index],
           });
         });
       }
 
       return {
           labels: Array(this.bufferLength).fill(null).map((u, i) => {
-            const range = this.scaleXTicks * this.numXTicks;
+            const range = this.displayTimeSeconds / this.displayTickInterval;
             return "T" + (-range + (i / (this.bufferLength / range))).toFixed(1) + "s";
           }),
           datasets: chartDatasets,
@@ -335,7 +334,7 @@ export default {
     async updateRealtimeValues() {
       setTimeout(() => this.updateRealtimeValues(), this.realtimeNumberRefreshMillis);
 
-      this.datasets.forEach((dataset, index) => {
+      this.dataDescription.forEach((description, index) => {
         const value = this.workingDatasets[index][this.workingDatasets[index].length - 1];
         let str = `${value.toFixed(this.decimals)}`;
         let intStr = `${Math.floor(value)}`;
@@ -344,11 +343,11 @@ export default {
           str = " " + str;
         }
 
-        str = str + (" " + (dataset.units ?? ""));
+        str = str + (" " + (description.units ?? ""));
 
         if (this.labelLegend) {
-          this.chartLabels[index] = dataset.name;
-          this.chartLabels[this.chartLabels.length + 1 + index] = str;
+          this.chartLabels[index] = description.name;
+          this.chartLabels[this.dataDescription.length + 1 + index] = str;
         } else {
           this.chartLabels[index] = str;
         }

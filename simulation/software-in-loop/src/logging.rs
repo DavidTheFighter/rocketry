@@ -1,4 +1,4 @@
-use shared::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame};
+use shared::{fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame}, comms_hal::{Packet, PACKET_BUFFER_SIZE, NetworkAddress}};
 use pyo3::{prelude::*, types::{PyDict, PyList}};
 use serde::{Serialize, Deserialize};
 use std::{io::Write, thread};
@@ -12,9 +12,11 @@ type Scalar = f64;
 pub struct Logger {
     #[pyo3(get, set)]
     pub dt: Scalar,
+    // Per timestep data
     pub telemetry: Vec<FcuTelemetryFrame>,
     pub detailed_state: Vec<FcuDebugInfo>,
     pub dev_stats: Vec<FcuDevStatsFrame>,
+    pub outbound_packets: Vec<Vec<Packet>>,
     #[pyo3(get, set)]
     pub position: Vec<Vec<Scalar>>,
     #[pyo3(get, set)]
@@ -38,6 +40,7 @@ impl Logger {
             telemetry: Vec::new(),
             detailed_state: Vec::new(),
             dev_stats: Vec::new(),
+            outbound_packets: Vec::new(),
             position: Vec::new(),
             velocity: Vec::new(),
             acceleration: Vec::new(),
@@ -47,7 +50,9 @@ impl Logger {
         }
     }
 
-    pub fn log_telemetry(&mut self, fcu: &mut FcuSil) {
+    pub fn log_fcu_data(&mut self, fcu: &mut FcuSil) {
+        let debug_info = fcu.fcu.generate_debug_info();
+
         let driver = fcu
             .fcu
             .driver
@@ -58,12 +63,11 @@ impl Logger {
         if let Some(packet) = &driver.last_telem_packet {
             self.telemetry.push(packet.clone());
         }
-    }
 
-    pub fn log_detailed_state(&mut self, fcu: &mut FcuSil) {
-        let state = fcu.fcu.generate_debug_info();
+        self.detailed_state.push(debug_info);
 
-        self.detailed_state.push(state);
+        self.outbound_packets.push(driver.packet_log_queue.clone());
+        driver.packet_log_queue.clear();
     }
 
     pub fn log_dev_stats(&mut self, fcu: &mut FcuSil) {
@@ -117,6 +121,42 @@ impl Logger {
         dict.set_item("detailed_state", dict_from_obj(py, &self.detailed_state[i]))?;
 
         Ok(dict.into())
+    }
+
+    pub fn get_outbound_packets(&mut self, py: Python, i: usize) -> PyResult<PyObject> {
+        let packet_list = PyList::empty(py);
+        let mut buffer = [0_u8; PACKET_BUFFER_SIZE];
+        for packet in &self.outbound_packets[i] {
+            let byte_list = PyList::empty(py);
+
+            let from_addr = NetworkAddress::FlightController;
+            let to_addr = NetworkAddress::MissionControl;
+
+            let to_size = to_addr.serialize(&mut buffer).unwrap();
+            byte_list.append(to_size as u8)?;
+
+            let from_size = from_addr.serialize(&mut buffer).unwrap();
+            byte_list.append(from_size as u8)?;
+
+            to_addr.serialize(&mut buffer).unwrap();
+            for byte in &buffer[..to_size] {
+                byte_list.append(*byte)?;
+            }
+
+            from_addr.serialize(&mut buffer).unwrap();
+            for byte in &buffer[..from_size] {
+                byte_list.append(*byte)?;
+            }
+
+            let size = packet.serialize(&mut buffer).unwrap();
+            for byte in &buffer[..size] {
+                byte_list.append(*byte)?;
+            }
+
+            packet_list.append(byte_list)?;
+        }
+
+        Ok(packet_list.into())
     }
 
     pub fn get_dev_stat_frames(&self, py: Python) -> PyResult<PyObject> {

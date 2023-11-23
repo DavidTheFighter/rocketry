@@ -13,6 +13,7 @@ pub struct FcuDriverSim {
     pwm: [f32; PwmChannel::COUNT],
     continuities: [bool; OutputChannel::COUNT],
     socket: Option<UdpSocket>,
+    pub packet_log_queue: Vec<Packet>,
     pub current_sim_timestamp: f32,
     pub last_sim_timestamp_update_timestamp: f64,
     pub last_telem_packet: Option<FcuTelemetryFrame>,
@@ -47,17 +48,19 @@ impl FcuDriver for FcuDriverSim {
     }
 
     fn send_packet(&mut self, packet: Packet, _destination: NetworkAddress) {
+        let mut buffer = [0_u8; BUFFER_SIZE];
+
+        if let Packet::FcuTelemetry(frame) = &packet {
+            self.last_telem_packet = Some(frame.clone());
+        }
+
+        if let Packet::FcuDevStatsFrame(frame) = &packet {
+            self.last_dev_stats_packet = Some(frame.clone());
+        }
+
+        self.packet_log_queue.push(packet.clone());
+
         if let Some(socket) = self.socket.as_mut() {
-            let mut buffer = [0_u8; BUFFER_SIZE];
-
-            if let Packet::FcuTelemetry(frame) = &packet {
-                self.last_telem_packet = Some(frame.clone());
-            }
-
-            if let Packet::FcuDevStatsFrame(frame) = &packet {
-                self.last_dev_stats_packet = Some(frame.clone());
-            }
-
             match packet.serialize(&mut buffer) {
                 Ok(size) => {
                     let address = "127.0.0.1:25565";
@@ -101,6 +104,7 @@ impl FcuDriverSim {
             pwm: [0.0; PwmChannel::COUNT],
             continuities: [false; OutputChannel::COUNT],
             socket: None,
+            packet_log_queue: Vec::new(),
             current_sim_timestamp: 0.0,
             last_sim_timestamp_update_timestamp: get_timestamp(),
             last_telem_packet: None,

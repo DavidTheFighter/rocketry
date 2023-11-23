@@ -2,7 +2,6 @@ from pysim.simulation import Simulation
 from threading import Thread
 import json
 import time
-import math
 from bottle import route, run, response, app
 from bottle_cors_plugin import cors_plugin
 

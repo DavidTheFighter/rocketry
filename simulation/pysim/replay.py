@@ -1,21 +1,31 @@
+import socket
 import time
 from pysim.config import *
 import numpy as np
 from software_in_loop import Logger
 
+MISSION_CTRL_PORT = 25565
+
 class SimReplay():
-    def __init__(self, logger: Logger):
+    def __init__(self, config: SimConfig, logger: Logger):
         self.logger = logger
+        self.config = config
 
     def replay(self, logging):
         lt = time.time()
         dt = self.logger.dt
 
+        udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        packet_accum = []
+
         print(self.logger.num_timesteps())
         for i in range(self.logger.num_timesteps()):
             t = float(i) * dt
 
-            if i % (int(FCU_UPDATE_RATE / dt)) == 0:
+            packet_accum += self.logger.get_outbound_packets(i)
+
+            if i % (int(self.config.fcu_update_rate / dt)) == 0:
                 print('Time {:.2f} s'.format(t))
 
                 data = self.logger.grab_timestep_frame(i)
@@ -48,10 +58,14 @@ class SimReplay():
 
                 logging.put(data)
 
-                while time.time() < lt + FCU_UPDATE_RATE:
+                while len(packet_accum) > 0:
+                    packet_data = bytearray(packet_accum.pop(0))
+                    udp_socket.sendto(packet_data, ("localhost", MISSION_CTRL_PORT))
+
+                while time.time() < lt + self.config.fcu_update_rate:
                     pass
                 lt = time.time()
 
-        dev_stats_frames = self.logger.get_dev_stat_frames()
-        for frame in dev_stats_frames:
-            print("Dev stats: {}".format(frame))
+        # dev_stats_frames = self.logger.get_dev_stat_frames()
+        # for frame in dev_stats_frames:
+        #     print("Dev stats: {}".format(frame))

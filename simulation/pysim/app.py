@@ -5,12 +5,13 @@ import multiprocessing
 import subprocess
 import os
 from threading import Thread
-from pysim.simulation import Simulation
 from queue import Queue
 import json
 import software_in_loop
 
+from pysim.simulation import Simulation
 from pysim.replay import SimReplay
+from pysim.config import SimConfig
 
 def main():
     data_queue = multiprocessing.Queue()
@@ -25,16 +26,19 @@ def main():
         if sys.argv[1].lower() == "replay":
             replay = True
 
+    config = SimConfig()
+    config.auto_ignite_solid_motor = True
+
     if not replay:
-        sim = Simulation(data_queue)
+        sim = Simulation(config, data_queue, log_to_file=True)
         print("Simulating...")
-        sim.simulate()
+        sim.simulate_until_done()
         print("Done! Replaying")
         sim.replay()
     else:
         logs = software_in_loop.load_logs_from_file('last-sim.json')
 
-        replay = SimReplay(logs)
+        replay = SimReplay(config, logs)
         replay.replay(data_queue)
 
 if __name__ == "__main__":
