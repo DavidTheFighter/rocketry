@@ -78,7 +78,6 @@ def test_send_fcu_config(config):
     sim.simulate_for(config.fcu_update_rate)
     assert abs(sim.fcu.fcu_config()['telemetry_rate'] - 0.1) < 1e-3
 
-
 @pytest.mark.parametrize("accel_bias,gyro_bias,baro_bias", [
     (-0.75, -0.75, -0.75), (0.75, 0.75, 0.75), (0.0, 0.0, 0.0),
     (-0.75, 0.75, 0.2), (0.2, -0.4, 0.0), (0.1, -0.2, 0.3),

@@ -22,7 +22,7 @@ use dev_stats::DevStatsCollector;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::{
-        FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame, OutputChannel,
+        FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame,
         PwmChannel, VehicleState, FcuAlertCondition,
     }, alerts::AlertManager,
 };
@@ -238,8 +238,3 @@ impl<'a> Fcu<'a> {
 
 #[allow(unsafe_code)]
 unsafe impl Send for Fcu<'_> {}
-
-pub(crate) trait FiniteStateMachine<D> {
-    fn update(fcu: &mut Fcu, dt: f32, packets: &[(NetworkAddress, Packet)]) -> Option<D>;
-    fn setup_state(fcu: &mut Fcu);
-}

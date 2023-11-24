@@ -1,11 +1,11 @@
-use super::{ComponentStateMachine, FsmState, Landed};
+use super::{FsmState, Landed};
 use crate::Fcu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    fcu_hal::VehicleState,
+    ControllerState,
 };
 
-impl ComponentStateMachine<FsmState> for Landed {
+impl<'f> ControllerState<FsmState, Fcu<'f>> for Landed {
     fn update(
         &mut self,
         _fcu: &mut Fcu,
@@ -15,16 +15,12 @@ impl ComponentStateMachine<FsmState> for Landed {
         None
     }
 
-    fn enter_state<'a>(&mut self, fcu: &'a mut Fcu) {
+    fn enter_state(&mut self, fcu: & mut Fcu) {
         fcu.state_vector.set_landed(true);
     }
 
-    fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn exit_state(&mut self, _fcu: & mut Fcu) {
         // Nothing
-    }
-
-    fn hal_state(&self) -> VehicleState {
-        VehicleState::Landed
     }
 }
 

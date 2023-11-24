@@ -2,16 +2,16 @@ use shared::{fcu_hal::VehicleState, comms_hal::{Packet, NetworkAddress}};
 use crate::Fcu;
 use super::{ComponentStateMachine, FsmState, STATE};
 
-impl ComponentStateMachine<FsmState> for STATE {
-    fn update<'a>(&mut self, fcu: &'a mut Fcu, dt: f32, packets: &[(NetworkAddress, Packet)]) -> Option<FsmState> {
+impl<'f> ControllerState<FsmState, Fcu<'f>> for STATE {
+    fn update<'a>(&mut self, fcu: & mut Fcu, dt: f32, packets: &[(NetworkAddress, Packet)]) -> Option<FsmState> {
         None
     }
 
-    fn enter_state<'a>(&mut self, fcu: &'a mut Fcu) {
+    fn enter_state(&mut self, fcu: & mut Fcu) {
         todo!()
     }
 
-    fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn exit_state(&mut self, _fcu: & mut Fcu) {
         todo!()
     }
 

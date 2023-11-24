@@ -1,9 +1,9 @@
-use shared::{fcu_hal::{VehicleState, self, OutputChannel}, comms_hal::{Packet, NetworkAddress}};
+use shared::{fcu_hal::{self, OutputChannel}, comms_hal::{Packet, NetworkAddress}, ControllerState};
 use crate::Fcu;
-use super::{ComponentStateMachine, FsmState, Armed, Ignition};
+use super::{FsmState, Armed, Ignition};
 
-impl ComponentStateMachine<FsmState> for Armed {
-    fn update<'a>(&mut self, fcu: &'a mut Fcu, _dt: f32, packets: &[(NetworkAddress, Packet)]) -> Option<FsmState> {
+impl<'f> ControllerState<FsmState, Fcu<'f>> for Armed {
+    fn update<'a>(&mut self, fcu: & mut Fcu, _dt: f32, packets: &[(NetworkAddress, Packet)]) -> Option<FsmState> {
         if self.received_ignition_command(packets) && self.igniter_has_continuity(fcu) {
             return Some(Ignition::new());
         }
@@ -11,16 +11,12 @@ impl ComponentStateMachine<FsmState> for Armed {
         None
     }
 
-    fn enter_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn enter_state(&mut self, _fcu: & mut Fcu) {
         // Nothing
     }
 
-    fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn exit_state(&mut self, _fcu: & mut Fcu) {
         // Nothing
-    }
-
-    fn hal_state(&self) -> VehicleState {
-        VehicleState::Armed
     }
 }
 

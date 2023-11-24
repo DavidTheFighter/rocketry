@@ -1,15 +1,15 @@
-use super::{Calibrating, ComponentStateMachine, FsmState, Idle};
+use super::{Calibrating, FsmState, Idle};
 use crate::{state_vector::SensorCalibrationData, Fcu};
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    fcu_hal::VehicleState,
+    ControllerState,
 };
 use nalgebra::{Vector3, UnitVector3, UnitQuaternion};
 
 #[allow(unused_imports)]
 use num_traits::Float;
 
-impl ComponentStateMachine<FsmState> for Calibrating {
+impl<'f> ControllerState<FsmState, Fcu<'f>> for Calibrating {
     fn update(
         &mut self,
         fcu: &mut Fcu,
@@ -25,11 +25,11 @@ impl ComponentStateMachine<FsmState> for Calibrating {
         None
     }
 
-    fn enter_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn enter_state(&mut self, _fcu: & mut Fcu) {
         // Nothing
     }
 
-    fn exit_state<'a>(&mut self, fcu: &'a mut Fcu) {
+    fn exit_state(&mut self, fcu: & mut Fcu) {
         let mut accelerometer_avg = self.accelerometer / (self.data_count as f32);
         let down = Vector3::new(0.0, -1.0, 0.0);//accelerometer_avg.normalize();
         let acceleration_by_gravity = down * 9.80665;
@@ -69,14 +69,10 @@ impl ComponentStateMachine<FsmState> for Calibrating {
             }
         }
     }
-
-    fn hal_state(&self) -> VehicleState {
-        VehicleState::Calibrating
-    }
 }
 
 impl Calibrating {
-    pub fn new<'a>(fcu: &'a mut Fcu, zero: bool) -> FsmState {
+    pub fn new<'a>(fcu: & mut Fcu, zero: bool) -> FsmState {
         FsmState::Calibrating(Self {
             start_time: fcu.driver.timestamp(),
             accelerometer: Vector3::zeros(),

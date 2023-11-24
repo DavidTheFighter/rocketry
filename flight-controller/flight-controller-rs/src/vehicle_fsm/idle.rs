@@ -1,14 +1,14 @@
-use super::{Calibrating, ComponentStateMachine, FsmState, Idle, Armed};
+use super::{Calibrating, FsmState, Idle, Armed};
 use crate::Fcu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    fcu_hal::{VehicleState, self},
+    fcu_hal, ControllerState,
 };
 
-impl ComponentStateMachine<FsmState> for Idle {
+impl<'f> ControllerState<FsmState, Fcu<'f>> for Idle {
     fn update<'a>(
         &mut self,
-        fcu: &'a mut Fcu,
+        fcu: & mut Fcu,
         _dt: f32,
         packets: &[(NetworkAddress, Packet)],
     ) -> Option<FsmState> {
@@ -21,16 +21,12 @@ impl ComponentStateMachine<FsmState> for Idle {
         None
     }
 
-    fn enter_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn enter_state(&mut self, _fcu: & mut Fcu) {
         // Nothing
     }
 
-    fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn exit_state(&mut self, _fcu: & mut Fcu) {
         // Nothing
-    }
-
-    fn hal_state(&self) -> VehicleState {
-        VehicleState::Idle
     }
 }
 

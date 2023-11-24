@@ -1,9 +1,9 @@
-use shared::{fcu_hal::{VehicleState, OutputChannel}, comms_hal::{Packet, NetworkAddress}};
+use shared::{fcu_hal::OutputChannel, comms_hal::{Packet, NetworkAddress}, ControllerState};
 use crate::Fcu;
-use super::{ComponentStateMachine, FsmState, Ignition, Ascent};
+use super::{FsmState, Ignition, Ascent};
 
-impl ComponentStateMachine<FsmState> for Ignition {
-    fn update<'a>(&mut self, fcu: &'a mut Fcu, _dt: f32, _packets: &[(NetworkAddress, Packet)]) -> Option<FsmState> {
+impl<'f> ControllerState<FsmState, Fcu<'f>> for Ignition {
+    fn update<'a>(&mut self, fcu: & mut Fcu, _dt: f32, _packets: &[(NetworkAddress, Packet)]) -> Option<FsmState> {
         if self.begun_accelerating(fcu) {
             fcu.state_vector.set_landed(false);
             return Some(Ascent::new());
@@ -12,16 +12,12 @@ impl ComponentStateMachine<FsmState> for Ignition {
         None
     }
 
-    fn enter_state<'a>(&mut self, fcu: &'a mut Fcu) {
+    fn enter_state(&mut self, fcu: & mut Fcu) {
         fcu.driver.set_output_channel(OutputChannel::SolidMotorIgniter, true);
     }
 
-    fn exit_state<'a>(&mut self, fcu: &'a mut Fcu) {
+    fn exit_state(&mut self, fcu: & mut Fcu) {
         fcu.driver.set_output_channel(OutputChannel::SolidMotorIgniter, false);
-    }
-
-    fn hal_state(&self) -> VehicleState {
-        VehicleState::Ignition
     }
 }
 

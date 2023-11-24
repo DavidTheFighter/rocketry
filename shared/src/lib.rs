@@ -11,9 +11,21 @@ pub mod fcu_mock;
 pub mod logger;
 pub mod standard_atmosphere;
 
+use comms_hal::{NetworkAddress, Packet};
 use serde::{Deserialize, Serialize};
 
 pub const GRAVITY: f32 = 9.80665; // In m/s^2
+
+pub trait ControllerState<S, C> {
+    fn update(
+        &mut self,
+        controller: &mut C,
+        dt: f32,
+        packets: &[(NetworkAddress, Packet)],
+    ) -> Option<S>;
+    fn enter_state(&mut self, controller: &mut C);
+    fn exit_state(&mut self, controller: &mut C);
+}
 
 // Describes a polynomial calibration curve for a sensor.
 // Given in the form: y = x0 + x1 * x + x2 * x^2 + x3 * x^3

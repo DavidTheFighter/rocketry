@@ -1,7 +1,7 @@
 use crate::Fcu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    fcu_hal::VehicleState,
+    fcu_hal::VehicleState, ControllerState,
 };
 use nalgebra::Vector3;
 
@@ -54,7 +54,7 @@ pub enum FsmState {
 }
 
 impl FsmState {
-    fn to_fsm_component(&mut self) -> &mut dyn ComponentStateMachine<FsmState> {
+    fn to_controller_state<'a>(&mut self) -> &mut dyn ControllerState<FsmState, Fcu<'a>> {
         match self {
             FsmState::Idle(state) => state,
             FsmState::Calibrating(state) => state,
@@ -65,12 +65,24 @@ impl FsmState {
             FsmState::Landed(state) => state,
         }
     }
+
+    fn hal_state(&self) -> VehicleState {
+        match self {
+            FsmState::Idle(_) => VehicleState::Idle,
+            FsmState::Calibrating(_) => VehicleState::Calibrating,
+            FsmState::Armed(_) => VehicleState::Armed,
+            FsmState::Ignition(_) => VehicleState::Ignition,
+            FsmState::Ascent(_) => VehicleState::Ascent,
+            FsmState::Descent(_) => VehicleState::Descent,
+            FsmState::Landed(_) => VehicleState::Landed,
+        }
+    }
 }
 
 impl<'a> Fcu<'a> {
     pub fn update_vehicle_fsm(&mut self, dt: f32, packets: &[(NetworkAddress, Packet)]) {
         let mut current_state = self.vehicle_fsm_state.take().unwrap();
-        let new_state = current_state.to_fsm_component().update(self, dt, packets);
+        let new_state = current_state.to_controller_state().update(self, dt, packets);
 
         if let Some(new_state) = new_state {
             self.transition_vehicle_state(Some(current_state), new_state);
@@ -81,12 +93,12 @@ impl<'a> Fcu<'a> {
 
     fn transition_vehicle_state(&mut self, old_state: Option<FsmState>, mut new_state: FsmState) {
         if let Some(mut old_state) = old_state {
-            old_state.to_fsm_component().exit_state(self);
+            old_state.to_controller_state().exit_state(self);
         }
 
-        new_state.to_fsm_component().enter_state(self);
+        new_state.to_controller_state().enter_state(self);
 
-        self.vehicle_state = new_state.to_fsm_component().hal_state();
+        self.vehicle_state = new_state.hal_state();
         self.vehicle_fsm_state = Some(new_state);
     }
 
@@ -94,16 +106,4 @@ impl<'a> Fcu<'a> {
         let new_state = Calibrating::new(self, true);
         self.transition_vehicle_state(None, new_state);
     }
-}
-
-pub(crate) trait ComponentStateMachine<D> {
-    fn update<'a>(
-        &mut self,
-        fcu: &'a mut Fcu,
-        dt: f32,
-        packets: &[(NetworkAddress, Packet)],
-    ) -> Option<D>;
-    fn enter_state<'a>(&mut self, fcu: &'a mut Fcu);
-    fn exit_state<'a>(&mut self, fcu: &'a mut Fcu);
-    fn hal_state(&self) -> VehicleState;
 }

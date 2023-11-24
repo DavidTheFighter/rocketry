@@ -24,16 +24,17 @@ pub struct FcuGraphData {
 }
 
 const FCU_GRAPH_DISPLAY_TIME_S: f32 = 20.0;
-const FCU_GRAPH_SAMPLES_PER_S: f32  = 5.0;
-pub const FCU_GRAPH_MAX_DATA_POINTS: usize = (FCU_GRAPH_DISPLAY_TIME_S * FCU_GRAPH_SAMPLES_PER_S) as usize;
+const FCU_VISUAL_UPDATES_PER_S: f32  = 5.0;
+pub const FCU_GRAPH_MAX_DATA_POINTS: usize = (FCU_GRAPH_DISPLAY_TIME_S * FCU_VISUAL_UPDATES_PER_S) as usize;
 
-static LATEST_FCU_TELEMETRY: Mutex<Option<Value>> = Mutex::new(None);
-static LATEST_FCU_DEBUG_INFO: Mutex<Option<Value>> = Mutex::new(None);
-static LATEST_FCU_GRAPH_DATA: Mutex<Option<Value>> = Mutex::new(None);
+static FCU_TELEMETRY_ENDPOINT_DATA: Mutex<Option<Value>> = Mutex::new(None);
+static FCU_DEBUG_INFO_ENDPOINT_DATA: Mutex<Option<Value>> = Mutex::new(None);
+static FCU_GRAPH_ENDPOINT_DATA: Mutex<Option<Value>> = Mutex::new(None);
 
 struct FcuTelemetryHandler {
     observer_handler: Arc<ObserverHandler>,
-    last_fcu_telem_frame: FcuTelemetryFrame,
+    last_fcu_telemetry: FcuTelemetryFrame,
+    last_debug_info: FcuDebugInfo,
     telemetry_rate_record_time: f64,
     last_telemetry_timestamp: f64,
     current_telemetry_rate_hz: u32,
@@ -43,7 +44,8 @@ impl FcuTelemetryHandler {
     pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
         Self {
             observer_handler,
-            last_fcu_telem_frame: FcuTelemetryFrame::default(),
+            last_fcu_telemetry: FcuTelemetryFrame::default(),
+            last_debug_info: FcuDebugInfo::default(),
             telemetry_rate_record_time: 1.0,
             last_telemetry_timestamp: timestamp(),
             current_telemetry_rate_hz: 0,
@@ -59,22 +61,24 @@ impl FcuTelemetryHandler {
             if let Some(packet) = self.get_packet() {
                 match packet {
                     Packet::FcuTelemetry(frame) => {
-                        self.last_fcu_telem_frame = frame;
+                        self.last_fcu_telemetry = frame;
                         self.last_telemetry_timestamp = timestamp();
                         telemetry_counter += 1;
                     },
                     Packet::FcuDebugInfo(debug_info) => {
-                        LATEST_FCU_DEBUG_INFO
+                        self.last_debug_info = debug_info;
+
+                        FCU_DEBUG_INFO_ENDPOINT_DATA
                             .lock()
                             .expect("Failed to lock debug info")
-                            .replace(populate_debug_info(&debug_info));
+                            .replace(self.populate_debug_info());
                     },
                     _ => {}
                 }
             }
 
             let now = timestamp();
-            if now - last_graph_update_time >= (1.0 / FCU_GRAPH_SAMPLES_PER_S) as f64 {
+            if now - last_graph_update_time >= (1.0 / FCU_VISUAL_UPDATES_PER_S) as f64 {
                 last_graph_update_time = now;
 
                 // self.observer_handler.notify(ObserverEvent::SendPacket {
@@ -82,12 +86,12 @@ impl FcuTelemetryHandler {
                 //     packet: Packet::RequestFcuDebugInfo },
                 // );
 
-                LATEST_FCU_TELEMETRY
+                FCU_TELEMETRY_ENDPOINT_DATA
                     .lock()
                     .expect("Failed to lock telemetry state")
-                    .replace(self.populate_telemetry_frame(&self.last_fcu_telem_frame));
+                    .replace(self.populate_telemetry_endpoint());
 
-                let mut graph_data = LATEST_FCU_GRAPH_DATA
+                let mut graph_data = FCU_GRAPH_ENDPOINT_DATA
                     .lock()
                     .expect("Failed to lock FCU telemetry graph data")
                     .clone()
@@ -97,7 +101,7 @@ impl FcuTelemetryHandler {
                     .as_object_mut()
                     .expect("Failed to convert serde value to serde object");
 
-                let graph_data_insert = populate_graph_frame(&self.last_fcu_telem_frame, &FcuDebugInfo::default());
+                let graph_data_insert = self.populate_graph_frame();
 
                 for (key, value) in graph_data_insert.iter() {
                     if !graph_data_map.contains_key(key) {
@@ -117,7 +121,7 @@ impl FcuTelemetryHandler {
                     }
                 }
 
-                LATEST_FCU_GRAPH_DATA
+                FCU_GRAPH_ENDPOINT_DATA
                     .lock()
                     .expect("Failed to lock FCU telemetry graph data")
                     .replace(graph_data);
@@ -134,8 +138,8 @@ impl FcuTelemetryHandler {
         }
     }
 
-    fn populate_telemetry_frame(&self, frame: &FcuTelemetryFrame) -> Value {
-        let mut telemetry_frame = rocket::serde::json::to_value(frame)
+    fn populate_telemetry_endpoint(&self) -> Value {
+        let mut telemetry_frame = rocket::serde::json::to_value(&self.last_fcu_telemetry)
             .expect("Failed to convert telemetry frame to serde value");
 
         let telemetry_frame_map = telemetry_frame
@@ -151,6 +155,28 @@ impl FcuTelemetryHandler {
 
     }
 
+    fn populate_debug_info(&self) -> Value {
+        let mut debug_info = rocket::serde::json::to_value(&self.last_debug_info)
+            .expect("Failed to convert debug info to serde value");
+
+        let debug_info_map = debug_info
+            .as_object_mut()
+            .expect("Failed to convert serde value to serde object");
+
+        debug_info_map.insert(String::from("Funny business"), json!(true));
+
+        debug_info
+    }
+
+    fn populate_graph_frame(&self) -> Map<String, Value> {
+        let mut graph_data = rocket::serde::json::serde_json::Map::new();
+
+        graph_data.insert(String::from("altitude"), json!(self.last_fcu_telemetry.position.y));
+        graph_data.insert(String::from("y_velocity"), json!(self.last_fcu_telemetry.velocity.y));
+
+        graph_data
+    }
+
     fn get_packet(&self) -> Option<Packet> {
         let timeout = Duration::from_millis(1);
 
@@ -164,26 +190,6 @@ impl FcuTelemetryHandler {
     }
 }
 
-fn populate_debug_info(debug_info: &FcuDebugInfo) -> Value {
-    let mut debug_info = rocket::serde::json::to_value(debug_info)
-        .expect("Failed to convert debug info to serde value");
-
-    let debug_info_map = debug_info
-        .as_object_mut()
-        .expect("Failed to convert serde value to serde object");
-
-    debug_info
-}
-
-fn populate_graph_frame(telemetry: &FcuTelemetryFrame, debug_info: &FcuDebugInfo) -> Map<String, Value> {
-    let mut graph_data = rocket::serde::json::serde_json::Map::new();
-
-    graph_data.insert(String::from("altitude"), json!(telemetry.position.y));
-    graph_data.insert(String::from("y_velocity"), json!(telemetry.velocity.y));
-
-    graph_data
-}
-
 pub fn fcu_telemetry_thread(observer_handler: Arc<ObserverHandler>) {
     observer_handler.register_observer_thread();
 
@@ -192,7 +198,7 @@ pub fn fcu_telemetry_thread(observer_handler: Arc<ObserverHandler>) {
 
 #[get("/fcu-telemetry")]
 pub fn fcu_telemetry_endpoint<'a>() -> Json<Value> {
-    let mut latest_telemetry = LATEST_FCU_TELEMETRY.lock().expect("Failed to lock telemetry state");
+    let mut latest_telemetry = FCU_TELEMETRY_ENDPOINT_DATA.lock().expect("Failed to lock telemetry state");
 
     if let Some(latest_telemetry) = latest_telemetry.as_mut() {
         let telem = latest_telemetry.clone();
@@ -204,7 +210,7 @@ pub fn fcu_telemetry_endpoint<'a>() -> Json<Value> {
 
 #[get("/fcu-telemetry/graph")]
 pub fn fcu_telemetry_graph() -> Json<Value> {
-    let mut latest_graph = LATEST_FCU_GRAPH_DATA.lock().expect("Failed to lock FCU telemetry graph data");
+    let mut latest_graph = FCU_GRAPH_ENDPOINT_DATA.lock().expect("Failed to lock FCU telemetry graph data");
 
     if let Some(latest_graph) = latest_graph.as_mut() {
         let graph_data = latest_graph.clone();
@@ -216,7 +222,7 @@ pub fn fcu_telemetry_graph() -> Json<Value> {
 
 #[get("/fcu-telemetry/debug-data")]
 pub fn fcu_debug_data() -> Json<Value> {
-    let latest_debug_info = LATEST_FCU_DEBUG_INFO.lock().expect("Failed to lock debug info");
+    let latest_debug_info = FCU_DEBUG_INFO_ENDPOINT_DATA.lock().expect("Failed to lock debug info");
 
     if let Some(latest_debug_info) = latest_debug_info.as_ref() {
         Json(latest_debug_info.clone())

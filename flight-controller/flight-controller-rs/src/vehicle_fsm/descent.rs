@@ -1,11 +1,11 @@
-use super::{ComponentStateMachine, Descent, FsmState, Landed};
+use super::{Descent, FsmState, Landed};
 use crate::Fcu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    fcu_hal::VehicleState,
+    ControllerState,
 };
 
-impl ComponentStateMachine<FsmState> for Descent {
+impl<'f> ControllerState<FsmState, Fcu<'f>> for Descent {
     fn update(
         &mut self,
         fcu: &mut Fcu,
@@ -19,16 +19,12 @@ impl ComponentStateMachine<FsmState> for Descent {
         None
     }
 
-    fn enter_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn enter_state(&mut self, _fcu: & mut Fcu) {
         // Nothing
     }
 
-    fn exit_state<'a>(&mut self, _fcu: &'a mut Fcu) {
+    fn exit_state(&mut self, _fcu: & mut Fcu) {
         // Nothing
-    }
-
-    fn hal_state(&self) -> VehicleState {
-        VehicleState::Descent
     }
 }
 
