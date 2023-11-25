@@ -41,6 +41,7 @@ debug-assertions = true # <-
 incremental = false
 opt-level = "s" # <-
 overflow-checks = true # <-
+lto = true
 
 [profile.release]
 opt-level = "z"
@@ -49,3 +50,4 @@ debug = 2
 debug-assertions = true # <-
 incremental = false
 overflow-checks = true # <-
+lto = true

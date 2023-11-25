@@ -37,6 +37,8 @@ pub enum BootloaderNetworkCommand {
         buffer_length: u16,
     },
     VerifyFlash {
+        start_offset: u32,
+        end_offset: u32,
         checksum: u128,
     },
 }
@@ -105,6 +107,7 @@ where
     device: &'a mut D,
     sockets_set: iface::SocketSet<'a>,
     udp_socket_handle: iface::SocketHandle,
+    last_send_source: Option<wire::IpEndpoint>,
 }
 
 impl<'a, D> Bootloader<'a, D>
@@ -142,6 +145,16 @@ where
             device,
             sockets_set,
             udp_socket_handle,
+            last_send_source: None,
+        }
+    }
+
+    pub fn complete_action<'b>(&mut self, working_buffer: &'b mut [u8]) {
+        if let Some(source) = self.last_send_source {
+            self.send(source, BootloaderNetworkCommand::Response {
+                command: 0,
+                success: true,
+            }, working_buffer).ok();
         }
     }
 
@@ -157,6 +170,7 @@ where
         );
 
         if let Some((source, command)) = self.receive(working_buffer)? {
+            self.last_send_source = Some(source);
             match command {
                 BootloaderNetworkCommand::PingBootloader => {
                     self.send(source, BootloaderNetworkCommand::Response {
@@ -178,11 +192,11 @@ where
                         data: &working_buffer[slice_start..slice_end],
                     });
                 },
-                BootloaderNetworkCommand::VerifyFlash { checksum } => {
+                BootloaderNetworkCommand::VerifyFlash { start_offset, end_offset, checksum } => {
                     return Ok(BootloaderAction::VerifyFlash {
-                        start_offset: 0,
-                        end_offset: 0,
-                        checksum: checksum,
+                        start_offset,
+                        end_offset,
+                        checksum,
                     });
                 },
                 BootloaderNetworkCommand::Response { command: _, success: _ } => {
@@ -244,7 +258,7 @@ impl BootloaderNetworkCommand {
 
                 match serialized {
                     Ok(output_buffer) => {
-                        Some(output_buffer.len())
+                        Some(output_buffer.len() + 1)
                     },
                     Err(_) => None,
                 }

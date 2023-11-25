@@ -1,1 +1,1 @@
-cargo objcopy --release -- -O ihex fcu-stm32f407.hex
+cargo objcopy --release -- -O ihex stm32f407-boot.hex
