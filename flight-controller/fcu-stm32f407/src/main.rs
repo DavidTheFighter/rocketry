@@ -197,6 +197,17 @@ mod app {
         let mut core = ctx.core;
         let mut p = ctx.device;
 
+        let gpioa = p.GPIOA.split();
+        let gpiob = p.GPIOB.split();
+        let gpioc = p.GPIOC.split();
+        let gpiod = p.GPIOD.split();
+        let gpioe = p.GPIOE.split();
+
+        let blue_led = gpioc.pc14.into_push_pull_output();
+        let mut red_led = gpioc.pc15.into_push_pull_output();
+
+        red_led.set_high();
+
         let rcc = p.RCC.constrain();
         let clocks = rcc
             .cfgr
@@ -212,15 +223,6 @@ mod app {
         let mono = Systick::new(core.SYST, clocks.hclk().raw());
 
         core.DWT.enable_cycle_counter();
-
-        let gpioa = p.GPIOA.split();
-        let gpiob = p.GPIOB.split();
-        let gpioc = p.GPIOC.split();
-        let gpiod = p.GPIOD.split();
-        let gpioe = p.GPIOE.split();
-
-        let blue_led = gpioc.pc14.into_push_pull_output();
-        let red_led = gpioc.pc15.into_push_pull_output();
 
         let output1_ctrl = gpioe.pe0.into_push_pull_output_in_state(PinState::Low);
         let output2_ctrl = gpioe.pe1.into_push_pull_output_in_state(PinState::Low);
