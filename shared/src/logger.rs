@@ -8,9 +8,15 @@ use postcard::{
     serialize_with_flavor,
 };
 
-pub const SERIALIZE_BUFFER_SIZE: usize = 32;
+pub const SERIALIZE_BUFFER_SIZE: usize = 128;
 
-pub struct DataLogger<'a, T, F, const PAGE_SIZE: usize> {
+pub trait DataPointLogger<T> {
+    fn log_data_point(&mut self, data_point: &T);
+    fn get_bytes_logged(&self) -> u32;
+    fn set_logging_enabled(&mut self, enabled: bool);
+}
+
+pub struct FlashDataLogger<'a, T, F, const PAGE_SIZE: usize> {
     buffer0: &'a mut [u8; PAGE_SIZE],
     buffer1: &'a mut [u8; PAGE_SIZE],
     active_buffer: usize,
@@ -21,8 +27,41 @@ pub struct DataLogger<'a, T, F, const PAGE_SIZE: usize> {
     _marker: PhantomData<T>,
 }
 
-impl<'a, T: Serialize + DeserializeOwned, F: Fn(&[u8; PAGE_SIZE]), const PAGE_SIZE: usize>
-    DataLogger<'a, T, F, PAGE_SIZE>
+impl<'a, T, F, const PAGE_SIZE: usize> DataPointLogger<T> for FlashDataLogger<'a, T, F, PAGE_SIZE>
+where
+    T: Serialize + DeserializeOwned,
+    F: Fn(&[u8; PAGE_SIZE]),
+{
+    fn log_data_point(&mut self, data_point: &T) {
+        if !self.logging_enabled {
+            return;
+        }
+
+        let mut data_buffer = [0u8; SERIALIZE_BUFFER_SIZE];
+        let serialized_size = Self::serialize_data_point(data_point, &mut data_buffer)
+            .expect("Failed to serialize data point");
+
+        self.bytes_logged += (serialized_size + 1) as u32;
+
+        self.put_byte(serialized_size as u8);
+        for byte in &data_buffer[0..serialized_size] {
+            self.put_byte(*byte);
+        }
+    }
+
+    fn get_bytes_logged(&self) -> u32 {
+        self.bytes_logged
+    }
+
+    fn set_logging_enabled(&mut self, enabled: bool) {
+        self.logging_enabled = enabled;
+    }
+}
+
+impl<'a, T, F, const PAGE_SIZE: usize> FlashDataLogger<'a, T, F, PAGE_SIZE>
+where
+    T: Serialize + DeserializeOwned,
+    F: Fn(&[u8; PAGE_SIZE]),
 {
     pub fn new(
         buffer0: &'a mut [u8; PAGE_SIZE],
@@ -41,23 +80,6 @@ impl<'a, T: Serialize + DeserializeOwned, F: Fn(&[u8; PAGE_SIZE]), const PAGE_SI
         }
     }
 
-    pub fn log_data_point(&mut self, data_point: &T) {
-        if !self.logging_enabled {
-            return;
-        }
-
-        let mut data_buffer = [0u8; SERIALIZE_BUFFER_SIZE];
-        let serialized_size = Self::serialize_data_point(data_point, &mut data_buffer)
-            .expect("Failed to serialize data point");
-
-        self.bytes_logged += (serialized_size + 1) as u32;
-
-        self.put_byte(serialized_size as u8);
-        for byte in &data_buffer[0..serialized_size] {
-            self.put_byte(*byte);
-        }
-    }
-
     pub fn retrieve_data_point(&self, buffer: &mut dyn Iterator<Item = &u8>) -> Option<T> {
         let size = (*buffer.next()?) as usize;
         let mut working_buffer = [0u8; SERIALIZE_BUFFER_SIZE];
@@ -69,24 +91,12 @@ impl<'a, T: Serialize + DeserializeOwned, F: Fn(&[u8; PAGE_SIZE]), const PAGE_SI
         Self::deserialize_data_point(&mut working_buffer[0..size])
     }
 
-    pub fn enable_logging(&mut self) {
-        self.logging_enabled = true;
-    }
-
-    pub fn disable_logging(&mut self) {
-        self.logging_enabled = false;
-    }
-
     pub fn active_buffer(&mut self) -> &mut [u8] {
         if self.active_buffer == 0 {
             &mut self.buffer0[0..self.active_buffer_index]
         } else {
             &mut self.buffer1[0..self.active_buffer_index]
         }
-    }
-
-    pub fn get_bytes_logged(&self) -> u32 {
-        self.bytes_logged
     }
 
     fn put_byte(&mut self, b: u8) {
@@ -135,6 +145,14 @@ impl<'a, T: Serialize + DeserializeOwned, F: Fn(&[u8; PAGE_SIZE]), const PAGE_SI
     }
 }
 
+pub struct DataPointLoggerMock;
+
+impl<T> DataPointLogger<T> for DataPointLoggerMock {
+    fn log_data_point(&mut self, _data_point: &T) {}
+    fn get_bytes_logged(&self) -> u32 { 0 }
+    fn set_logging_enabled(&mut self, _enabled: bool) {}
+}
+
 #[cfg(test)]
 pub mod tests {
     use serde::Deserialize;
@@ -176,8 +194,8 @@ pub mod tests {
             panic!("Buffer should not be full yet!");
         };
 
-        let mut logger = DataLogger::new(&mut buffer0, &mut buffer1, Some(full_page));
-        logger.enable_logging();
+        let mut logger = FlashDataLogger::new(&mut buffer0, &mut buffer1, Some(full_page));
+        logger.set_logging_enabled(true);
 
         for data_point in &data_points {
             logger.log_data_point(data_point);
@@ -190,9 +208,6 @@ pub mod tests {
         {
             *src = *dst;
         }
-
-        println!("{:?}", logger.active_buffer());
-        println!("{:?}", buffer_copy);
 
         let mut buffer_iter = buffer_copy.iter();
         for src_data_point in &data_points {
@@ -235,8 +250,8 @@ pub mod tests {
 
         let full_page = |_buffer: &[u8; PAGE_SIZE]| {};
 
-        let mut logger = DataLogger::new(&mut buffer0, &mut buffer1, Some(full_page));
-        logger.enable_logging();
+        let mut logger = FlashDataLogger::new(&mut buffer0, &mut buffer1, Some(full_page));
+        logger.set_logging_enabled(true);
 
         for data_point in &data_points {
             logger.log_data_point(data_point);
@@ -256,7 +271,7 @@ pub mod tests {
         // Make a new temporary data logger so we can use the old buffers
         let mut tmp_buffer0 = [0_u8; PAGE_SIZE];
         let mut tmp_buffer1 = [0_u8; PAGE_SIZE];
-        let logger = DataLogger::new(&mut tmp_buffer0, &mut tmp_buffer1, Some(full_page));
+        let logger = FlashDataLogger::new(&mut tmp_buffer0, &mut tmp_buffer1, Some(full_page));
 
         let mut buffer_iter = buffer0.iter().chain(buffer1.iter());
         for src_data_point in &data_points {

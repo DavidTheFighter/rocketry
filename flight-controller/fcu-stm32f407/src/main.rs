@@ -4,8 +4,8 @@
 mod drivers;
 mod comms;
 mod fcu_driver;
-mod logging;
 mod sensors;
+mod logging;
 
 use defmt_brtt as _;
 use panic_probe as _;
@@ -26,11 +26,13 @@ mod app {
         cell::RefCell,
     };
     use bmi088_rs::{AccelFilterBandwidth, AccelDataRate, AccelRange, GyroRange, GyroBandwidth, Bmi088Accelerometer, Bmi088Gyroscope, Bmi088PinMode, Bmi088PinBehavior};
-    use shared::comms_manager::CommsManager;
     use cortex_m::peripheral::DWT;
     use cortex_m::interrupt::Mutex;
     use flight_controller_rs::Fcu;
-    use shared::comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE};
+    use shared::{
+        comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE},
+        comms_manager::CommsManager,
+    };
     use rtic::export::Queue;
     use smoltcp::iface;
     use stm32_eth::{EthPins, EthernetDMA, RxRingEntry, TxRingEntry};
@@ -45,10 +47,10 @@ mod app {
     use systick_monotonic::Systick;
 
     use crate::fcu_driver::{Stm32F407FcuDriver, FcuControlPins, fcu_update};
-    use crate::drivers::{bmi088, bmm150, w25x05};
+    use crate::drivers::{bmm150, w25x05};
     use crate::comms::{send_packet, eth_interrupt, init_comms, NetworkingStorage};
-    use crate::logging::{DataLogger, log_data_to_flash, erase_data_log_flash, set_data_logging_state, read_log_page_and_transfer, usart2_interrupt};
     use crate::sensors::{bmi088_interrupt, bmm150_interrupt, ms5611_update};
+    use crate::logging::{self, DataLoggerType};
 
     const CRYSTAL_FREQ: u32 = 25_000_000;
     pub const MCU_FREQ: u32 = 75_000_000;
@@ -86,7 +88,6 @@ mod app {
         packet_queue: Queue<(NetworkAddress, Packet), PACKET_QUEUE_SIZE>,
         red_led: PC15<Output>,
         fcu: Fcu<'static>,
-        data_logger: DataLogger,
         comms_manager: CommsManager<16>,
         #[lock_free]
         w25x05: w25x05::W25X05<PE4<Output>, PE5<Output>>,
@@ -103,7 +104,7 @@ mod app {
 
     extern "Rust" {
         #[task(
-            shared = [fcu, packet_queue, data_logger],
+            shared = [fcu, packet_queue],
             priority = 7,
         )]
         fn fcu_update(ctx: fcu_update::Context);
@@ -127,7 +128,7 @@ mod app {
         #[task(
             binds = EXTI9_5,
             local = [bmi088_accel, bmi088_gyro, accel_int_pin, gyro_int_pin],
-            shared = [fcu, data_logger],
+            shared = [fcu],
             priority = 11,
         )]
         fn bmi088_interrupt(ctx: bmi088_interrupt::Context);
@@ -135,7 +136,7 @@ mod app {
         #[task(
             binds = EXTI3,
             local = [bmm150, mag_int_pin],
-            shared = [fcu, data_logger],
+            shared = [fcu],
             priority = 13,
         )]
         fn bmm150_interrupt(ctx: bmm150_interrupt::Context);
@@ -146,40 +147,6 @@ mod app {
             priority = 3,
         )]
         fn ms5611_update(ctx: ms5611_update::Context);
-
-        #[task(
-            shared = [w25x05, spi1, data_logger],
-            priority = 6,
-        )]
-        fn log_data_to_flash(ctx: log_data_to_flash::Context);
-
-        #[task(
-            shared = [data_logger],
-            priority = 6,
-        )]
-        fn set_data_logging_state(ctx: set_data_logging_state::Context, state: bool);
-
-        #[task(
-            shared = [w25x05, spi1, data_logger],
-            priority = 6,
-        )]
-        fn erase_data_log_flash(ctx: erase_data_log_flash::Context);
-
-        #[task(
-            binds = USART2,
-            local = [usart2_rx],
-            shared = [],
-            priority = 6,
-        )]
-        fn usart2_interrupt(ctx: usart2_interrupt::Context);
-
-        #[task(
-            local = [usart2_tx],
-            shared = [w25x05, spi1],
-            capacity = 2,
-            priority = 6,
-        )]
-        fn read_log_page_and_transfer(ctx: read_log_page_and_transfer::Context, addr: u32);
     }
 
     #[monotonic(binds = SysTick, default = true)]
@@ -191,6 +158,9 @@ mod app {
         net_storage: NetworkingStorage = NetworkingStorage::new(),
         dma: MaybeUninit<EthernetDMA<'static, 'static>> = MaybeUninit::uninit(),
         fcu_driver: MaybeUninit<Stm32F407FcuDriver> = MaybeUninit::uninit(),
+        data_logger: MaybeUninit<DataLoggerType<'static>> = MaybeUninit::uninit(),
+        logger_buffer0: [u8; logging::PAGE_SIZE] = [0u8; logging::PAGE_SIZE],
+        logger_buffer1: [u8; logging::PAGE_SIZE] = [0u8; logging::PAGE_SIZE],
         i2c1_bus: MaybeUninit<I2C1BusType> = MaybeUninit::uninit(),
     ])]
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
@@ -333,8 +303,6 @@ mod app {
         bmi088_gyro.set_bandwidth(GyroBandwidth::Data100Filter32).unwrap();
         bmi088_gyro.configure_int3_pin(Bmi088PinBehavior::PushPull, true, true).unwrap();
 
-        let data_logger = DataLogger::new();
-
         let mut accel_int_pin = gpioe.pe8.into_pull_down_input();
         accel_int_pin.make_interrupt_source(&mut syscfg);
         accel_int_pin.enable_interrupt(&mut p.EXTI);
@@ -356,6 +324,16 @@ mod app {
             Stm32F407FcuDriver::new(fcu_control_pins),
         );
 
+        let data_logger = ctx.local.data_logger.write(
+            DataLoggerType::new(
+                ctx.local.logger_buffer0,
+                ctx.local.logger_buffer1,
+                Some(logging::full_page_callback),
+            ),
+        );
+
+        let fcu = Fcu::new(fcu_driver, data_logger);
+
         send_packet::spawn(Packet::DeviceBooted, NetworkAddress::MissionControl).unwrap();
         fcu_update::spawn().unwrap();
         ms5611_update::spawn().unwrap();
@@ -373,8 +351,7 @@ mod app {
                 udp_socket_handle,
                 packet_queue: Queue::new(),
                 red_led,
-                fcu: Fcu::new(fcu_driver),
-                data_logger,
+                fcu,
                 comms_manager: CommsManager::new(NetworkAddress::FlightController),
                 w25x05,
                 spi1,

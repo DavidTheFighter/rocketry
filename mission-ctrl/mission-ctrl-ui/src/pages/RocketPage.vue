@@ -143,7 +143,7 @@ export default {
         },
         {
           name: "Bytes logged",
-          value: Math.floor(util.nvalue(this.dataset.bytes_logged) / 1024),
+          value: Math.floor(util.nvalue(this.dataset.data_logged_bytes) / 1024),
           units: "KiB",
           badValue: false,
         },

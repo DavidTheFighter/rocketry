@@ -24,7 +24,7 @@ use shared::{
     fcu_hal::{
         FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame,
         PwmChannel, VehicleState, FcuAlertCondition,
-    }, alerts::AlertManager,
+    }, alerts::AlertManager, DataPointLogger,
 };
 use mint::Vector3;
 use state_vector::StateVector;
@@ -37,6 +37,7 @@ pub struct Fcu<'a> {
     config: FcuConfig,
     pub vehicle_state: VehicleState,
     pub driver: &'a mut dyn FcuDriver,
+    pub data_logger: &'a mut dyn DataPointLogger<FcuSensorData>,
     pub state_vector: StateVector,
     alert_manager: AlertManager<FcuAlertCondition>,
     dev_stats: DevStatsCollector,
@@ -44,12 +45,14 @@ pub struct Fcu<'a> {
     time_since_last_telemetry: f32,
     time_since_last_heartbeat: f32,
     time_since_last_alert_update: f32,
-    data_logged_bytes: u32,
     apogee: f32,
 }
 
 impl<'a> Fcu<'a> {
-    pub fn new(driver: &'a mut dyn FcuDriver) -> Self {
+    pub fn new(
+        driver: &'a mut dyn FcuDriver,
+        data_logger: &'a mut dyn DataPointLogger<FcuSensorData>,
+    ) -> Self {
         let default_fcu_config = FcuConfig {
             telemetry_rate: 0.02,
             startup_acceleration_threshold: 0.1,
@@ -74,6 +77,7 @@ impl<'a> Fcu<'a> {
             config: default_fcu_config,
             vehicle_state: VehicleState::Calibrating,
             driver,
+            data_logger,
             state_vector,
             alert_manager: AlertManager::new(),
             dev_stats: DevStatsCollector::new(),
@@ -81,7 +85,6 @@ impl<'a> Fcu<'a> {
             time_since_last_telemetry: 0.0,
             time_since_last_heartbeat: 0.0,
             time_since_last_alert_update: 0.0,
-            data_logged_bytes: 0,
             apogee: 0.0,
         };
         fcu.init_vehicle_fsm();
@@ -147,11 +150,7 @@ impl<'a> Fcu<'a> {
                 self.driver.erase_flash_chip();
             }
             Packet::EnableDataLogging(state) => {
-                if *state {
-                    self.driver.enable_logging_to_flash();
-                } else {
-                    self.driver.disable_logging_to_flash();
-                }
+                self.data_logger.set_logging_enabled(*state);
             }
             Packet::RetrieveDataLogPage(addr) => {
                 self.driver.retrieve_log_flash_page(*addr);
@@ -186,7 +185,7 @@ impl<'a> Fcu<'a> {
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: self.apogee,
             battery_voltage: 11.1169875,
-            data_logged_bytes: self.data_logged_bytes,
+            data_logged_bytes: self.data_logger.get_bytes_logged(),
         }
     }
 
@@ -208,7 +207,7 @@ impl<'a> Fcu<'a> {
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: self.apogee,
             battery_voltage: 11.1169875,
-            data_logged_bytes: self.data_logged_bytes,
+            data_logged_bytes: self.data_logger.get_bytes_logged(),
             raw_accelerometer: self.state_vector.sensor_data.accelerometer_raw.into(),
             raw_gyroscope: self.state_vector.sensor_data.gyroscope_raw.into(),
             raw_magnetometer: self.state_vector.sensor_data.magnetometer_raw.into(),
@@ -219,11 +218,9 @@ impl<'a> Fcu<'a> {
     }
 
     pub fn update_sensor_data(&mut self, data: FcuSensorData) {
-        self.state_vector.update_sensor_data(data);
-    }
+        self.data_logger.log_data_point(&data);
 
-    pub fn update_data_logged_bytes(&mut self, bytes: u32) {
-        self.data_logged_bytes = bytes;
+        self.state_vector.update_sensor_data(data);
     }
 
     fn configure_fcu(&mut self, config: FcuConfig) {

@@ -18,6 +18,7 @@ use pyo3::prelude::*;
 use pyo3::exceptions::PyTypeError;
 use pyo3::types::{PyList, PyDict};
 use ser::{dict_from_obj, obj_from_dict};
+use shared::logger::DataPointLoggerMock;
 use strum::IntoEnumIterator;
 
 #[pyclass(unsendable)]
@@ -25,6 +26,7 @@ pub struct FcuSil {
     #[pyo3(get)]
     name: String,
     _driver: Rc<RefCell<FcuDriverSim>>,
+    _data_point_logger: Rc<RefCell<DataPointLoggerMock>>,
     fcu: Fcu<'static>,
     pending_packets: Vec<(NetworkAddress, Packet)>,
 }
@@ -38,10 +40,18 @@ impl FcuSil {
             std::mem::transmute(&mut *driver.borrow_mut())
         };
 
+        let data_point_logger = Rc::new(RefCell::new(DataPointLoggerMock));
+        let data_point_logger_ref: &'static mut DataPointLoggerMock = unsafe {
+            std::mem::transmute(&mut *data_point_logger.borrow_mut())
+        };
+
+        let fcu = Fcu::new(driver_ref, data_point_logger_ref);
+
         Self {
             name: "FCU".to_string(),
             _driver: driver,
-            fcu: Fcu::new(driver_ref),
+            _data_point_logger: data_point_logger,
+            fcu,
             pending_packets: Vec::new(),
         }
     }

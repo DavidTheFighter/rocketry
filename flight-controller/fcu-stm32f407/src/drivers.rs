@@ -1,4 +1,3 @@
-pub mod bmi088;
 pub mod bmm150;
 pub mod w25x05;
 

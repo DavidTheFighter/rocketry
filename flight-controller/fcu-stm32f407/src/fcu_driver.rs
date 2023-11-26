@@ -1,11 +1,11 @@
 use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver};
 use shared::comms_hal::{Packet, NetworkAddress};
-use rtic::mutex_prelude::TupleExt03;
+use rtic::mutex_prelude::TupleExt02;
 use stm32f4xx_hal::prelude::*;
 use stm32f4xx_hal::gpio::{PE0, PE1, PE2, PE3, Output, PinState};
 use strum::EnumCount;
 
-use crate::app;
+use crate::{app, logging};
 
 #[derive(Debug)]
 pub struct FcuControlPins {
@@ -58,15 +58,15 @@ impl FcuDriver for Stm32F407FcuDriver {
     }
 
     fn erase_flash_chip(&mut self) {
-        app::erase_data_log_flash::spawn().unwrap();
+        logging::erase_flash_chip();
     }
 
     fn enable_logging_to_flash(&mut self) {
-        app::set_data_logging_state::spawn(true).unwrap();
+        // app::set_data_logging_state::spawn(true).unwrap();
     }
 
     fn disable_logging_to_flash(&mut self) {
-        app::set_data_logging_state::spawn(false).unwrap();
+        // app::set_data_logging_state::spawn(false).unwrap();
     }
 
     fn retrieve_log_flash_page(&mut self, addr: u32) {
@@ -88,10 +88,9 @@ pub fn fcu_update(ctx: app::fcu_update::Context) {
 
     let fcu = ctx.shared.fcu;
     let packet_queue = ctx.shared.packet_queue;
-    let data_logger = ctx.shared.data_logger;
 
-    (fcu, packet_queue, data_logger).lock(|fcu, packet_queue, data_logger| {
-        fcu.update_data_logged_bytes(data_logger.get_bytes_logged());
+    (fcu, packet_queue).lock(|fcu, packet_queue| {
+        // fcu.update_data_logged_bytes(data_logger.get_bytes_logged());
 
         let mut packet_array_len = 0;
         let mut packet_array = empty_packet_array();
