@@ -3,16 +3,16 @@
 
 use core::{
     ptr::read_volatile,
+    panic::PanicInfo,
     sync::atomic::{AtomicU32, Ordering},
 };
 use defmt_brtt as _;
 
-use ethboot_shared::{Bootloader, BootloaderAction, SocketBuffer};
+use ethboot_shared::{Bootloader, BootloaderAction, SocketBuffer, BootloaderError};
 use hal::{
     flash::{FlashExt, LockedFlash},
     interrupt,
 };
-use panic_halt as _;
 
 use cortex_m_rt::{entry, exception};
 use smoltcp::{
@@ -126,6 +126,7 @@ fn main() -> ! {
     let mut bootloader = Bootloader::new(
         config,
         &mut device,
+        wire::IpCidr::Ipv4(wire::Ipv4Cidr::new(DEVICE_IP_ADDR, DEVICE_CIDR_LENGTH)),
         &mut sockets,
         &mut socket_buffers,
         smoltcp_now(),
@@ -159,7 +160,7 @@ fn main() -> ! {
                         .erase(sector as u8)
                         .expect("Failed to erase flash");
                     defmt::info!("Done erasing!");
-                    bootloader.complete_action(&mut working_buffer);
+                    bootloader.complete_action(&mut working_buffer, None);
                 }
                 BootloaderAction::ProgramFlash { offset, data } => {
                     start_time = smoltcp_now().total_millis();
@@ -175,20 +176,20 @@ fn main() -> ! {
                         .expect("Failed to program flash");
 
                     let current_flash = flash.read();
+                    let mut found_mismatch = false;
 
                     for (i, byte) in data.iter().enumerate() {
                         let flash_byte = current_flash[offset as usize + i];
                         if flash_byte != *byte {
-                            panic!(
-                                "Flash mismatch at offset {}: {} != {}",
-                                offset + i as u32,
-                                flash_byte,
-                                byte
-                            );
+                            found_mismatch = true;
                         }
                     }
 
-                    bootloader.complete_action(&mut working_buffer);
+                    if found_mismatch {
+                        bootloader.complete_action(&mut working_buffer, Some(BootloaderError::FlashReadbackMismatch));
+                    } else {
+                        bootloader.complete_action(&mut working_buffer, None);
+                    }
                 }
                 BootloaderAction::VerifyFlash {
                     start_offset,
@@ -214,10 +215,14 @@ fn main() -> ! {
                     defmt::info!("Checksum: {} vs {}", current_checksum, checksum);
 
                     if current_checksum == checksum {
-                        bootloader.complete_action(&mut working_buffer);
-                        reset_to_boot();
+                        bootloader.complete_action(&mut working_buffer, None);
+                    } else {
+                        bootloader.complete_action(&mut working_buffer, Some(BootloaderError::ChecksumMismatch));
                     }
-                }
+                },
+                BootloaderAction::BootIntoApplication => {
+                    reset_to_boot();
+                },
             }
         }
 
@@ -274,6 +279,22 @@ fn boot_to_main() {
 fn reset_to_boot() {
     set_should_boot_immediately(true);
     cortex_m::peripheral::SCB::sys_reset();
+}
+
+#[panic_handler]
+fn panic(_info: &PanicInfo) -> ! {
+    unsafe {
+        let p = pac::Peripherals::steal();
+        let gpioc = p.GPIOC.split();
+        let mut red_led = gpioc.pc15.into_push_pull_output();
+
+        loop {
+            red_led.set_high();
+            cortex_m::asm::delay(96_000_000 / 8);
+            red_led.set_low();
+            cortex_m::asm::delay(96_000_000 / 8);
+        }
+    }
 }
 
 #[exception]

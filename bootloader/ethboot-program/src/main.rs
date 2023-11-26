@@ -2,6 +2,7 @@ use std::{fs::File, io::{Read, self, Write}, net::UdpSocket};
 
 use ethboot_shared::{BOOTLOADER_PORT, BootloaderNetworkCommand, PROGRAM_CHUNK_LENGTH};
 use serde::{Deserialize, Deserializer};
+use shared::{comms_hal::{Packet, NetworkAddress, UDP_RECV_PORT}, comms_manager::CommsManager};
 
 const WORKING_BUFFER_SIZE: usize = PROGRAM_CHUNK_LENGTH * 2;
 
@@ -14,29 +15,50 @@ struct FlashSector {
 }
 
 #[derive(Debug, Deserialize)]
-struct FlashDefinition {
+struct BootloaderDefinition {
     #[serde(deserialize_with = "from_hex")]
     app_offset: u32,
     sectors: Vec<FlashSector>,
 }
 
 fn main() {
-    let flash_definition_file = "stm32f407vgt6.json";
-    let binary_file = "fcu-stm32f407.bin";
-    let mcu_address = format!("169.254.0.7:{}", BOOTLOADER_PORT);
+    let cmd_args = std::env::args().collect::<Vec<_>>();
+    println!("Command line args: {:?}", cmd_args);
+
+    if cmd_args.len() != 4 {
+        println!("Usage: {} <bootloader_definition_file> <binary_file> <ip_addr>", cmd_args[0]);
+        return;
+    }
+
+    let bootloader_definition_file = &cmd_args[1];
+    let binary_file = &cmd_args[2];
+    let mcu_blt_address = format!("{}:{}", cmd_args[3], BOOTLOADER_PORT);
+    let mcu_app_address = format!("{}:{}", cmd_args[3], UDP_RECV_PORT);
 
     let mut udp_socket = UdpSocket::bind(format!("0.0.0.0:{}", BOOTLOADER_PORT)).expect("Failed to bind UDP socket");
     udp_socket.set_nonblocking(true).expect("Failed to set non-blocking");
     let mut buffer = [0u8; WORKING_BUFFER_SIZE];
+
+    let comms_manager = CommsManager::<32>::new(NetworkAddress::MissionControl);
 
     // Wait until we get a ping back
     println!("Waiting for ping response");
     loop {
         let command = BootloaderNetworkCommand::PingBootloader;
         if let Some(size) = command.serialize(&mut buffer) {
-            udp_socket.send_to(&buffer[..size], mcu_address.clone()).unwrap();
+            udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
         } else {
             panic!("Failed to serialize command");
+        }
+
+        let reset_packet = Packet::ResetMcu { magic_number: shared::RESET_MAGIC_NUMBER };
+        match comms_manager.process_packet_no_map(&reset_packet, NetworkAddress::Unknown, &mut buffer) {
+            Ok(size) => {
+                udp_socket.send_to(&buffer[..size], mcu_app_address.clone()).unwrap();
+            },
+            Err(err) => {
+                panic!("Failed to serialize reset packet: {:?}", err);
+            },
         }
 
         if let Some(command) = check_for_response(&mut udp_socket, &mut buffer) {
@@ -50,19 +72,19 @@ fn main() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
-    let flash_definition = load_flash_definition(flash_definition_file);
+    let bootloader_definition = load_bootloader_definition(bootloader_definition_file);
     let binary = load_image_binary(binary_file);
 
     // Erase sectors that need to be erased
     let mut start_sector = None;
     let mut end_sector = 0_u16;
 
-    for (index, sector) in flash_definition.sectors.iter().enumerate() {
-        if start_sector.is_none() && flash_definition.app_offset <= sector.end_offset {
+    for (index, sector) in bootloader_definition.sectors.iter().enumerate() {
+        if start_sector.is_none() && bootloader_definition.app_offset <= sector.end_offset {
             start_sector = Some(index as u16);
         }
 
-        if sector.end_offset >= flash_definition.app_offset + binary.len() as u32 {
+        if sector.end_offset >= bootloader_definition.app_offset + binary.len() as u32 {
             end_sector = index as u16;
             break;
         }
@@ -71,12 +93,12 @@ fn main() {
     let start_sector = start_sector.expect("Failed to find start sector");
 
     println!("Flash goes from 0x{:X} to 0x{:X}, erasing sectors {} to {} (0x{:X} to 0x{:X})",
-        flash_definition.app_offset,
-        flash_definition.app_offset + binary.len() as u32,
+        bootloader_definition.app_offset,
+        bootloader_definition.app_offset + binary.len() as u32,
         start_sector,
         end_sector,
-        flash_definition.sectors[start_sector as usize].start_offset,
-        flash_definition.sectors[end_sector as usize].end_offset,
+        bootloader_definition.sectors[start_sector as usize].start_offset,
+        bootloader_definition.sectors[end_sector as usize].end_offset,
     );
 
     for sector in start_sector..=end_sector {
@@ -85,7 +107,7 @@ fn main() {
 
         let command = BootloaderNetworkCommand::EraseFlash { sector: sector as u16 };
         if let Some(size) = command.serialize(&mut buffer) {
-            udp_socket.send_to(&buffer[..size], mcu_address.clone()).unwrap();
+            udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
         }
 
         if let Some(command) = wait_for_response(&mut udp_socket, &mut buffer) {
@@ -117,7 +139,7 @@ fn main() {
         // println!("Programming flash at offset 0x{:X} with {} bytes", offset, bytes_read);
 
         let mut command = BootloaderNetworkCommand::ProgramFlash {
-            flash_offset: (flash_definition.app_offset + offset) as u32,
+            flash_offset: (bootloader_definition.app_offset + offset) as u32,
             buffer_offset: 0,
             buffer_length: PROGRAM_CHUNK_LENGTH as u16,
         };
@@ -140,7 +162,7 @@ fn main() {
                 buffer[calc_buffer_offset + index] = 0xFF;
             }
 
-            udp_socket.send_to(&buffer[..(size + 1 + PROGRAM_CHUNK_LENGTH)], mcu_address.clone()).unwrap();
+            udp_socket.send_to(&buffer[..(size + 1 + PROGRAM_CHUNK_LENGTH)], mcu_blt_address.clone()).unwrap();
         }
 
         if let Some(command) = wait_for_response(&mut udp_socket, &mut buffer) {
@@ -172,30 +194,47 @@ fn main() {
     println!("Checksum is {}", checksum);
 
     let command = BootloaderNetworkCommand::VerifyFlash {
-        start_offset: flash_definition.app_offset as u32,
-        end_offset: flash_definition.app_offset + binary.len() as u32,
+        start_offset: bootloader_definition.app_offset as u32,
+        end_offset: bootloader_definition.app_offset + binary.len() as u32,
         checksum,
     };
 
     if let Some(size) = command.serialize(&mut buffer) {
-        udp_socket.send_to(&buffer[..size], mcu_address.clone()).unwrap();
+        udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
     } else {
         panic!("Failed to serialize command");
     }
 
-    // wait_for_command_respose(&mut udp_socket, &mut buffer);
+    if let Some(command) = wait_for_response(&mut udp_socket, &mut buffer) {
+        if let BootloaderNetworkCommand::Response { command: _, success } = command {
+            if !success {
+                println!("Failed!");
+                return;
+            }
+        }
+    }
+
+    println!("Booting into application");
+
+    let command = BootloaderNetworkCommand::BootIntoApplication;
+
+    if let Some(size) = command.serialize(&mut buffer) {
+        udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
+    } else {
+        panic!("Failed to serialize command");
+    }
 }
 
-fn load_flash_definition(flash_definition_file: &str) -> FlashDefinition {
+fn load_bootloader_definition(bootloader_definition_file: &str) -> BootloaderDefinition {
     // Read file into a string
-    let mut file = File::open(flash_definition_file).expect("Unable to open flash definition file");
+    let mut file = File::open(bootloader_definition_file).expect("Unable to open flash definition file");
     let mut contents = String::new();
     file.read_to_string(&mut contents).expect("Unable to read flash definition file");
 
     // Parse the string of data into serde_json::Value.
-    let flash_definition: FlashDefinition = serde_json::from_str(&contents).expect("Unable to parse flash definition file");
+    let bootloader_definition: BootloaderDefinition = serde_json::from_str(&contents).expect("Unable to parse flash definition file");
 
-    flash_definition
+    bootloader_definition
 }
 
 fn load_image_binary(image_binary_file: &str) -> Vec<u8> {

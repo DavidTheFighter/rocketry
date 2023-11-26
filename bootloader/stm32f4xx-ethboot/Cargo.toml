@@ -9,7 +9,6 @@ edition = "2021"
 cortex-m = "0.7.7"
 cortex-m-rt = "0.7.3"
 cortex-m-rtic = { version = "1.1.4", features = ["test-critical-section"] }
-panic-halt = "0.2.0"
 strum = { version = "0.24", default-features = false, features = ["derive"] }
 defmt = { version = "0.3", features = ["encoding-rzcobs"] }
 defmt-brtt = { version = "0.1", default-features = false, features = ["rtt"] }

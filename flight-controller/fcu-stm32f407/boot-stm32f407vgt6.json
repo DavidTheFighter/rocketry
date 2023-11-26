@@ -1,0 +1,53 @@
+{
+    "app_offset": "0x10000",
+    "sectors": [
+        {
+            "start_offset": "0x00000",
+            "end_offset":   "0x03FFF"
+        },
+        {
+            "start_offset": "0x04000",
+            "end_offset":   "0x07FFF"
+        },
+        {
+            "start_offset": "0x08000",
+            "end_offset":   "0x0BFFF"
+        },
+        {
+            "start_offset": "0x0C000",
+            "end_offset":   "0x0FFFF"
+        },
+        {
+            "start_offset": "0x10000",
+            "end_offset":   "0x1FFFF"
+        },
+        {
+            "start_offset": "0x20000",
+            "end_offset":   "0x3FFFF"
+        },
+        {
+            "start_offset": "0x40000",
+            "end_offset":   "0x5FFFF"
+        },
+        {
+            "start_offset": "0x60000",
+            "end_offset":   "0x7FFFF"
+        },
+        {
+            "start_offset": "0x80000",
+            "end_offset":   "0x9FFFF"
+        },
+        {
+            "start_offset": "0xA0000",
+            "end_offset":   "0xBFFFF"
+        },
+        {
+            "start_offset": "0xC0000",
+            "end_offset":   "0xDFFFF"
+        },
+        {
+            "start_offset": "0xE0000",
+            "end_offset":   "0xFFFFF"
+        }
+    ]
+}

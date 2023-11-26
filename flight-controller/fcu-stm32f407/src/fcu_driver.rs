@@ -97,6 +97,12 @@ pub fn fcu_update(ctx: app::fcu_update::Context) {
         let mut packet_array = empty_packet_array();
 
         while let Some(packet) = packet_queue.dequeue() {
+            if let Packet::ResetMcu { magic_number } = &packet.1 {
+                if *magic_number == shared::RESET_MAGIC_NUMBER {
+                    cortex_m::peripheral::SCB::sys_reset();
+                }
+            }
+
             packet_array[packet_array_len] = packet;
             packet_array_len += 1;
 

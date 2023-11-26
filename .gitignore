@@ -1,6 +1,7 @@
 *-sim.json
 packet_sizes.txt
 streamish-bin
+app.map
 
 # For PCBs designed using KiCad: https://www.kicad.org/
 # Format documentation: https://kicad.org/help/file-formats/

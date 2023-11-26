@@ -15,6 +15,7 @@ use comms_hal::{NetworkAddress, Packet};
 use serde::{Deserialize, Serialize};
 
 pub const GRAVITY: f32 = 9.80665; // In m/s^2
+pub const RESET_MAGIC_NUMBER: u64 = 0xabcd1234_5678ef90;
 
 pub trait ControllerState<S, C> {
     fn update(

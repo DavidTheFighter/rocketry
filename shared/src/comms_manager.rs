@@ -98,6 +98,35 @@ impl<const NETWORK_MAP_SIZE: usize> CommsManager<NETWORK_MAP_SIZE> {
         Ok((packet, from_addr))
     }
 
+    pub fn process_packet_no_map(&self,
+        packet: &Packet,
+        destination: NetworkAddress,
+        buffer: &mut [u8],
+    ) -> Result<usize, CommsError> {
+        let to_addr_size = destination.serialize(&mut buffer[2..]);
+        if let Err(e) = to_addr_size {
+            return Err(CommsError::SerializationError(e));
+        }
+        let to_addr_size = to_addr_size.unwrap();
+
+        let from_addr_size = self.host_addr.serialize(&mut buffer[(2 + to_addr_size)..]);
+        if let Err(e) = from_addr_size {
+            return Err(CommsError::SerializationError(e));
+        }
+        let from_addr_size = from_addr_size.unwrap();
+
+        buffer[0] = to_addr_size as u8;
+        buffer[1] = from_addr_size as u8;
+
+        let size = packet.serialize(&mut buffer[(2 + to_addr_size + from_addr_size)..]);
+        if let Err(e) = size {
+            return Err(CommsError::SerializationError(e));
+        }
+        let size = size.unwrap();
+
+        Ok(2 + to_addr_size + from_addr_size + size)
+    }
+
     pub fn network_address_to_ip(&self, address: NetworkAddress) -> Option<[u8; 4]> {
         if let NetworkAddress::Broadcast = address {
             return Some(self.broadcast_addr);

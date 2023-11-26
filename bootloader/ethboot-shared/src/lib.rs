@@ -15,9 +15,15 @@ pub const BOOTLOADER_PORT: u16 = 4080;
 pub const PROGRAM_CHUNK_LENGTH: usize = 256;
 pub const PROGRAM_PACKET_LENGTH: usize = PROGRAM_CHUNK_LENGTH + 6;
 
-pub const DEVICE_MAC_ADDR: [u8; 6] = [0x00, 0x80, 0xE1, 0x00, 0x00, 0x01];
-pub const DEVICE_IP_ADDR: wire::Ipv4Address = wire::Ipv4Address::new(169, 254, 0, 7);
-pub const DEVICE_CIDR_LENGTH: u8 = 16;
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub enum BootloaderError {
+    SmoltcpSendUnaddressable,
+    SmoltcpSendBufferFull,
+    SmoltcpRecvExhausted,
+    SerializationError,
+    FlashReadbackMismatch,
+    ChecksumMismatch,
+}
 
 #[derive(Clone, Serialize, Deserialize, FromRepr, EnumDiscriminants)]
 #[strum_discriminants(name(BootloaderNetworkCommandIndex))]
@@ -41,6 +47,7 @@ pub enum BootloaderNetworkCommand {
         end_offset: u32,
         checksum: u128,
     },
+    BootIntoApplication,
 }
 
 pub enum BootloaderAction<'a> {
@@ -58,14 +65,7 @@ pub enum BootloaderAction<'a> {
         end_offset: u32,
         checksum: u128,
     },
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum BootloaderError {
-    SmoltcpSendUnaddressable,
-    SmoltcpSendBufferFull,
-    SmoltcpRecvExhausted,
-    SerializationError,
+    BootIntoApplication,
 }
 
 pub struct ProgramCommandData<'a> {
@@ -117,6 +117,7 @@ where
     pub fn new(
         config: iface::Config,
         device: &'a mut D,
+        ip_addr: wire::IpCidr,
         sockets: &'a mut [iface::SocketStorage<'a>; 1],
         socket_buffer: &'a mut SocketBuffer,
         timestamp: Instant,
@@ -130,7 +131,7 @@ where
         );
 
         interface.update_ip_addrs(|addr| {
-            addr.push(wire::IpCidr::Ipv4(wire::Ipv4Cidr::new(DEVICE_IP_ADDR, DEVICE_CIDR_LENGTH))).ok();
+            addr.push(ip_addr).ok();
         });
 
         let mut sockets_set = iface::SocketSet::new(&mut sockets[..]);
@@ -149,11 +150,11 @@ where
         }
     }
 
-    pub fn complete_action<'b>(&mut self, working_buffer: &'b mut [u8]) {
+    pub fn complete_action<'b>(&mut self, working_buffer: &'b mut [u8], error: Option<BootloaderError>) {
         if let Some(source) = self.last_send_source {
             self.send(source, BootloaderNetworkCommand::Response {
                 command: 0,
-                success: true,
+                success: error.is_none(),
             }, working_buffer).ok();
         }
     }
@@ -201,6 +202,9 @@ where
                 },
                 BootloaderNetworkCommand::Response { command: _, success: _ } => {
                     return Ok(BootloaderAction::None);
+                },
+                BootloaderNetworkCommand::BootIntoApplication => {
+                    return Ok(BootloaderAction::BootIntoApplication);
                 },
             }
         }

@@ -204,9 +204,7 @@ mod app {
         let gpioe = p.GPIOE.split();
 
         let blue_led = gpioc.pc14.into_push_pull_output();
-        let mut red_led = gpioc.pc15.into_push_pull_output();
-
-        red_led.set_high();
+        let red_led = gpioc.pc15.into_push_pull_output();
 
         let rcc = p.RCC.constrain();
         let clocks = rcc

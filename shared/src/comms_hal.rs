@@ -60,6 +60,9 @@ pub enum Packet {
     EraseDataLogFlash,
     EnableDataLogging(bool),
     RetrieveDataLogPage(u32),
+    ResetMcu {
+        magic_number: u64, // crate::RESET_MAGIC_NUMBER
+    },
 
     // -- Dev Only -- //
     StartDevStatsFrame,
@@ -195,7 +198,7 @@ fn postcard_serialization_err_to_hal_err(err: postcard::Error) -> SerializationE
 
 pub mod tests_data {
     use super::*;
-    use crate::{SensorCalibration, fcu_hal::{ARMING_MAGIC_NUMBER, IGNITION_MAGIC_NUMBER}};
+    use crate::{SensorCalibration, fcu_hal::{ARMING_MAGIC_NUMBER, IGNITION_MAGIC_NUMBER}, RESET_MAGIC_NUMBER};
     use strum::EnumCount;
 
     const SENSOR_CALIBRATION: SensorCalibration = SensorCalibration {
@@ -229,6 +232,9 @@ pub mod tests_data {
         Packet::EraseDataLogFlash,
         Packet::EnableDataLogging(true),
         Packet::RetrieveDataLogPage(42),
+        Packet::ResetMcu {
+            magic_number: RESET_MAGIC_NUMBER,
+        },
         Packet::StartDevStatsFrame,
         Packet::TransitionFuelTankState(FuelTankState::Pressurized),
         Packet::FireIgniter,
