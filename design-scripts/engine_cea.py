@@ -32,7 +32,7 @@ def calc_chamber_diameter(throat_diameter, half_angle, chamber_length, chamber_v
 CHAMBER_PRESSURE = 300.0 # PSI
 EXIT_PRESSURE = 10.0 # PSI
 MIX_RATIO = 1.2
-THRUST = 500 # Newtons
+THRUST = 1000 # Newtons
 
 L_STAR = 1.5 # meters
 CONVERGENT_HALF_ANGLE = 15.0 * (math.pi / 180.0) # radians
@@ -78,5 +78,10 @@ print("Exit diameter\t\t{:.3f} m ({:.3f} mm or {:.3f} in)".format(exit_diameter,
 print("Chamber length\t\t{:.3f} m ({:.3f} cm or {:.3f} in)".format(chamber_length, chamber_length * 1e2, chamber_length * 39.3701))
 print("Chamber diameter\t{:.3f} m ({:.3f} cm or {:.3f} in)".format(chamber_diameter, chamber_diameter * 1e2, chamber_diameter * 39.3701))
 print("Contraction ratio\t{:.1f}".format(contraction_ratio))
+
+print()
+
+print("Oxidizer fluid power\t{:.3f} W".format(oxid_mass_flow * 9.81 * 0.00010199773339984 * CHAMBER_PRESSURE * 6894.75729))
+print("Fuel fluid power\t{:.3f} W".format(fuel_mass_flow * 9.81 * 0.00010199773339984 * CHAMBER_PRESSURE * 6894.75729))
 
 print()

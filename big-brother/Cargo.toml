@@ -1,0 +1,21 @@
+[package]
+name = "big-brother"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde = { version = "1.0", default-features = false, features = ["derive"]  }
+postcard = "1.0.2"
+
+[dependencies.smoltcp]
+version = "0.10"
+default-features = false
+optional = true
+features = ["medium-ethernet", "socket-udp", "proto-ipv4"]
+
+[features]
+default = ["smoltcp", "stdtcp"]
+smoltcp = ["dep:smoltcp"]
+stdtcp = []
