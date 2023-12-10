@@ -18,13 +18,14 @@ mod dev_stats;
 pub mod state_vector;
 pub mod vehicle_fsm;
 
+use big_brother::BigBrother;
 use dev_stats::DevStatsCollector;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::{
         FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame,
         PwmChannel, VehicleState, FcuAlertCondition,
-    }, alerts::AlertManager, DataPointLogger,
+    }, alerts::AlertManager, DataPointLogger, COMMS_NETWORK_MAP_SIZE,
 };
 use mint::Vector3;
 use state_vector::StateVector;
@@ -32,11 +33,15 @@ use strum::EnumCount;
 
 pub const HEARTBEAT_RATE: f32 = 0.25;
 pub const ALERT_RATE: f32 = 1.0;
+pub const PACKET_QUEUE_SIZE: usize = 16;
+
+pub type FcuBigBrother<'a> = BigBrother<'a, COMMS_NETWORK_MAP_SIZE, Packet, NetworkAddress>;
 
 pub struct Fcu<'a> {
     config: FcuConfig,
     pub vehicle_state: VehicleState,
     pub driver: &'a mut dyn FcuDriver,
+    pub comms: &'a mut FcuBigBrother<'a>,
     pub data_logger: &'a mut dyn DataPointLogger<FcuSensorData>,
     pub state_vector: StateVector,
     alert_manager: AlertManager<FcuAlertCondition>,
@@ -51,6 +56,7 @@ pub struct Fcu<'a> {
 impl<'a> Fcu<'a> {
     pub fn new(
         driver: &'a mut dyn FcuDriver,
+        comms: &'a mut FcuBigBrother<'a>,
         data_logger: &'a mut dyn DataPointLogger<FcuSensorData>,
     ) -> Self {
         let default_fcu_config = FcuConfig {
@@ -77,6 +83,7 @@ impl<'a> Fcu<'a> {
             config: default_fcu_config,
             vehicle_state: VehicleState::Calibrating,
             driver,
+            comms,
             data_logger,
             state_vector,
             alert_manager: AlertManager::new(),
@@ -88,12 +95,22 @@ impl<'a> Fcu<'a> {
             apogee: 0.0,
         };
         fcu.init_vehicle_fsm();
+        let _ = fcu.comms.send_packet(&Packet::DeviceBooted, NetworkAddress::Broadcast);
 
         fcu
     }
 
-    pub fn update(&mut self, dt: f32, packets: &[(NetworkAddress, Packet)]) {
+    pub fn update(&mut self, dt: f32) {
         let timestamp = self.driver.timestamp();
+
+        let mut packets = empty_packet_array();
+        let mut num_packets = 0;
+        while let Some((packet, source)) = self.comms.recv_packet().ok().flatten() {
+            silprintln!("FCU: From {:?} received packet: {:?}", source, packet);
+            packets[num_packets] = (source, packet);
+            num_packets += 1;
+        }
+        let packets = &packets[..num_packets];
 
         self.dev_stats
             .log_update_start(timestamp, packets.len() as u32, 0.0);
@@ -139,6 +156,10 @@ impl<'a> Fcu<'a> {
 
         self.update_vehicle_fsm(dt, packets);
         self.dev_stats.log_update_end(self.driver.timestamp());
+    }
+
+    pub fn poll_interfaces(&mut self) {
+        self.comms.poll((self.driver.timestamp() * 1e3) as u32);
     }
 
     fn handle_packet(&mut self, source: NetworkAddress, packet: &Packet) {
@@ -235,3 +256,24 @@ impl<'a> Fcu<'a> {
 
 #[allow(unsafe_code)]
 unsafe impl Send for Fcu<'_> {}
+
+fn empty_packet_array() -> [(NetworkAddress, Packet); PACKET_QUEUE_SIZE] {
+    [
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+        (NetworkAddress::Unknown, Packet::DoNothing),
+    ]
+}

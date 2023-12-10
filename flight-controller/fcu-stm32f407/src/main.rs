@@ -2,7 +2,7 @@
 #![no_std]
 
 mod drivers;
-mod comms;
+// mod comms;
 mod fcu_driver;
 mod sensors;
 mod logging;
@@ -26,16 +26,11 @@ mod app {
         cell::RefCell,
     };
     use bmi088_rs::{AccelFilterBandwidth, AccelDataRate, AccelRange, GyroRange, GyroBandwidth, Bmi088Accelerometer, Bmi088Gyroscope, Bmi088PinMode, Bmi088PinBehavior};
+    use big_brother::interface::smoltcp_interface::{SmoltcpInterface, SmoltcpInterfaceStorage};
     use cortex_m::peripheral::DWT;
     use cortex_m::interrupt::Mutex;
-    use flight_controller_rs::Fcu;
-    use shared::{
-        comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE},
-        comms_manager::CommsManager,
-    };
-    use rtic::export::Queue;
-    use smoltcp::iface;
-    use stm32_eth::{EthPins, EthernetDMA, RxRingEntry, TxRingEntry};
+    use flight_controller_rs::{Fcu, FcuBigBrother};
+    use shared::comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE};
     use stm32f4::stm32f407::I2C1;
     use stm32f4xx_hal::{
         gpio::{self, Input, Output, PC3, PC14, PC15, PE4, PE5, PE8, PE9, Edge, Pin, Alternate, PinState},
@@ -48,7 +43,7 @@ mod app {
 
     use crate::fcu_driver::{Stm32F407FcuDriver, FcuControlPins, fcu_update};
     use crate::drivers::{bmm150, w25x05};
-    use crate::comms::{send_packet, eth_interrupt, init_comms, NetworkingStorage};
+    // use crate::comms::{send_packet, eth_interrupt, init_comms, NetworkingStorage};
     use crate::sensors::{bmi088_interrupt, bmm150_interrupt, ms5611_update};
     use crate::logging::{self, DataLoggerType};
 
@@ -83,12 +78,8 @@ mod app {
 
     #[shared]
     struct Shared {
-        interface: iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>,
-        udp_socket_handle: iface::SocketHandle,
-        packet_queue: Queue<(NetworkAddress, Packet), PACKET_QUEUE_SIZE>,
         red_led: PC15<Output>,
         fcu: Fcu<'static>,
-        comms_manager: CommsManager<16>,
         #[lock_free]
         w25x05: w25x05::W25X05<PE4<Output>, PE5<Output>>,
         #[lock_free]
@@ -102,28 +93,24 @@ mod app {
         ctx.local.blue_led.toggle();
     }
 
+    #[task(
+        binds = ETH,
+        local = [data: [u8; PACKET_BUFFER_SIZE] = [0u8; PACKET_BUFFER_SIZE]],
+        shared = [fcu],
+        priority = 12,
+    )]
+    fn eth_interrupt(mut ctx: eth_interrupt::Context) {
+        ctx.shared.fcu.lock(|fcu| {
+            fcu.poll_interfaces();
+        });
+    }
+
     extern "Rust" {
         #[task(
-            shared = [fcu, packet_queue],
+            shared = [fcu],
             priority = 7,
         )]
-        fn fcu_update(ctx: fcu_update::Context);
-
-        #[task(
-            local = [data: [u8; PACKET_BUFFER_SIZE] = [0u8; PACKET_BUFFER_SIZE]],
-            shared = [interface, udp_socket_handle, comms_manager],
-            capacity = 8,
-            priority = 10,
-        )]
-        fn send_packet(ctx: send_packet::Context, packet: Packet, address: NetworkAddress);
-
-        #[task(
-            binds = ETH,
-            local = [data: [u8; PACKET_BUFFER_SIZE] = [0u8; PACKET_BUFFER_SIZE]],
-            shared = [interface, udp_socket_handle, packet_queue, comms_manager],
-            priority = 12,
-        )]
-        fn eth_interrupt(ctx: eth_interrupt::Context);
+        fn fcu_update(mut ctx: fcu_update::Context);
 
         #[task(
             binds = EXTI9_5,
@@ -153,11 +140,13 @@ mod app {
     type Monotonic = Systick<1000>;
 
     #[init(local = [
-        rx_ring: [RxRingEntry; 4] = [RxRingEntry::INIT; 4],
-        tx_ring: [TxRingEntry; 4] = [TxRingEntry::INIT; 4],
-        net_storage: NetworkingStorage = NetworkingStorage::new(),
-        dma: MaybeUninit<EthernetDMA<'static, 'static>> = MaybeUninit::uninit(),
+        eth_device: MaybeUninit<stm32_eth::dma::EthernetDMA<'static,'static> > = MaybeUninit::uninit(),
+        rx_ring: [stm32_eth::dma::RxRingEntry; 4] = [stm32_eth::dma::RxRingEntry::INIT; 4],
+        tx_ring: [stm32_eth::dma::TxRingEntry; 4] = [stm32_eth::dma::TxRingEntry::INIT; 4],
+        smoltcp_interface_storage: SmoltcpInterfaceStorage<'static> = SmoltcpInterfaceStorage::new(),
+        smoltcp_interface: MaybeUninit<SmoltcpInterface<'static, &'static mut stm32_eth::dma::EthernetDMA<'static, 'static>>> = MaybeUninit::uninit(),
         fcu_driver: MaybeUninit<Stm32F407FcuDriver> = MaybeUninit::uninit(),
+        big_brother: MaybeUninit<FcuBigBrother<'static>> = MaybeUninit::uninit(),
         data_logger: MaybeUninit<DataLoggerType<'static>> = MaybeUninit::uninit(),
         logger_buffer0: [u8; logging::PAGE_SIZE] = [0u8; logging::PAGE_SIZE],
         logger_buffer1: [u8; logging::PAGE_SIZE] = [0u8; logging::PAGE_SIZE],
@@ -245,7 +234,7 @@ mod app {
 
         let (usart2_tx, usart2_rx) = usart2.split();
 
-        let eth_pins = EthPins {
+        let eth_pins = stm32_eth::EthPins {
             ref_clk: gpioa.pa1,
             crs: gpioa.pa7,
             tx_en: gpiob.pb11,
@@ -254,21 +243,22 @@ mod app {
             rx_d0: gpioc.pc4,
             rx_d1: gpioc.pc5,
         };
-        let (eth_dma, _eth_mac) = stm32_eth::new(
-            p.ETHERNET_MAC,
-            p.ETHERNET_MMC,
-            p.ETHERNET_DMA,
-            ctx.local.rx_ring,
-            ctx.local.tx_ring,
-            clocks,
-            eth_pins,
-        )
-        .unwrap();
 
-        let eth_dma = ctx.local.dma.write(eth_dma);
-        eth_dma.enable_interrupt();
+        let ethernet_parts = stm32_eth::PartsIn {
+            dma: p.ETHERNET_DMA,
+            mac: p.ETHERNET_MAC,
+            mmc: p.ETHERNET_MMC,
+            ptp: p.ETHERNET_PTP,
+        };
 
-        let (interface, udp_socket_handle) = init_comms(ctx.local.net_storage, eth_dma);
+        let stm32_eth::Parts {
+            dma: eth_device_dma,
+            mac: _,
+            ptp: _,
+        } = stm32_eth::new(ethernet_parts, ctx.local.rx_ring, ctx.local.tx_ring, clocks, eth_pins)
+            .expect("Failed to intialize STM32 eth");
+
+        eth_device_dma.enable_interrupt();
 
         let mut bmi088_accel: Bmi088Accelerometer<SharedI2C1Type> = bmi088_rs::Bmi088Accelerometer::new(i2c1_bus.acquire_i2c(), 0x18);
         let mut bmi088_gyro: Bmi088Gyroscope<SharedI2C1Type> = bmi088_rs::Bmi088Gyroscope::new(i2c1_bus.acquire_i2c(), 0x68);
@@ -324,6 +314,26 @@ mod app {
             Stm32F407FcuDriver::new(fcu_control_pins),
         );
 
+        let eth_device = ctx.local.eth_device.write(eth_device_dma);
+
+        let smoltcp_interface = ctx.local.smoltcp_interface.write(
+            SmoltcpInterface::new(
+                [0x00, 0x80, 0xE1, 0x00, 0x00, 0x01],
+                eth_device,
+                [169, 254, 0, 7],
+                16,
+                ctx.local.smoltcp_interface_storage,
+                0,
+            ),
+        );
+
+        let big_brother = ctx.local.big_brother.write(
+            FcuBigBrother::new(
+                NetworkAddress::FlightController,
+                [Some(smoltcp_interface), None],
+            ),
+        );
+
         let data_logger = ctx.local.data_logger.write(
             DataLoggerType::new(
                 ctx.local.logger_buffer0,
@@ -332,9 +342,8 @@ mod app {
             ),
         );
 
-        let fcu = Fcu::new(fcu_driver, data_logger);
+        let fcu = Fcu::new(fcu_driver, big_brother, data_logger);
 
-        send_packet::spawn(Packet::DeviceBooted, NetworkAddress::MissionControl).unwrap();
         fcu_update::spawn().unwrap();
         ms5611_update::spawn().unwrap();
 
@@ -347,12 +356,8 @@ mod app {
 
         (
             Shared {
-                interface,
-                udp_socket_handle,
-                packet_queue: Queue::new(),
                 red_led,
                 fcu,
-                comms_manager: CommsManager::new(NetworkAddress::FlightController),
                 w25x05,
                 spi1,
                 cpu_utilization: AtomicU32::new(0),

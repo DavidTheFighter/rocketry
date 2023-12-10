@@ -139,6 +139,15 @@ impl ObserverHandler {
         }
     }
 
+    pub fn get_event(&self) -> Option<(u64, ObserverEvent)> {
+        if let Some(observer) = self.observers.get(&thread::current().id()) {
+            observer.receive_rx.try_recv().ok()
+        } else {
+            eprintln!("wait_event: Observer thread {:?} not registered", thread::current().id());
+            None
+        }
+    }
+
     pub fn get_num_observers(&self) -> usize {
         self.observers.len()
     }

@@ -1,6 +1,6 @@
 use std::net::UdpSocket;
 
-use crate::big_brother::{BigBrotherEndpoint, BigBrotherError};
+use crate::big_brother::{BigBrotherEndpoint, BigBrotherError, UDP_PORT};
 
 use super::BigBrotherInterface;
 
@@ -10,8 +10,8 @@ pub struct StdInterface {
 
 impl StdInterface {
     pub fn new() -> Result<Self, BigBrotherError> {
-        let udp_socket =
-            UdpSocket::bind(format!("")).map_err(|_| BigBrotherError::SocketBindFailure)?;
+        let udp_socket = UdpSocket::bind(format!("0.0.0.0:{}", UDP_PORT))
+            .map_err(|_| BigBrotherError::SocketBindFailure)?;
         udp_socket
             .set_nonblocking(true)
             .map_err(|_| BigBrotherError::SocketConfigFailure)?;
@@ -50,10 +50,14 @@ impl BigBrotherInterface for StdInterface {
         &mut self,
         data: &mut [u8],
     ) -> Result<Option<(usize, BigBrotherEndpoint)>, BigBrotherError> {
-        let (size, remote) = self
-            .udp_socket
-            .recv_from(data)
-            .map_err(|e| BigBrotherError::from(e))?;
+        let recv = self.udp_socket.recv_from(data);
+        if let Err(e) = &recv {
+            if e.kind() == std::io::ErrorKind::WouldBlock {
+                return Ok(None);
+            }
+        }
+
+        let (size, remote) = recv.map_err(|e| BigBrotherError::from(e))?;
 
         let (ip, port) =
             parse_remote(&remote.to_string()).map_err(|_| BigBrotherError::SocketConfigFailure)?;
@@ -63,8 +67,8 @@ impl BigBrotherInterface for StdInterface {
         Ok(Some((size, remote)))
     }
 
-    fn as_mut_any(&'static mut self) -> &mut dyn core::any::Any {
-        self
+    fn as_mut_any(&mut self) -> Option<&mut dyn core::any::Any> {
+        Some(self)
     }
 }
 

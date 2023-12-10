@@ -24,3 +24,7 @@ serde_json = "1.0"
 [dependencies.flight-controller-rs]
 path = "../../flight-controller/flight-controller-rs/"
 features = ["sil"]
+
+[dependencies.big-brother]
+path = "../../big-brother"
+features = ["stdtcp"]

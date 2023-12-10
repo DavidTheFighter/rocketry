@@ -1,6 +1,6 @@
 {
     "host": {
-        "GroundCamera": 0
+        "Camera": 0
     },
     "pre_commands": [
         {

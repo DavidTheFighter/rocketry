@@ -14,7 +14,7 @@ use super::send_command;
 pub fn start_stream(observer_handler: &State<Arc<ObserverHandler>>) -> Json<CommandResponse> {
     send_command(
         observer_handler,
-        NetworkAddress::GroundCamera(0),
+        NetworkAddress::Camera(0),
         Packet::StartCameraStream { port: 25570 },
     )
 }
@@ -23,7 +23,7 @@ pub fn start_stream(observer_handler: &State<Arc<ObserverHandler>>) -> Json<Comm
 pub fn stop_stream(observer_handler: &State<Arc<ObserverHandler>>) -> Json<CommandResponse> {
     send_command(
         observer_handler,
-        NetworkAddress::GroundCamera(0),
+        NetworkAddress::Camera(0),
         Packet::StopCameraStream,
     )
 }

@@ -7,9 +7,10 @@ use std::str::FromStr;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use big_brother::interface::mock_interface::MockInterface;
 use driver::FcuDriverSim;
 use dynamics::Dynamics;
-use flight_controller_rs::Fcu;
+use flight_controller_rs::{Fcu, FcuBigBrother};
 use shared::comms_hal::{Packet, NetworkAddress};
 use shared::fcu_hal::{self, FcuTelemetryFrame, FcuSensorData, OutputChannel};
 use logging::{Logger, load_logs_from_file};
@@ -26,9 +27,11 @@ pub struct FcuSil {
     #[pyo3(get)]
     name: String,
     _driver: Rc<RefCell<FcuDriverSim>>,
+    _ip_interface: Rc<RefCell<MockInterface>>,
+    _big_brother: Rc<RefCell<FcuBigBrother<'static>>>,
     _data_point_logger: Rc<RefCell<DataPointLoggerMock>>,
+    temp_fcu_packet_counter: u16,
     fcu: Fcu<'static>,
-    pending_packets: Vec<(NetworkAddress, Packet)>,
 }
 
 #[pymethods]
@@ -40,25 +43,39 @@ impl FcuSil {
             std::mem::transmute(&mut *driver.borrow_mut())
         };
 
+        let ip_interface = Rc::new(RefCell::new(MockInterface::new()));
+        let ip_interface_ref: &'static mut MockInterface = unsafe {
+            std::mem::transmute(&mut *ip_interface.borrow_mut())
+        };
+
+        let big_brother = Rc::new(RefCell::new(FcuBigBrother::new(
+            NetworkAddress::FlightController,
+            [Some(ip_interface_ref), None],
+        )));
+        let big_brother_ref: &'static mut FcuBigBrother<'static> = unsafe {
+            std::mem::transmute(&mut *big_brother.borrow_mut())
+        };
+
         let data_point_logger = Rc::new(RefCell::new(DataPointLoggerMock));
         let data_point_logger_ref: &'static mut DataPointLoggerMock = unsafe {
             std::mem::transmute(&mut *data_point_logger.borrow_mut())
         };
 
-        let fcu = Fcu::new(driver_ref, data_point_logger_ref);
+        let fcu = Fcu::new(driver_ref, big_brother_ref, data_point_logger_ref);
 
         Self {
             name: "FCU".to_string(),
             _driver: driver,
+            _ip_interface: ip_interface,
+            _big_brother: big_brother,
             _data_point_logger: data_point_logger,
+            temp_fcu_packet_counter: 0,
             fcu,
-            pending_packets: Vec::new(),
         }
     }
 
     pub fn update(&mut self, dt: f32) {
-        self.fcu.update(dt, &self.pending_packets);
-        self.pending_packets.clear();
+        self.fcu.update(dt);
     }
 
     pub fn update_acceleration(&mut self, accel: &PyList) {
@@ -93,7 +110,8 @@ impl FcuSil {
 
         println!("Updating config: {:?}", config);
 
-        self.pending_packets.push((NetworkAddress::MissionControl, Packet::ConfigureFcu(config)));
+        self.send_packet(NetworkAddress::MissionControl, &Packet::ConfigureFcu(config));
+        // self.pending_packets.push((NetworkAddress::MissionControl, Packet::ConfigureFcu(config)));
     }
 
     pub fn fcu_config(&self, py: Python) -> PyResult<PyObject> {
@@ -101,7 +119,8 @@ impl FcuSil {
     }
 
     pub fn start_dev_stats_frame(&mut self) {
-        self.pending_packets.push((NetworkAddress::MissionControl, Packet::StartDevStatsFrame));
+        self.send_packet(NetworkAddress::MissionControl, &Packet::StartDevStatsFrame);
+        // self.pending_packets.push((NetworkAddress::MissionControl, Packet::StartDevStatsFrame));
     }
 
     pub fn update_timestamp(&mut self, sim_time: f32) {
@@ -144,11 +163,13 @@ impl FcuSil {
     }
 
     pub fn send_arm_vehicle_packet(&mut self) {
-        self.pending_packets.push((NetworkAddress::MissionControl, Packet::ArmVehicle { magic_number: fcu_hal::ARMING_MAGIC_NUMBER }));
+        self.send_packet(NetworkAddress::MissionControl, &Packet::ArmVehicle { magic_number: fcu_hal::ARMING_MAGIC_NUMBER });
+        // self.pending_packets.push((NetworkAddress::MissionControl, Packet::ArmVehicle { magic_number: fcu_hal::ARMING_MAGIC_NUMBER }));
     }
 
     pub fn send_ignite_solid_motor_packet(&mut self) {
-        self.pending_packets.push((NetworkAddress::MissionControl, Packet::IgniteSolidMotor { magic_number: fcu_hal::IGNITION_MAGIC_NUMBER }));
+        self.send_packet(NetworkAddress::MissionControl, &Packet::IgniteSolidMotor { magic_number: fcu_hal::IGNITION_MAGIC_NUMBER });
+        // self.pending_packets.push((NetworkAddress::MissionControl, Packet::IgniteSolidMotor { magic_number: fcu_hal::IGNITION_MAGIC_NUMBER }));
     }
 
     // Returns general and widely needed fields from the FCU
@@ -182,6 +203,32 @@ impl FcuSil {
         let dict = dict_from_obj(py, &self.fcu.state_vector);
 
         Ok(dict.into())
+    }
+}
+
+impl FcuSil {
+    fn send_packet(&mut self, from_addr: NetworkAddress, packet: &Packet) {
+        println!("From {:?} sending packet: {:?}", from_addr, packet);
+
+        self.fcu
+            .comms
+            .interfaces[0]
+            .as_mut()
+            .expect("Failed to get interface")
+            .as_mut_any()
+            .expect("Failed to get interface as any")
+            .downcast_mut::<MockInterface>()
+            .expect("Failed to downcast interface")
+            .add_recv_packet(
+                NetworkAddress::FlightController,
+                from_addr,
+                [127, 0, 0, 1],
+                self.temp_fcu_packet_counter,
+                packet,
+            )
+            .expect("Failed to add packet to mock interface");
+
+        self.temp_fcu_packet_counter += 1;
     }
 }
 

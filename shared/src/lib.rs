@@ -3,7 +3,7 @@
 
 pub mod alerts;
 pub mod comms_hal;
-pub mod comms_manager;
+// pub mod comms_manager;
 pub mod ecu_hal;
 pub mod ecu_mock;
 pub mod fcu_hal;
@@ -15,6 +15,8 @@ use comms_hal::{NetworkAddress, Packet};
 use serde::{Deserialize, Serialize};
 
 pub use logger::{DataPointLogger, FlashDataLogger};
+
+pub const COMMS_NETWORK_MAP_SIZE: usize = 16;
 
 pub const GRAVITY: f32 = 9.80665; // In m/s^2
 pub const RESET_MAGIC_NUMBER: u64 = 0xabcd1234_5678ef90;

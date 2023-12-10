@@ -6,6 +6,9 @@ pub mod smoltcp_interface;
 #[cfg(feature = "stdtcp")]
 pub mod std_interface;
 
+#[cfg(feature = "stdtcp")]
+pub mod mock_interface;
+
 pub trait BigBrotherInterface {
     fn poll(&mut self, timestamp: u32);
 
@@ -19,5 +22,5 @@ pub trait BigBrotherInterface {
         data: &mut [u8],
     ) -> Result<Option<(usize, BigBrotherEndpoint)>, BigBrotherError>;
 
-    fn as_mut_any(&'static mut self) -> &mut dyn core::any::Any;
+    fn as_mut_any(&mut self) -> Option<&mut dyn core::any::Any>;
 }

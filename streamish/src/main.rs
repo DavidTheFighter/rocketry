@@ -1,3 +1,4 @@
+use big_brother::interface::std_interface::StdInterface;
 use streamish::Streamish;
 use sysinfo::{SystemExt, ProcessExt};
 
@@ -16,6 +17,8 @@ fn main() {
         }
     }
 
-    let mut streamish = Streamish::new();
+    let mut interface = StdInterface::new().expect("Failed to create interface");
+
+    let mut streamish = Streamish::new(&mut interface);
     streamish.run();
 }

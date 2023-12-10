@@ -268,9 +268,9 @@ pub mod tests {
         NetworkAddress::EngineController(0),
         NetworkAddress::EngineController(42),
         NetworkAddress::EngineController(201),
-        NetworkAddress::GroundCamera(1),
-        NetworkAddress::GroundCamera(70),
-        NetworkAddress::GroundCamera(255),
+        NetworkAddress::Camera(1),
+        NetworkAddress::Camera(70),
+        NetworkAddress::Camera(255),
         NetworkAddress::Broadcast,
     ];
 

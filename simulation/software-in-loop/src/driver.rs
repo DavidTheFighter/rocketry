@@ -61,18 +61,18 @@ impl FcuDriver for FcuDriverSim {
         self.packet_log_queue.push(packet.clone());
 
         if let Some(socket) = self.socket.as_mut() {
-            match packet.serialize(&mut buffer) {
-                Ok(size) => {
-                    let address = "127.0.0.1:25565";
+            // match packet.serialize(&mut buffer) {
+            //     Ok(size) => {
+            //         let address = "127.0.0.1:25565";
 
-                    if let Err(err) = socket.send_to(&buffer[0..size], address) {
-                        println!("FcuDriverSim: Failed to send packet: {err}");
-                    }
-                }
-                Err(err) => {
-                    println!("FcuDriverSim: Failed to serialize packet: {:?}", err);
-                }
-            }
+            //         if let Err(err) = socket.send_to(&buffer[0..size], address) {
+            //             println!("FcuDriverSim: Failed to send packet: {err}");
+            //         }
+            //     }
+            //     Err(err) => {
+            //         println!("FcuDriverSim: Failed to serialize packet: {:?}", err);
+            //     }
+            // }
         }
     }
 

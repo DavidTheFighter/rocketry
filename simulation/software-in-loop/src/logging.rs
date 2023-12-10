@@ -1,4 +1,5 @@
-use shared::{fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame}, comms_hal::{Packet, PACKET_BUFFER_SIZE, NetworkAddress}};
+use big_brother::big_brother::WORKING_BUFFER_SIZE;
+use shared::{fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame}, comms_hal::{Packet, NetworkAddress}};
 use pyo3::{prelude::*, types::{PyDict, PyList}};
 use serde::{Serialize, Deserialize};
 use std::{io::Write, thread};
@@ -125,35 +126,35 @@ impl Logger {
 
     pub fn get_outbound_packets(&mut self, py: Python, i: usize) -> PyResult<PyObject> {
         let packet_list = PyList::empty(py);
-        let mut buffer = [0_u8; PACKET_BUFFER_SIZE];
+        let mut buffer = [0_u8; WORKING_BUFFER_SIZE];
         for packet in &self.outbound_packets[i] {
-            let byte_list = PyList::empty(py);
+            // let byte_list = PyList::empty(py);
 
-            let from_addr = NetworkAddress::FlightController;
-            let to_addr = NetworkAddress::MissionControl;
+            // let from_addr = NetworkAddress::FlightController;
+            // let to_addr = NetworkAddress::MissionControl;
 
-            let to_size = to_addr.serialize(&mut buffer).unwrap();
-            byte_list.append(to_size as u8)?;
+            // let to_size = to_addr.serialize(&mut buffer).unwrap();
+            // byte_list.append(to_size as u8)?;
 
-            let from_size = from_addr.serialize(&mut buffer).unwrap();
-            byte_list.append(from_size as u8)?;
+            // let from_size = from_addr.serialize(&mut buffer).unwrap();
+            // byte_list.append(from_size as u8)?;
 
-            to_addr.serialize(&mut buffer).unwrap();
-            for byte in &buffer[..to_size] {
-                byte_list.append(*byte)?;
-            }
+            // to_addr.serialize(&mut buffer).unwrap();
+            // for byte in &buffer[..to_size] {
+            //     byte_list.append(*byte)?;
+            // }
 
-            from_addr.serialize(&mut buffer).unwrap();
-            for byte in &buffer[..from_size] {
-                byte_list.append(*byte)?;
-            }
+            // from_addr.serialize(&mut buffer).unwrap();
+            // for byte in &buffer[..from_size] {
+            //     byte_list.append(*byte)?;
+            // }
 
-            let size = packet.serialize(&mut buffer).unwrap();
-            for byte in &buffer[..size] {
-                byte_list.append(*byte)?;
-            }
+            // let size = packet.serialize(&mut buffer).unwrap();
+            // for byte in &buffer[..size] {
+            //     byte_list.append(*byte)?;
+            // }
 
-            packet_list.append(byte_list)?;
+            // packet_list.append(byte_list)?;
         }
 
         Ok(packet_list.into())

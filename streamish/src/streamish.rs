@@ -1,54 +1,39 @@
 use std::{net::{UdpSocket, IpAddr, Ipv4Addr}, time::Duration};
 
-use shared::comms_manager::CommsManager;
-use shared::comms_hal::{PACKET_BUFFER_SIZE, Packet, UDP_RECV_PORT, NetworkAddress};
+use big_brother::{BigBrother, interface::BigBrotherInterface};
+use shared::comms_hal::{Packet, NetworkAddress};
 
 use crate::stream::Stream;
 
 const NETWORK_MAP_SIZE: usize = 64;
 
-pub struct Streamish {
-    socket: UdpSocket,
+pub struct Streamish<'a> {
     stream: Option<Stream>,
-    comms_manager: CommsManager<NETWORK_MAP_SIZE>,
+    comms: BigBrother<'a, 64, Packet, NetworkAddress>,
 }
 
-impl Streamish {
-    pub fn new() -> Self {
-        let addr = format!("0.0.0.0:{}", UDP_RECV_PORT);
-
+impl<'a> Streamish<'a> {
+    pub fn new(interface: &'a mut dyn BigBrotherInterface) -> Self {
         Self {
-            socket: UdpSocket::bind(addr).expect("Failed to bind socket"),
             stream: None,
-            comms_manager: CommsManager::<NETWORK_MAP_SIZE>::new(shared::comms_hal::NetworkAddress::GroundCamera(0)),
+            comms: BigBrother::new(NetworkAddress::Camera(0), [Some(interface), None]),
         }
     }
 
     pub fn run(&mut self) {
-        let timeout = Duration::from_millis(10);
-
-        self.socket.set_broadcast(true).expect("Failed to set broadcast");
-        self.socket.set_read_timeout(Some(timeout)).expect("Failed to set read timeout");
-
         let mut last_broadcast_time = get_timestamp();
-        let mut buffer = [0u8; PACKET_BUFFER_SIZE];
 
         loop {
-            while let Ok((bytes_read, addr)) = self.socket.recv_from(&mut buffer) {
-                let source_address = Self::ipv4_from_ip(addr.ip()).octets();
-
-                match self.comms_manager.extract_packet(&mut buffer[..bytes_read], source_address) {
-                    Ok((packet, source_address)) => {
-                        if let Some(ip) = self.comms_manager.network_address_to_ip(source_address) {
-                            self.handle_packet(packet, Ipv4Addr::from(ip));
-                        }
-                    },
-                    Err(e) => eprintln!("Streamish: Failed to extract packet: {:?}", e),
+            while let Some((packet, remote)) = self.comms.recv_packet().ok().flatten() {
+                if let Some(mapping) = self.comms.get_network_mapping(remote) {
+                    self.handle_packet(packet, Ipv4Addr::from(mapping));
                 }
             }
 
             if get_timestamp() - last_broadcast_time > 0.5 {
-                self.send_heartbeat();
+                if let Err(e) = self.comms.send_packet(&Packet::Heartbeat, NetworkAddress::Broadcast) {
+                    eprintln!("Streamish: Failed to send heartbeat packet: {:?}", e);
+                }
                 last_broadcast_time = get_timestamp();
             }
         }
@@ -89,21 +74,6 @@ impl Streamish {
             },
             Packet::Heartbeat => {},
             _ => eprintln!("Streamish: Received unhandled packet: {:?}", packet),
-        }
-    }
-
-    fn send_heartbeat(&self) {
-        let mut buffer = [0u8; PACKET_BUFFER_SIZE];
-        let packet = Packet::Heartbeat;
-        let destination = NetworkAddress::Broadcast;
-        match self.comms_manager.process_packet(&packet, destination, &mut buffer) {
-            Ok((bytes_written, ip)) => {
-                let addr = Self::ip_str_from_octets(ip, UDP_RECV_PORT);
-                self.socket
-                    .send_to(&buffer[0..bytes_written], addr)
-                    .expect("Failed to send packet");
-            },
-            Err(e) => eprintln!("Streamish: Failed to process packet: {:?}", e),
         }
     }
 

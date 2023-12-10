@@ -1,6 +1,6 @@
+use rtic::Mutex;
 use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver};
 use shared::comms_hal::{Packet, NetworkAddress};
-use rtic::mutex_prelude::TupleExt02;
 use stm32f4xx_hal::prelude::*;
 use stm32f4xx_hal::gpio::{PE0, PE1, PE2, PE3, Output, PinState};
 use strum::EnumCount;
@@ -74,8 +74,8 @@ impl FcuDriver for Stm32F407FcuDriver {
         // app::read_log_page_and_transfer::spawn(addr).unwrap();
     }
 
-    fn send_packet(&mut self, packet: Packet, destination: NetworkAddress) {
-        app::send_packet::spawn(packet, destination).unwrap();
+    fn send_packet(&mut self, _packet: Packet, _destination: NetworkAddress) {
+        // app::send_packet::spawn(packet, destination).unwrap();
     }
 
     fn as_mut_any(&mut self) -> &mut dyn core::any::Any {
@@ -83,34 +83,11 @@ impl FcuDriver for Stm32F407FcuDriver {
     }
 }
 
-pub fn fcu_update(ctx: app::fcu_update::Context) {
+pub fn fcu_update(mut ctx: app::fcu_update::Context) {
     app::fcu_update::spawn_after(10.millis().into()).unwrap();
 
-    let fcu = ctx.shared.fcu;
-    let packet_queue = ctx.shared.packet_queue;
-
-    (fcu, packet_queue).lock(|fcu, packet_queue| {
-        // fcu.update_data_logged_bytes(data_logger.get_bytes_logged());
-
-        let mut packet_array_len = 0;
-        let mut packet_array = empty_packet_array();
-
-        while let Some(packet) = packet_queue.dequeue() {
-            if let Packet::ResetMcu { magic_number } = &packet.1 {
-                if *magic_number == shared::RESET_MAGIC_NUMBER {
-                    cortex_m::peripheral::SCB::sys_reset();
-                }
-            }
-
-            packet_array[packet_array_len] = packet;
-            packet_array_len += 1;
-
-            if packet_array_len == packet_array.len() {
-                break;
-            }
-        }
-
-        fcu.update(0.01, &packet_array[0..packet_array_len]);
+    ctx.shared.fcu.lock(|fcu| {
+        fcu.update(0.01);
     });
 }
 
@@ -123,25 +100,4 @@ impl Stm32F407FcuDriver {
             continuities: [false; OutputChannel::COUNT],
         }
     }
-}
-
-fn empty_packet_array() -> [(NetworkAddress, Packet); 16] {
-    [
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-        (NetworkAddress::Unknown, Packet::DoNothing),
-    ]
 }

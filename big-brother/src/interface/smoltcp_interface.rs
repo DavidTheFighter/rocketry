@@ -7,39 +7,46 @@ use super::BigBrotherInterface;
 const SOCKET_STORAGE_SIZE: usize = 512;
 const SOCKET_METADATA_SIZE: usize = 8;
 
+pub struct SmoltcpInterfaceStorage<'a> {
+    sockets: [iface::SocketStorage<'a>; 1],
+    udp_socket_buffer: UdpSocketBuffer,
+}
+
 pub struct SmoltcpInterface<'a, D>
 where
-    D: phy::Device + ?Sized,
+    D: phy::Device + Sized,
 {
     interface: iface::Interface,
-    device: &'a mut D,
+    device: D,
     sockets_set: iface::SocketSet<'a>,
     udp_socket_handle: iface::SocketHandle,
 }
 
 impl<'a, D> SmoltcpInterface<'a, D>
 where
-    D: phy::Device + ?Sized,
+    D: phy::Device + Sized,
 {
     pub fn new(
-        config: iface::Config,
-        device: &'a mut D,
-        ip_addr: wire::IpCidr,
-        sockets: &'a mut [iface::SocketStorage<'a>; 1],
-        udp_socket_buffer: &'a mut UdpSocketBuffer,
+        mac_address: [u8; 6],
+        mut device: D,
+        ip_addr: [u8; 4],
+        cidr_len: u8,
+        storage: &'a mut SmoltcpInterfaceStorage<'a>,
         timestamp: u32,
     ) -> Self {
         let timestamp = smoltcp::time::Instant::from_millis(timestamp);
 
-        let (rx_buffer, tx_buffer) = udp_socket_buffer.into_udp_socket_buffers();
+        let (rx_buffer, tx_buffer) = storage.udp_socket_buffer.into_udp_socket_buffers();
 
-        let mut interface = iface::Interface::new(config, device, timestamp);
+        let config = iface::Config::new(wire::EthernetAddress(mac_address).into());
+        let mut interface = iface::Interface::new(config, &mut device, timestamp);
 
+        let ip_cidr = wire::IpCidr::Ipv4(wire::Ipv4Cidr::new(wire::Ipv4Address(ip_addr), cidr_len));
         interface.update_ip_addrs(|addr| {
-            addr.push(ip_addr).ok();
+            addr.push(ip_cidr).ok();
         });
 
-        let mut sockets_set = iface::SocketSet::new(&mut sockets[..]);
+        let mut sockets_set = iface::SocketSet::new(&mut storage.sockets[..]);
 
         let mut udp_socket = udp::Socket::new(rx_buffer, tx_buffer);
         udp_socket
@@ -59,13 +66,13 @@ where
 
 impl<'a, D> BigBrotherInterface for SmoltcpInterface<'a, D>
 where
-    D: phy::Device + ?Sized,
+    D: phy::Device + Sized,
 {
     fn poll(&mut self, timestamp: u32) {
         let timestamp = smoltcp::time::Instant::from_millis(timestamp);
 
         self.interface
-            .poll(timestamp, self.device, &mut self.sockets_set);
+            .poll(timestamp, &mut self.device, &mut self.sockets_set);
     }
 
     fn send_udp(
@@ -110,16 +117,25 @@ where
         Ok(Some((size, remote)))
     }
 
-    fn as_mut_any(&'static mut self) -> &mut dyn core::any::Any {
-        self
+    fn as_mut_any(&mut self) -> Option<&mut dyn core::any::Any> {
+        None
     }
 }
 
-pub struct UdpSocketBuffer {
-    pub rx_storage: [u8; SOCKET_STORAGE_SIZE],
-    pub rx_metadata_storage: [storage::PacketMetadata<udp::UdpMetadata>; SOCKET_METADATA_SIZE],
-    pub tx_storage: [u8; SOCKET_STORAGE_SIZE],
-    pub tx_metadata_storage: [storage::PacketMetadata<udp::UdpMetadata>; SOCKET_METADATA_SIZE],
+impl<'a> SmoltcpInterfaceStorage<'a> {
+    pub const fn new() -> Self {
+        Self {
+            sockets: [iface::SocketStorage::EMPTY],
+            udp_socket_buffer: UdpSocketBuffer::new(),
+        }
+    }
+}
+
+struct UdpSocketBuffer {
+    rx_storage: [u8; SOCKET_STORAGE_SIZE],
+    rx_metadata_storage: [storage::PacketMetadata<udp::UdpMetadata>; SOCKET_METADATA_SIZE],
+    tx_storage: [u8; SOCKET_STORAGE_SIZE],
+    tx_metadata_storage: [storage::PacketMetadata<udp::UdpMetadata>; SOCKET_METADATA_SIZE],
 }
 
 impl UdpSocketBuffer {

@@ -21,6 +21,9 @@ bmi088-rs = { git = "https://github.com/DavidTheFighter/bmi088-rs" }
 [dependencies.shared]
 path = "../../shared"
 
+[dependencies.big-brother]
+path = "../../big-brother"
+
 [dependencies.flight-controller-rs]
 path = "../flight-controller-rs"
 
@@ -33,7 +36,7 @@ version = "0.14.0"
 features = ["rt", "defmt", "stm32f407"]
 
 [dependencies.stm32-eth]
-version = "0.3.0"
+version = "0.5.2"
 features = ["stm32f407", "smoltcp-phy"]
 
 [dependencies.shared-bus]
@@ -43,12 +46,9 @@ default-features = false
 features = ["cortex-m", "eh-alpha"]
 
 [dependencies.smoltcp]
-version = "0.8.2"
+version = "0.10"
 default-features = false
 features = ["medium-ethernet", "socket-udp", "proto-ipv4", "defmt"]
-
-[patch.crates-io]
-stm32-eth = { git = "https://github.com/DavidTheFighter/stm32-eth" }
 
 # cargo build/run
 [profile.dev]

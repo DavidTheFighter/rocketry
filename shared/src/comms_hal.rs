@@ -1,8 +1,4 @@
-use postcard::{
-    from_bytes_cobs,
-    ser_flavors::{Cobs, Slice},
-    serialize_with_flavor,
-};
+use big_brother::big_brother::Broadcastable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -16,10 +12,6 @@ use crate::{
 use strum_macros::EnumCount as EnumCountMacro;
 
 pub const DAQ_PACKET_FRAMES: usize = 10;
-pub const PACKET_BUFFER_SIZE: usize = 256;
-
-pub const UDP_RECV_PORT: u16 = 25565;
-pub const UDP_SEND_PORT: u16 = 25566;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum NetworkAddress {
@@ -27,8 +19,15 @@ pub enum NetworkAddress {
     EngineController(u8),
     FlightController,
     MissionControl,
-    GroundCamera(u8),
+    EthbootProgrammer,
+    Camera(u8),
     Unknown,
+}
+
+impl Broadcastable for NetworkAddress {
+    fn is_broadcast(&self) -> bool {
+        matches!(self, NetworkAddress::Broadcast)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -101,101 +100,6 @@ pub enum Packet {
     DoNothing,
 }
 
-impl Packet {
-    pub fn allow_drop(&self) -> bool {
-        matches!(
-            self,
-            Packet::EcuTelemetry(_)
-                | Packet::FcuTelemetry(_)
-                | Packet::EcuDAQ(_)
-                | Packet::FcuDevStatsFrame(_)
-        )
-    }
-
-    /// Serializes this packet and writes it to the given buffer.
-    ///
-    /// # Errors
-    /// If the buffer is too short or the packet cannot be serialized, an error is returned.
-    pub fn serialize(&self, buffer: &mut [u8]) -> Result<usize, SerializationError> {
-        match Cobs::try_new(Slice::new(buffer)) {
-            Ok(flavor) => {
-                let serialized =
-                    serialize_with_flavor::<Packet, Cobs<Slice>, &mut [u8]>(self, flavor);
-
-                match serialized {
-                    Ok(output_buffer) => Ok(output_buffer.len()),
-                    Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
-                }
-            }
-            Err(_err) => Err(SerializationError::Unknown),
-        }
-    }
-
-    /// Deserializes a packet from the given buffer and returns that packet.
-    ///
-    /// # Errors
-    /// If the data within the buffer is incorrect for whatever reason then an error is returned.
-    pub fn deserialize(buffer: &mut [u8]) -> Result<Packet, SerializationError> {
-        match from_bytes_cobs(buffer) {
-            Ok(packet) => Ok(packet),
-            Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
-        }
-    }
-}
-
-impl NetworkAddress {
-    /// Serializes this network address and writes it to the given buffer.
-    ///
-    /// # Errors
-    /// If the buffer is too short or the address cannot be serialized, an error is returned.
-    pub fn serialize(&self, buffer: &mut [u8]) -> Result<usize, SerializationError> {
-        match Cobs::try_new(Slice::new(buffer)) {
-            Ok(flavor) => {
-                let serialized =
-                    serialize_with_flavor::<NetworkAddress, Cobs<Slice>, &mut [u8]>(self, flavor);
-
-                match serialized {
-                    Ok(output_buffer) => Ok(output_buffer.len()),
-                    Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
-                }
-            }
-            Err(_err) => Err(SerializationError::Unknown),
-        }
-    }
-
-    /// Deserializes a network address from the given buffer and returns that address.
-    ///
-    /// # Errors
-    /// If the data within the buffer is incorrect for whatever reason then an error is returned.
-    pub fn deserialize(buffer: &mut [u8]) -> Result<NetworkAddress, SerializationError> {
-        match from_bytes_cobs(buffer) {
-            Ok(address) => Ok(address),
-            Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
-        }
-    }
-}
-
-fn postcard_serialization_err_to_hal_err(err: postcard::Error) -> SerializationError {
-    match err {
-        postcard::Error::WontImplement
-        | postcard::Error::NotYetImplemented
-        | postcard::Error::SerializeSeqLengthUnknown => SerializationError::PostcardImplementation,
-        postcard::Error::SerializeBufferFull => SerializationError::PacketTooLong,
-        postcard::Error::SerdeSerCustom | postcard::Error::SerdeDeCustom => {
-            SerializationError::SerdeError
-        }
-        postcard::Error::DeserializeUnexpectedEnd => SerializationError::UnexpectedEnd,
-        postcard::Error::DeserializeBadVarint
-        | postcard::Error::DeserializeBadBool
-        | postcard::Error::DeserializeBadChar
-        | postcard::Error::DeserializeBadUtf8
-        | postcard::Error::DeserializeBadOption
-        | postcard::Error::DeserializeBadEnum => SerializationError::BadVar,
-        postcard::Error::DeserializeBadEncoding => SerializationError::BadEncoding,
-        _ => SerializationError::Unknown,
-    }
-}
-
 pub mod tests_data {
     use super::*;
     use crate::{SensorCalibration, fcu_hal::{ARMING_MAGIC_NUMBER, IGNITION_MAGIC_NUMBER}, RESET_MAGIC_NUMBER};
@@ -215,6 +119,17 @@ pub mod tests_data {
         postmax: 99.9,
         calibration: Some(SENSOR_CALIBRATION),
     };
+
+    pub const ADDRESS_TEST_DEFAULTS: [NetworkAddress; 8] = [
+        NetworkAddress::FlightController,
+        NetworkAddress::EngineController(0),
+        NetworkAddress::EngineController(42),
+        NetworkAddress::EngineController(201),
+        NetworkAddress::Camera(1),
+        NetworkAddress::Camera(70),
+        NetworkAddress::Camera(255),
+        NetworkAddress::Broadcast,
+    ];
 
     pub const PACKET_TEST_DEFAULTS: [Packet; Packet::COUNT] = [
         Packet::SetSolenoidValve {
@@ -246,7 +161,7 @@ pub mod tests_data {
         Packet::EnterBootloader,
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
-        Packet::AlertBitmask(0x1234),
+        Packet::AlertBitmask(0xAAAA_AAAA),
         Packet::RequestFcuDebugInfo,
         Packet::FcuDebugInfo(FcuDebugInfo::default()),
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
@@ -263,6 +178,8 @@ pub mod tests {
     use super::*;
     use std::io::Write;
 
+    use big_brother::{serdes::{serialize_postcard, deserialize_postcard}, big_brother::WORKING_BUFFER_SIZE};
+
     #[test]
     fn test_packet_sizes() {
         let mut buffer = Vec::with_capacity(1024 * 1024);
@@ -272,10 +189,22 @@ pub mod tests {
 
         let mut file = std::fs::File::create("../packet_sizes.txt").unwrap();
 
+        let mut max_metadata_size = 0;
+
+        for address in &ADDRESS_TEST_DEFAULTS {
+            let bytes_written = serialize_postcard(address, &mut buffer).unwrap();
+            assert!(bytes_written <= WORKING_BUFFER_SIZE);
+
+            max_metadata_size = max_metadata_size.max(bytes_written);
+        }
+
+        let line = format!("Max metadata size: {},\n\n", max_metadata_size);
+        file.write_all(line.as_bytes()).unwrap();
+
         for packet in &PACKET_TEST_DEFAULTS {
             println!("Serializing: {:?}", packet);
-            let bytes_written = packet.serialize(&mut buffer[0..]).unwrap();
-            assert!(bytes_written <= PACKET_BUFFER_SIZE);
+            let bytes_written = serialize_postcard(packet, &mut buffer).unwrap();
+            assert!(bytes_written <= WORKING_BUFFER_SIZE);
 
             let packet_name = format!("{:?}", packet);
             let packet_name = packet_name.split('(').next().unwrap();
@@ -288,13 +217,23 @@ pub mod tests {
 
     #[test]
     fn packet_reserialization() {
-        let mut buffer = [0u8; PACKET_BUFFER_SIZE];
+        let mut buffer = [0u8; WORKING_BUFFER_SIZE];
 
         for packet in &PACKET_TEST_DEFAULTS {
-            let bytes_written = packet.serialize(&mut buffer).unwrap();
-            let reserialized_packet = Packet::deserialize(&mut buffer[0..bytes_written]).unwrap();
-
+            let bytes_written = serialize_postcard(packet, &mut buffer).unwrap();
+            let reserialized_packet: Packet = deserialize_postcard(&mut buffer[..bytes_written]).unwrap();
             assert_eq!(*packet, reserialized_packet);
+        }
+    }
+
+    #[test]
+    fn address_reserialization() {
+        let mut buffer = [0u8; WORKING_BUFFER_SIZE];
+
+        for address in &ADDRESS_TEST_DEFAULTS {
+            let bytes_written = serialize_postcard(address, &mut buffer).unwrap();
+            let reserialized_address: NetworkAddress = deserialize_postcard(&mut buffer[..bytes_written]).unwrap();
+            assert_eq!(*address, reserialized_address);
         }
     }
 }

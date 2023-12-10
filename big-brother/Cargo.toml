@@ -16,6 +16,6 @@ optional = true
 features = ["medium-ethernet", "socket-udp", "proto-ipv4"]
 
 [features]
-default = ["smoltcp", "stdtcp"]
+default = ["smoltcp"]
 smoltcp = ["dep:smoltcp"]
 stdtcp = []

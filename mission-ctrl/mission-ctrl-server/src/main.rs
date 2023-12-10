@@ -7,26 +7,22 @@ mod ecu_telemetry;
 mod fcu_telemetry;
 mod cameras;
 
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::thread;
 use std::time::{SystemTime, UNIX_EPOCH, Duration};
 
 use cameras::browser_stream;
-use shared::comms_manager::CommsManager;
-use shared::comms_hal::NetworkAddress;
 use input::input_thread;
 use observer::ObserverHandler;
-use comms::recv::recv_thread;
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
 use rocket::{Request, Response, Rocket, Build};
-use comms::send::send_thread;
 use ecu_telemetry::{telemetry_thread, ecu_telemetry_endpoint};
 use fcu_telemetry::{fcu_telemetry_thread, fcu_telemetry_endpoint, fcu_debug_data, fcu_telemetry_graph};
 
 use crate::cameras::camera_streaming_thread;
-use crate::comms::NETWORK_MAP_SIZE;
+use crate::comms::comms_thread;
 use crate::config::config_thread;
 
 #[macro_use]
@@ -54,23 +50,15 @@ async fn main() {
     let observer_handler = Arc::new(ObserverHandler::new());
     let rocket = rocket(observer_handler.clone()).ignite().await.unwrap();
     let shutdown_handle = rocket.shutdown();
-    let comms_manager = Arc::new(RwLock::new(CommsManager::<NETWORK_MAP_SIZE>::new(NetworkAddress::MissionControl)));
     rocket::tokio::spawn(rocket.launch());
 
     let observer_handler_ref = observer_handler.clone();
-    let comms_manager_ref = comms_manager.clone();
-    let recv_join_handle = thread::spawn(move || {
-        recv_thread(observer_handler_ref, comms_manager_ref);
+    let comms_join_handle = thread::spawn(move || {
+        comms_thread(observer_handler_ref);
     });
 
-    let observer_handler_ref = observer_handler.clone();
-    let comms_manager_ref = comms_manager.clone();
-    let send_join_handle = thread::spawn(move || {
-        send_thread(observer_handler_ref, comms_manager_ref);
-    });
-
-    // Ensure that the recv and send threads are running so we can send and receive data
-    while observer_handler.get_num_observers() < 2 {
+    // Ensure that the comms thread is running so we can send and receive data
+    while observer_handler.get_num_observers() < 1 {
         thread::sleep(Duration::from_millis(10));
     }
 
@@ -114,8 +102,7 @@ async fn main() {
     // Add a small delay to ensure all remaining packets are handled
     thread::sleep(Duration::from_millis(250));
 
-    recv_join_handle.join().expect("Error joining recv thread");
-    send_join_handle.join().expect("Error joining send thread");
+    comms_join_handle.join().expect("Error joining comms thread");
 
     println!("Shut down gracefully!");
 }

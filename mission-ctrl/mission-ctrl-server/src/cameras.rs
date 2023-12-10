@@ -85,7 +85,7 @@ impl CameraStreaming {
     fn handle_packet(&mut self, packet: Packet, source_addr: NetworkAddress, source_ip: [u8; 4]) {
         match packet {
             Packet::Heartbeat => {
-                if let NetworkAddress::GroundCamera(_) = source_addr {
+                if let NetworkAddress::Camera(_) = source_addr {
                     self.handle_ping(source_addr, Ipv4Addr::from(source_ip));
                 }
             }
@@ -196,7 +196,7 @@ pub fn browser_stream(
 
     observer_handler.register_observer_thread();
     let event_id = observer_handler.notify(ObserverEvent::SetupBrowserStream {
-        camera_address: NetworkAddress::GroundCamera(camera_index),
+        camera_address: NetworkAddress::Camera(camera_index),
         browser_session,
     });
     let timeout = Duration::from_millis(1000);

@@ -54,8 +54,8 @@ mod tests {
 
     #[test]
     fn test_host_serialization() {
-        let host = NetworkAddress::GroundCamera(42);
+        let host = NetworkAddress::Camera(42);
         let serialized = serde_json::to_string(&host).unwrap();
-        assert_eq!(serialized, "{\"GroundCamera\":42}");
+        assert_eq!(serialized, "{\"Camera\":42}");
     }
 }

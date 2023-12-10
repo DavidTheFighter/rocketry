@@ -6,7 +6,7 @@ use crate::{
     serdes::{deserialize_metadata, deserialize_packet, serialize_packet, SerdesError},
 };
 
-pub const UDP_PORT: u16 = 4321;
+pub const UDP_PORT: u16 = 25560;
 pub const MAX_INTERFACE_COUNT: usize = 2;
 pub const WORKING_BUFFER_SIZE: usize = 256;
 
@@ -24,7 +24,7 @@ pub enum BigBrotherError {
     SendFailure,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct BigBrotherEndpoint {
     pub ip: [u8; 4],
     pub port: u16,
@@ -38,7 +38,7 @@ pub struct BigBrother<'a, const NETWORK_MAP_SIZE: usize, P, A> {
     pub(crate) network_map: NetworkMap<A, NETWORK_MAP_SIZE>,
     pub(crate) host_addr: A,
     pub(crate) working_buffer: [u8; WORKING_BUFFER_SIZE],
-    pub(crate) interfaces: [Option<&'a mut dyn BigBrotherInterface>; MAX_INTERFACE_COUNT],
+    pub interfaces: [Option<&'a mut dyn BigBrotherInterface>; MAX_INTERFACE_COUNT],
     missed_packets: u32,
     _packet_type: core::marker::PhantomData<P>,
 }
@@ -136,7 +136,8 @@ where
                     }
 
                     if metadata.counter > mapping.from_counter {
-                        self.missed_packets += metadata.counter.wrapping_sub(mapping.from_counter) as u32;
+                        self.missed_packets +=
+                            metadata.counter.wrapping_sub(mapping.from_counter) as u32;
                     }
 
                     mapping.from_counter = metadata.counter.wrapping_add(1);
@@ -164,11 +165,16 @@ where
         }
     }
 
-    pub fn get_interface<'c>(
-        &'a mut self,
-        interface_index: usize,
-    ) -> Option<&'c mut &'a mut dyn BigBrotherInterface> {
-        self.interfaces[interface_index].as_mut()
+    pub fn get_missed_packets(&self) -> u32 {
+        self.missed_packets
+    }
+
+    pub fn get_network_mapping(&mut self, address: A) -> Option<[u8; 4]> {
+        if let Ok(mapping) = self.network_map.get_address_mapping(address) {
+            Some(mapping.ip)
+        } else {
+            None
+        }
     }
 
     fn recv_next_udp(
@@ -510,7 +516,10 @@ mod tests {
             interfaces,
         );
 
-        let _ = bb.network_map.map_network_address(TestNetworkAddress::A, [1, 2, 3, 4], 0).unwrap();
+        let _ = bb
+            .network_map
+            .map_network_address(TestNetworkAddress::A, [1, 2, 3, 4], 0)
+            .unwrap();
 
         for _ in 0..16 {
             bb.send_packet(&TestPacket::Heartbeat, TestNetworkAddress::A)
@@ -519,8 +528,9 @@ mod tests {
         }
 
         for i in 0..16 {
-            let metadata: PacketMetadata<TestNetworkAddress> = deserialize_metadata(&mut interface0.sent_packets[i].1[..])
-                .expect("Failed to deserialize metadata");
+            let metadata: PacketMetadata<TestNetworkAddress> =
+                deserialize_metadata(&mut interface0.sent_packets[i].1[..])
+                    .expect("Failed to deserialize metadata");
             let packet: TestPacket = deserialize_packet(&mut interface0.sent_packets[i].1[..])
                 .expect("Failed to deserialize packet");
 
@@ -542,7 +552,10 @@ mod tests {
             interfaces,
         );
 
-        let mapping = bb.network_map.map_network_address(TestNetworkAddress::A, [1, 2, 3, 4], 0).unwrap();
+        let mapping = bb
+            .network_map
+            .map_network_address(TestNetworkAddress::A, [1, 2, 3, 4], 0)
+            .unwrap();
         mapping.to_counter = u16::MAX - 8;
 
         for _ in 0..16 {
@@ -552,8 +565,9 @@ mod tests {
         }
 
         for i in 0..16 {
-            let metadata: PacketMetadata<TestNetworkAddress> = deserialize_metadata(&mut interface0.sent_packets[i].1[..])
-                .expect("Failed to deserialize metadata");
+            let metadata: PacketMetadata<TestNetworkAddress> =
+                deserialize_metadata(&mut interface0.sent_packets[i].1[..])
+                    .expect("Failed to deserialize metadata");
             let packet: TestPacket = deserialize_packet(&mut interface0.sent_packets[i].1[..])
                 .expect("Failed to deserialize packet");
 
@@ -603,8 +617,8 @@ mod tests {
             }
         }
 
-        fn as_mut_any(&'static mut self) -> &mut dyn core::any::Any {
-            self
+        fn as_mut_any(&mut self) -> Option<&mut dyn core::any::Any> {
+            Some(self)
         }
     }
 

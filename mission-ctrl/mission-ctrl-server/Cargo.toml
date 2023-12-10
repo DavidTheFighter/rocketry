@@ -19,3 +19,7 @@ base64 = "0.21.2"
 
 [dependencies.shared]
 path = "../../shared"
+
+[dependencies.big-brother]
+path = "../../big-brother"
+features = ["stdtcp"]
