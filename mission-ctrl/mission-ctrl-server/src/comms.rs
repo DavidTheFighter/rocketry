@@ -24,6 +24,7 @@ impl CommsThread {
             .expect("Failed to create std interface for comms thread");
         let mut bb: BigBrother<'_, NETWORK_MAP_SIZE, Packet, NetworkAddress> = BigBrother::new(
             NetworkAddress::MissionControl,
+            [169, 254, 255, 255],
             [Some(&mut std_interface), None],
         );
 

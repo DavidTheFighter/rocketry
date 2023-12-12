@@ -16,7 +16,11 @@ impl<'a> Streamish<'a> {
     pub fn new(interface: &'a mut dyn BigBrotherInterface) -> Self {
         Self {
             stream: None,
-            comms: BigBrother::new(NetworkAddress::Camera(0), [Some(interface), None]),
+            comms: BigBrother::new(
+                NetworkAddress::Camera(0),
+                [255, 255, 255, 255],
+                [Some(interface), None],
+            ),
         }
     }
 

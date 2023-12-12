@@ -50,6 +50,7 @@ impl FcuSil {
 
         let big_brother = Rc::new(RefCell::new(FcuBigBrother::new(
             NetworkAddress::FlightController,
+            [255, 255, 255, 255],
             [Some(ip_interface_ref), None],
         )));
         let big_brother_ref: &'static mut FcuBigBrother<'static> = unsafe {

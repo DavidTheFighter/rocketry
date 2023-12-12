@@ -30,6 +30,17 @@ pub struct BigBrotherEndpoint {
     pub port: u16,
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+pub(crate) enum BigBrotherPacket<A> {
+    MetaPacket(BigBrotherMetapacket),
+    UserPacket(A),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) enum BigBrotherMetapacket {
+    Heartbeat,
+}
+
 pub trait Broadcastable {
     fn is_broadcast(&self) -> bool;
 }
@@ -39,6 +50,8 @@ pub struct BigBrother<'a, const NETWORK_MAP_SIZE: usize, P, A> {
     pub(crate) host_addr: A,
     pub(crate) working_buffer: [u8; WORKING_BUFFER_SIZE],
     pub interfaces: [Option<&'a mut dyn BigBrotherInterface>; MAX_INTERFACE_COUNT],
+    pub(crate) broadcast_ip: [u8; 4],
+    use_dedupe: bool,
     missed_packets: u32,
     _packet_type: core::marker::PhantomData<P>,
 }
@@ -50,13 +63,16 @@ where
 {
     pub fn new(
         host_addr: A,
+        broadcast_ip: [u8; 4],
         interfaces: [Option<&'a mut dyn BigBrotherInterface>; MAX_INTERFACE_COUNT],
     ) -> Self {
         Self {
             network_map: NetworkMap::new(),
             host_addr,
+            broadcast_ip,
             working_buffer: [0_u8; WORKING_BUFFER_SIZE],
             interfaces,
+            use_dedupe: false,
             missed_packets: 0,
             _packet_type: core::marker::PhantomData,
         }
@@ -73,7 +89,7 @@ where
             )?;
 
             let destination_endpoint = BigBrotherEndpoint {
-                ip: [255, 255, 255, 255],
+                ip: self.broadcast_ip,
                 port: UDP_PORT,
             };
 
@@ -116,13 +132,15 @@ where
             if let Some((_size, source_interface_index, remote)) = self.recv_next_udp()? {
                 let metadata = deserialize_metadata(&mut self.working_buffer)?;
 
+                self.forward_udp(source_interface_index, metadata.to_addr)?;
+
                 let mapping = self.network_map.map_network_address(
                     metadata.from_addr,
                     remote.ip,
                     source_interface_index,
                 )?;
 
-                if !metadata.to_addr.is_broadcast() {
+                if self.use_dedupe && !metadata.to_addr.is_broadcast() {
                     if metadata.to_addr != self.host_addr {
                         continue;
                     }
@@ -133,9 +151,7 @@ where
 
                     if metadata.counter < mapping.from_counter && !wrapped {
                         continue;
-                    }
-
-                    if metadata.counter > mapping.from_counter {
+                    } else if metadata.counter > mapping.from_counter {
                         self.missed_packets +=
                             metadata.counter.wrapping_sub(mapping.from_counter) as u32;
                     }
@@ -143,10 +159,9 @@ where
                     mapping.from_counter = metadata.counter.wrapping_add(1);
                 }
 
-                self.forward_udp(source_interface_index, metadata.to_addr)?;
-
                 if metadata.to_addr == self.host_addr || metadata.to_addr.is_broadcast() {
                     let packet = deserialize_packet(&mut self.working_buffer)?;
+
                     return Ok(Some((packet, metadata.from_addr)));
                 }
             } else {
@@ -244,6 +259,11 @@ mod tests {
     #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
     pub enum TestPacket {
         Heartbeat,
+        SomeData {
+            a: u32,
+            b: u32,
+            c: bool,
+        }
     }
 
     #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -255,6 +275,40 @@ mod tests {
     }
 
     #[test]
+    fn test_reserialize() {
+        let mut interface0 = MockInterface::new();
+
+        let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
+            TestNetworkAddress::B,
+            [255, 255, 255, 255],
+            [Some(&mut interface0), None],
+        );
+
+        let comparison_packet = TestPacket::SomeData {
+            a: 0xA0A1A2A3,
+            b: 0xFF00FF00,
+            c: true,
+        };
+
+        bb.send_packet(&comparison_packet, TestNetworkAddress::Broadcast)
+            .expect("Failed to send packet");
+        bb.poll(0);
+
+        let packet_data = bb.interfaces[0].as_mut().unwrap().as_mut_any().unwrap().downcast_mut::<MockInterface>().unwrap().sent_packets[0].1.clone();
+        bb.interfaces[0].as_mut().unwrap().as_mut_any().unwrap().downcast_mut::<MockInterface>().unwrap().recv_packets.push((
+            BigBrotherEndpoint {
+                ip: [1, 2, 3, 4],
+                port: UDP_PORT,
+            },
+            packet_data,
+        ));
+
+        let packet = bb.recv_packet().expect("Failed to receive packet").unwrap();
+
+        assert_eq!(packet.0, comparison_packet);
+    }
+
+    #[test]
     fn test_broadcast() {
         let mut interface0 = MockInterface::new();
         let mut interface1 = MockInterface::new();
@@ -262,6 +316,7 @@ mod tests {
             [Some(&mut interface0), Some(&mut interface1)];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::A,
+            [255, 255, 255, 255],
             interfaces,
         );
 
@@ -306,6 +361,7 @@ mod tests {
             [Some(&mut interface0), None];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::B,
+            [255, 255, 255, 255],
             interfaces,
         );
 
@@ -342,6 +398,7 @@ mod tests {
             [Some(&mut interface0), None];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::C,
+            [255, 255, 255, 255],
             interfaces,
         );
 
@@ -377,6 +434,7 @@ mod tests {
             [Some(&mut interface0), None];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::B,
+            [255, 255, 255, 255],
             interfaces,
         );
 
@@ -414,6 +472,7 @@ mod tests {
             [Some(&mut interface0), Some(&mut interface1)];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::B,
+            [255, 255, 255, 255],
             interfaces,
         );
 
@@ -451,8 +510,10 @@ mod tests {
             [Some(&mut interface0), None];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::B,
+            [255, 255, 255, 255],
             interfaces,
         );
+        bb.use_dedupe = true;
 
         for i in 0..16 {
             if i == 0 {
@@ -495,6 +556,7 @@ mod tests {
             [Some(&mut interface0), None];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::B,
+            [255, 255, 255, 255],
             interfaces,
         );
 
@@ -513,6 +575,7 @@ mod tests {
             [Some(&mut interface0), None];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::B,
+            [255, 255, 255, 255],
             interfaces,
         );
 
@@ -549,6 +612,7 @@ mod tests {
             [Some(&mut interface0), None];
         let mut bb = BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             TestNetworkAddress::B,
+            [255, 255, 255, 255],
             interfaces,
         );
 

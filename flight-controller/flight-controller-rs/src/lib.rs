@@ -103,6 +103,8 @@ impl<'a> Fcu<'a> {
     pub fn update(&mut self, dt: f32) {
         let timestamp = self.driver.timestamp();
 
+        self.poll_interfaces();
+
         let mut packets = empty_packet_array();
         let mut num_packets = 0;
         while let Some((packet, source)) = self.comms.recv_packet().ok().flatten() {
@@ -122,23 +124,25 @@ impl<'a> Fcu<'a> {
         self.time_since_last_heartbeat += dt;
 
         if self.time_since_last_telemetry >= self.config.telemetry_rate {
-            self.driver.send_packet(
-                Packet::FcuTelemetry(self.generate_telemetry_frame()),
+            self.send_packet(
                 NetworkAddress::MissionControl,
+                Packet::FcuTelemetry(self.generate_telemetry_frame()),
             );
             self.time_since_last_telemetry = 0.0;
         }
 
         if self.time_since_last_heartbeat >= HEARTBEAT_RATE {
-            self.driver
-                .send_packet(Packet::Heartbeat, NetworkAddress::MissionControl);
+            self.comms
+                .send_packet(&Packet::Heartbeat, NetworkAddress::Broadcast)
+                .unwrap();
             self.time_since_last_heartbeat = 0.0;
         }
 
         if self.time_since_last_alert_update > ALERT_RATE || self.alert_manager.has_pending_update() {
-            self.driver.send_packet(
-                self.alert_manager.get_condition_packet(),
+            let alert_packet = self.alert_manager.get_condition_packet();
+            self.send_packet(
                 NetworkAddress::MissionControl,
+                alert_packet,
             );
             self.time_since_last_alert_update = 0.0;
         }
@@ -148,9 +152,9 @@ impl<'a> Fcu<'a> {
         }
 
         if let Some(frame) = self.dev_stats.pop_stats_frame() {
-            self.driver.send_packet(
-                Packet::FcuDevStatsFrame(frame),
+            self.send_packet(
                 NetworkAddress::MissionControl,
+                Packet::FcuDevStatsFrame(frame),
             );
         }
 
@@ -160,6 +164,10 @@ impl<'a> Fcu<'a> {
 
     pub fn poll_interfaces(&mut self) {
         self.comms.poll((self.driver.timestamp() * 1e3) as u32);
+    }
+
+    fn send_packet(&mut self, destination: NetworkAddress, packet: Packet) {
+        self.comms.send_packet(&packet, destination);
     }
 
     fn handle_packet(&mut self, source: NetworkAddress, packet: &Packet) {
@@ -183,7 +191,7 @@ impl<'a> Fcu<'a> {
                 let frame = self.generate_debug_info();
                 let packet = Packet::FcuDebugInfo(frame);
 
-                self.driver.send_packet(packet, source);
+                self.send_packet(source, packet);
             }
             _ => {}
         }

@@ -30,7 +30,7 @@ mod app {
     use cortex_m::peripheral::DWT;
     use cortex_m::interrupt::Mutex;
     use flight_controller_rs::{Fcu, FcuBigBrother};
-    use shared::comms_hal::{NetworkAddress, Packet, PACKET_BUFFER_SIZE};
+    use shared::comms_hal::{NetworkAddress, Packet};
     use stm32f4::stm32f407::I2C1;
     use stm32f4xx_hal::{
         gpio::{self, Input, Output, PC3, PC14, PC15, PE4, PE5, PE8, PE9, Edge, Pin, Alternate, PinState},
@@ -95,11 +95,12 @@ mod app {
 
     #[task(
         binds = ETH,
-        local = [data: [u8; PACKET_BUFFER_SIZE] = [0u8; PACKET_BUFFER_SIZE]],
         shared = [fcu],
         priority = 12,
     )]
     fn eth_interrupt(mut ctx: eth_interrupt::Context) {
+        stm32_eth::eth_interrupt_handler();
+
         ctx.shared.fcu.lock(|fcu| {
             fcu.poll_interfaces();
         });
@@ -330,6 +331,7 @@ mod app {
         let big_brother = ctx.local.big_brother.write(
             FcuBigBrother::new(
                 NetworkAddress::FlightController,
+                [255, 255, 255, 255],
                 [Some(smoltcp_interface), None],
             ),
         );
