@@ -5,6 +5,7 @@ use mint::Vector3;
 use ms5611_rs::OversampleRatio;
 use stm32f4xx_hal::prelude::*;
 use rtic::Mutex;
+use ublox::{Parser, FixedLinearBuffer};
 
 pub fn bmi088_interrupt(mut ctx: app::bmi088_interrupt::Context) {
     let has_accel_data = ctx.local.accel_int_pin.check_interrupt();
@@ -84,6 +85,101 @@ pub fn bmm150_interrupt(mut _ctx: app::bmm150_interrupt::Context) {
     // });
 }
 
+pub fn ublox_update(ctx: app::ublox_update::Context) {
+    let mut buffer = [0u8; 256];
+    let mut buffer2 = [0u8; 256];
+    let ublox_buffer = FixedLinearBuffer::new(&mut buffer);
+    let mut parser = Parser::new(ublox_buffer);
+
+    if ctx.local.uart4.is_rx_not_empty() {
+        let mut num_bytes = 0;
+        loop {
+            if !ctx.local.uart4.is_rx_not_empty() {
+                break;
+            }
+
+            let byte = ctx.local.uart4.read().unwrap();
+            buffer2[num_bytes] = byte;
+            num_bytes += 1;
+        }
+
+        let mut it = parser.consume(&buffer2[..num_bytes]);
+        loop {
+            match it.next() {
+                Some(Ok(packet)) => {
+                    match packet {
+                        ublox::PacketRef::NavPosLlh(_) => todo!(),
+                        ublox::PacketRef::NavStatus(_) => todo!(),
+                        ublox::PacketRef::NavDop(_) => todo!(),
+                        ublox::PacketRef::NavPvt(_) => todo!(),
+                        ublox::PacketRef::NavSolution(_) => todo!(),
+                        ublox::PacketRef::NavVelNed(_) => todo!(),
+                        ublox::PacketRef::NavHpPosLlh(_) => todo!(),
+                        ublox::PacketRef::NavHpPosEcef(_) => todo!(),
+                        ublox::PacketRef::NavTimeUTC(_) => todo!(),
+                        ublox::PacketRef::NavTimeLs(_) => todo!(),
+                        ublox::PacketRef::NavSat(_) => todo!(),
+                        ublox::PacketRef::NavEoe(_) => todo!(),
+                        ublox::PacketRef::NavOdo(_) => todo!(),
+                        ublox::PacketRef::CfgOdo(_) => todo!(),
+                        ublox::PacketRef::MgaAck(_) => todo!(),
+                        ublox::PacketRef::MgaGpsIono(_) => todo!(),
+                        ublox::PacketRef::MgaGpsEph(_) => todo!(),
+                        ublox::PacketRef::MgaGloEph(_) => todo!(),
+                        ublox::PacketRef::AlpSrv(_) => todo!(),
+                        ublox::PacketRef::AckAck(_) => todo!(),
+                        ublox::PacketRef::AckNak(_) => todo!(),
+                        ublox::PacketRef::CfgItfm(_) => todo!(),
+                        ublox::PacketRef::CfgPrtI2c(_) => todo!(),
+                        ublox::PacketRef::CfgPrtSpi(_) => todo!(),
+                        ublox::PacketRef::CfgPrtUart(_) => todo!(),
+                        ublox::PacketRef::CfgNav5(_) => todo!(),
+                        ublox::PacketRef::CfgAnt(_) => todo!(),
+                        ublox::PacketRef::CfgTmode2(_) => todo!(),
+                        ublox::PacketRef::CfgTmode3(_) => todo!(),
+                        ublox::PacketRef::CfgTp5(_) => todo!(),
+                        ublox::PacketRef::InfError(_) => todo!(),
+                        ublox::PacketRef::InfWarning(_) => todo!(),
+                        ublox::PacketRef::InfNotice(_) => todo!(),
+                        ublox::PacketRef::InfTest(_) => todo!(),
+                        ublox::PacketRef::InfDebug(_) => todo!(),
+                        ublox::PacketRef::RxmRawx(_) => todo!(),
+                        ublox::PacketRef::TimTp(_) => todo!(),
+                        ublox::PacketRef::TimTm2(_) => todo!(),
+                        ublox::PacketRef::MonVer(_) => todo!(),
+                        ublox::PacketRef::MonGnss(_) => todo!(),
+                        ublox::PacketRef::MonHw(_) => todo!(),
+                        ublox::PacketRef::RxmRtcm(_) => todo!(),
+                        ublox::PacketRef::EsfMeas(_) => todo!(),
+                        ublox::PacketRef::EsfIns(_) => todo!(),
+                        ublox::PacketRef::HnrAtt(_) => todo!(),
+                        ublox::PacketRef::HnrIns(_) => todo!(),
+                        ublox::PacketRef::HnrPvt(_) => todo!(),
+                        ublox::PacketRef::NavAtt(_) => todo!(),
+                        ublox::PacketRef::NavClock(_) => todo!(),
+                        ublox::PacketRef::NavVelECEF(_) => todo!(),
+                        ublox::PacketRef::MgaGpsEPH(_) => todo!(),
+                        ublox::PacketRef::RxmSfrbx(_) => todo!(),
+                        ublox::PacketRef::EsfRaw(_) => todo!(),
+                        ublox::PacketRef::TimSvin(_) => todo!(),
+                        ublox::PacketRef::SecUniqId(_) => todo!(),
+                        ublox::PacketRef::Unknown(_) => todo!(),
+                    }
+                },
+                Some(Err(_)) => {
+                    defmt::error!("Error parsing ublox packet");
+                },
+                None => {
+                    defmt::error!("No ublox packet found");
+                    break;
+                }
+            }
+        }
+    }
+
+    app::ms5611_update::spawn_after(10.millis().into()).unwrap();
+}
+
 pub fn ms5611_update(ctx: app::ms5611_update::Context) {
     let ms5611 = ctx.local.ms5611;
     let mut fcu = ctx.shared.fcu;
@@ -109,6 +205,10 @@ pub fn ms5611_update(ctx: app::ms5611_update::Context) {
     });
 
     app::ms5611_update::spawn_after(100.millis().into()).unwrap();
+}
+
+pub fn adc1_dma2_stream0_interrupt(ctx: app::adc1_dma2_stream0_interrupt::Context) {
+    
 }
 
 fn convert_raw_to_m_s2(accel_range: AccelRange, raw_values: (i16, i16, i16)) -> (f32, f32, f32) {

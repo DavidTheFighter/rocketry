@@ -5,8 +5,6 @@ use shared::comms_hal::{Packet, NetworkAddress};
 
 use crate::stream::Stream;
 
-const NETWORK_MAP_SIZE: usize = 64;
-
 pub struct Streamish<'a> {
     stream: Option<Stream>,
     comms: BigBrother<'a, 64, Packet, NetworkAddress>,
@@ -18,7 +16,9 @@ impl<'a> Streamish<'a> {
             stream: None,
             comms: BigBrother::new(
                 NetworkAddress::Camera(0),
+                rand::random(),
                 [255, 255, 255, 255],
+                NetworkAddress::Broadcast,
                 [Some(interface), None],
             ),
         }

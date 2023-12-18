@@ -27,8 +27,8 @@ impl OrientationFilter {
             angular_velocity: Vector3::new(0.0, 0.0, 0.0),
             state: initial_state,
             state_cov: SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * 1e-4,
-            process_noise_cov: SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * 1e-2,
-            measurement_noise_cov: SMatrix::<f32, MEASURE_LEN, MEASURE_LEN>::identity() * 1e-2,
+            process_noise_cov: SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * 1e-3,
+            measurement_noise_cov: SMatrix::<f32, MEASURE_LEN, MEASURE_LEN>::identity() * 1e-3,
         }
     }
 

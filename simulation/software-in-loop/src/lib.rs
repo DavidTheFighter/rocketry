@@ -50,7 +50,9 @@ impl FcuSil {
 
         let big_brother = Rc::new(RefCell::new(FcuBigBrother::new(
             NetworkAddress::FlightController,
+            rand::random(),
             [255, 255, 255, 255],
+            NetworkAddress::Broadcast,
             [Some(ip_interface_ref), None],
         )));
         let big_brother_ref: &'static mut FcuBigBrother<'static> = unsafe {
@@ -157,10 +159,7 @@ impl FcuSil {
     }
 
     pub fn reset_telemetry(&mut self) {
-        self.fcu.driver.send_packet(
-            Packet::FcuTelemetry(FcuTelemetryFrame::default()),
-            NetworkAddress::MissionControl,
-        );
+        self.send_packet(NetworkAddress::MissionControl, &Packet::FcuTelemetry(FcuTelemetryFrame::default()));
     }
 
     pub fn send_arm_vehicle_packet(&mut self) {

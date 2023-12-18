@@ -24,7 +24,7 @@ use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::{
         FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame,
-        PwmChannel, VehicleState, FcuAlertCondition,
+        PwmChannel, VehicleState, FcuAlertCondition, OutputChannel,
     }, alerts::AlertManager, DataPointLogger, COMMS_NETWORK_MAP_SIZE,
 };
 use mint::Vector3;
@@ -65,11 +65,11 @@ impl<'a> Fcu<'a> {
             position_kalman_process_variance: 1e-3,
             calibration_duration: 5.0,
             accelerometer_noise_std_dev: Vector3 {
-                x: 0.5,
-                y: 0.5,
-                z: 0.5,
+                x: 0.001,
+                y: 0.001,
+                z: 0.001,
             },
-            barometer_noise_std_dev: 0.01,
+            barometer_noise_std_dev: 0.7,
             gps_noise_std_dev: Vector3 {
                 x: 1.5,
                 y: 3.0,
@@ -163,7 +163,7 @@ impl<'a> Fcu<'a> {
     }
 
     pub fn poll_interfaces(&mut self) {
-        self.comms.poll((self.driver.timestamp() * 1e3) as u32);
+        self.comms.poll_1ms((self.driver.timestamp() * 1e3) as u32);
     }
 
     fn send_packet(&mut self, destination: NetworkAddress, packet: Packet) {
@@ -210,7 +210,7 @@ impl<'a> Fcu<'a> {
             velocity_error: self.state_vector.get_velocity_std_dev().norm(),
             acceleration_error: self.state_vector.get_acceleration_std_dev().norm(),
             output_channels_bitmask: 0,
-            output_channels_continuity_bitmask: 0,
+            output_channels_continuity_bitmask: self.get_output_channels_continuity_bitmask(),
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: self.apogee,
             battery_voltage: 11.1169875,
@@ -232,7 +232,7 @@ impl<'a> Fcu<'a> {
             velocity_error: self.state_vector.get_velocity_std_dev().into(),
             acceleration_error: self.state_vector.get_acceleration_std_dev().into(),
             output_channels_bitmask: 0,
-            output_channels_continuity_bitmask: 0,
+            output_channels_continuity_bitmask: self.get_output_channels_continuity_bitmask() as u32,
             pwm_channels: [0.0; PwmChannel::COUNT],
             apogee: self.apogee,
             battery_voltage: 11.1169875,
@@ -241,8 +241,10 @@ impl<'a> Fcu<'a> {
             raw_gyroscope: self.state_vector.sensor_data.gyroscope_raw.into(),
             raw_magnetometer: self.state_vector.sensor_data.magnetometer_raw.into(),
             raw_barometer: self.state_vector.sensor_data.barometer_raw,
-            raw_barometric_altitude: self.state_vector.sensor_data.barometer_altitude,
             accelerometer_calibration: self.state_vector.sensor_calibration.accelerometer.into(),
+            barometric_altitude: self.state_vector.sensor_data.barometer_altitude,
+            barometer_calibration: self.state_vector.sensor_calibration.barometeric_altitude,
+            cpu_utilization: self.driver.hardware_data().cpu_utilization as u32,
         }
     }
 
@@ -259,6 +261,16 @@ impl<'a> Fcu<'a> {
 
     pub fn get_fcu_config(&self) -> FcuConfig {
         self.config.clone()
+    }
+
+    fn get_output_channels_continuity_bitmask(&self) -> u16 {
+        let mut bitmask = 0;
+
+        if self.driver.get_output_channel_continuity(OutputChannel::SolidMotorIgniter) {
+            bitmask |= 1 << OutputChannel::SolidMotorIgniter.index();
+        }
+
+        bitmask
     }
 }
 

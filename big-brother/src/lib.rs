@@ -1,4 +1,4 @@
-#![cfg_attr(not(any(test, feature = "stdtcp")), no_std)]
+#![cfg_attr(all(not(test), not(feature = "stdtcp")), no_std)]
 #![forbid(unsafe_code)]
 
 pub mod big_brother;

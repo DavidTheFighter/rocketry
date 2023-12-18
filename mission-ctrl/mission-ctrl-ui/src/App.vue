@@ -1,4 +1,5 @@
 <script>
+import FcuDebugPage from './pages/FcuDebugPage.vue';
 import IgniterPage from './pages/IgniterPage.vue';
 import NotFound from './pages/NotFound.vue';
 import RocketPage from './pages/RocketPage.vue';
@@ -7,6 +8,7 @@ import StreamTestPage from './pages/StreamTestPage.vue';
 
 const routes = {
   '/': IgniterPage,
+  '/fcudebug': FcuDebugPage,
   '/notfound': NotFound,
   '/igniter': IgniterPage,
   '/rocket': RocketPage,

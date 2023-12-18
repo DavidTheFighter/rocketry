@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{big_brother::{BigBrotherEndpoint, BigBrotherError, WORKING_BUFFER_SIZE, UDP_PORT}, serdes};
+use crate::{big_brother::{BigBrotherEndpoint, BigBrotherError, WORKING_BUFFER_SIZE, UDP_PORT, BigBrotherPacket}, serdes};
 
 use super::BigBrotherInterface;
 
@@ -31,6 +31,7 @@ impl MockInterface {
         A: Serialize,
     {
         let mut buffer = [0u8; WORKING_BUFFER_SIZE];
+        let packet = BigBrotherPacket::UserPacket(packet);
         let size = serdes::serialize_packet(&packet, from_addr, to_addr, counter, &mut buffer)?;
         self.recv_packets.push((
             BigBrotherEndpoint {

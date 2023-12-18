@@ -22,7 +22,7 @@ pub struct Calibrating {
     accelerometer: Vector3<f32>,
     gyroscope: Vector3<f32>,
     magnetometer: Vector3<f32>,
-    barometer_pressure: f32,
+    barometric_altitude: f32,
     data_count: u32,
     zero: bool,
 }

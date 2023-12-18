@@ -2,7 +2,7 @@ use super::{Calibrating, FsmState, Idle};
 use crate::{state_vector::SensorCalibrationData, Fcu};
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ControllerState,
+    ControllerState, standard_atmosphere::convert_pressure_to_altitude,
 };
 use nalgebra::{Vector3, UnitVector3, UnitQuaternion};
 
@@ -31,7 +31,7 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Calibrating {
 
     fn exit_state(&mut self, fcu: & mut Fcu) {
         let mut accelerometer_avg = self.accelerometer / (self.data_count as f32);
-        let down = Vector3::new(0.0, -1.0, 0.0);//accelerometer_avg.normalize();
+        let down = accelerometer_avg.normalize();
         let acceleration_by_gravity = down * 9.80665;
 
         accelerometer_avg -= acceleration_by_gravity;
@@ -42,16 +42,16 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Calibrating {
             accelerometer: -accelerometer_avg,
             gyroscope: -self.gyroscope / (self.data_count as f32),
             magnetometer: -self.magnetometer / (self.data_count as f32),
-            barometer_pressure: -self.barometer_pressure / (self.data_count as f32),
+            barometeric_altitude: -self.barometric_altitude / (self.data_count as f32),
         };
 
         fcu.state_vector.update_calibration(sensor_calibration);
 
         if self.zero {
-            let down = UnitVector3::new_normalize(Vector3::new(0.0, -1.0, 0.0).normalize());
-            let measured_down = UnitVector3::new_normalize(self.accelerometer.normalize());
+            let up = UnitVector3::new_normalize(Vector3::new(0.0, 1.0, 0.0).normalize());
+            let measured_up = UnitVector3::new_normalize(down);
 
-            let dot = down.dot(&measured_down);
+            let dot = measured_up.dot(&up);
             let angle = dot.acos();
 
             if angle.abs() < f32::EPSILON {
@@ -60,7 +60,7 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Calibrating {
                 fcu.state_vector.position_filter.zero();
                 fcu.state_vector.orientation_filter.zero(zeroed_orientation);
             } else {
-                let axis = UnitVector3::new_normalize(down.cross(&measured_down));
+                let axis = UnitVector3::new_normalize(measured_up.cross(&up));
 
                 let zeroed_orientation = UnitQuaternion::from_axis_angle(&axis, angle);
 
@@ -78,7 +78,7 @@ impl Calibrating {
             accelerometer: Vector3::zeros(),
             gyroscope: Vector3::zeros(),
             magnetometer: Vector3::zeros(),
-            barometer_pressure: 0.0,
+            barometric_altitude: 0.0,
             data_count: 0,
             zero,
         })
@@ -94,12 +94,12 @@ impl Calibrating {
         let accelerometer = fcu.state_vector.sensor_data.accelerometer;
         let gyroscope = fcu.state_vector.sensor_data.gyroscope;
         let magnetometer = fcu.state_vector.sensor_data.magnetometer;
-        let barometer_pressure = fcu.state_vector.sensor_data.barometer_pressure;
+        let baro_altitude = fcu.state_vector.sensor_data.barometer_altitude;
 
         self.accelerometer += Vector3::<f32>::from(accelerometer);
         self.gyroscope += Vector3::<f32>::from(gyroscope);
         self.magnetometer += Vector3::<f32>::from(magnetometer);
-        self.barometer_pressure += barometer_pressure;
+        self.barometric_altitude += baro_altitude;
 
         self.data_count += 1;
     }

@@ -14,7 +14,7 @@ pub struct SensorCalibrationData {
     pub accelerometer: Vector3<f32>,
     pub gyroscope: Vector3<f32>,
     pub magnetometer: Vector3<f32>,
-    pub barometer_pressure: f32,
+    pub barometeric_altitude: f32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -28,6 +28,7 @@ pub struct SensorData {
     pub barometer_pressure: f32,
     pub barometer_altitude: f32,
     pub barometer_raw: u32,
+    pub barometer_temperature: f32,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -48,7 +49,7 @@ impl StateVector {
                 accelerometer: Vector3::new(0.0, 0.0, 0.0),
                 gyroscope: Vector3::new(0.0, 0.0, 0.0),
                 magnetometer: Vector3::new(0.0, 0.0, 0.0),
-                barometer_pressure: 0.0,
+                barometeric_altitude: 0.0,
             },
             sensor_data: SensorData {
                 accelerometer: Vector3::new(0.0, 0.0, 0.0),
@@ -60,6 +61,7 @@ impl StateVector {
                 barometer_pressure: 0.0,
                 barometer_altitude: 0.0,
                 barometer_raw: 0,
+                barometer_temperature: 0.0,
             },
             landed: true,
         }
@@ -131,14 +133,14 @@ impl StateVector {
                 raw_data,
             } => {
                 self.sensor_data.barometer_pressure = pressure;
-                self.sensor_data.barometer_altitude =
-                    convert_pressure_to_altitude(pressure, temperature);
+                self.sensor_data.barometer_temperature = temperature;
                 self.sensor_data.barometer_raw = raw_data;
 
-                // let pressure = pressure + self.sensor_calibration.barometer_pressure;
-                // let altitude = convert_pressure_to_altitude(pressure, temperature);
+                self.sensor_data.barometer_altitude = convert_pressure_to_altitude(pressure, temperature);
 
-                // self.position_filter.update_barometric_pressure(altitude);
+                let altitude = self.sensor_data.barometer_altitude + self.sensor_calibration.barometeric_altitude;
+
+                self.position_filter.update_barometric_pressure(altitude);
             }
         }
     }

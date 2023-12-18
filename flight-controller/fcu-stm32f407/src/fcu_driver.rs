@@ -1,8 +1,10 @@
+use core::sync::atomic::Ordering;
+
 use rtic::Mutex;
-use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver};
+use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuHardwareData};
 use shared::comms_hal::{Packet, NetworkAddress};
 use stm32f4xx_hal::prelude::*;
-use stm32f4xx_hal::gpio::{PE0, PE1, PE2, PE3, Output, PinState};
+use stm32f4xx_hal::gpio::{PE0, PE1, PE2, PE3, Output, PinState, PA3, PA6, PA4, PB0, Analog};
 use strum::EnumCount;
 
 use crate::{app, logging};
@@ -13,14 +15,19 @@ pub struct FcuControlPins {
     pub output2_ctrl: PE1<Output>,
     pub output3_ctrl: PE2<Output>,
     pub output4_ctrl: PE3<Output>,
+    pub output1_cont: PA3<Analog>,
+    pub output2_cont: PA4<Analog>,
+    pub output3_cont: PA6<Analog>,
+    pub output4_cont: PB0<Analog>,
 }
 
 #[derive(Debug)]
 pub struct Stm32F407FcuDriver {
     pins: FcuControlPins,
-    outputs: [bool; OutputChannel::COUNT],
+    outputs: [bool; 4],
     pwm: [f32; PwmChannel::COUNT],
-    continuities: [bool; OutputChannel::COUNT],
+    continuities: [bool; 4],
+    hardware_data: FcuHardwareData,
 }
 
 impl FcuDriver for Stm32F407FcuDriver {
@@ -74,8 +81,8 @@ impl FcuDriver for Stm32F407FcuDriver {
         // app::read_log_page_and_transfer::spawn(addr).unwrap();
     }
 
-    fn send_packet(&mut self, _packet: Packet, _destination: NetworkAddress) {
-        // app::send_packet::spawn(packet, destination).unwrap();
+    fn hardware_data(&self) -> FcuHardwareData {
+        self.hardware_data.clone()
     }
 
     fn as_mut_any(&mut self) -> &mut dyn core::any::Any {
@@ -86,18 +93,46 @@ impl FcuDriver for Stm32F407FcuDriver {
 pub fn fcu_update(mut ctx: app::fcu_update::Context) {
     app::fcu_update::spawn_after(10.millis().into()).unwrap();
 
+    let sample_to_millivolts = ctx.local.adc1_transfer.peripheral().make_sample_to_millivolts();
+
+        let adc1_result = ctx.local.adc1_transfer
+            .next_transfer(ctx.local.adc1_other_buffer.take().unwrap());
+
     ctx.shared.fcu.lock(|fcu| {
+        let driver = fcu.driver.as_mut_any().downcast_mut::<Stm32F407FcuDriver>().unwrap();
+
+        driver.hardware_data.cpu_utilization = ctx.shared.cpu_utilization.load(Ordering::Relaxed) as f32;
+
+        if let Ok((buffer, _)) = adc1_result {
+            let output1_cont = sample_to_millivolts(buffer[0]);
+            let output2_cont = sample_to_millivolts(buffer[1]);
+            let output3_cont = sample_to_millivolts(buffer[2]);
+            let output4_cont = sample_to_millivolts(buffer[3]);
+
+            driver.continuities[OutputChannel::SolidMotorIgniter.index()] = output1_cont > 50;
+            driver.continuities[OutputChannel::Extra { index: 0 }.index()] = output2_cont > 50;
+            driver.continuities[OutputChannel::Extra { index: 1 }.index()] = output3_cont > 50;
+            driver.continuities[OutputChannel::Extra { index: 2 }.index()] = output4_cont > 50;
+
+            ctx.local.adc1_other_buffer.replace(buffer);
+        }
+
         fcu.update(0.01);
+    });
+
+    ctx.local.adc1_transfer.start(|adc1| {
+        adc1.start_conversion();
     });
 }
 
 impl Stm32F407FcuDriver {
-    pub const fn new(pins: FcuControlPins) -> Self {
+    pub fn new(pins: FcuControlPins) -> Self {
         Self {
             pins,
-            outputs: [false; OutputChannel::COUNT],
+            outputs: [false; 4],
             pwm: [0.0; PwmChannel::COUNT],
-            continuities: [false; OutputChannel::COUNT],
+            continuities: [false; 4],
+            hardware_data: FcuHardwareData::default(),
         }
     }
 }

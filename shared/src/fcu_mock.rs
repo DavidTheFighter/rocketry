@@ -2,7 +2,7 @@ use core::any::Any;
 
 use crate::{
     comms_hal::{NetworkAddress, Packet},
-    fcu_hal::{FcuDriver, OutputChannel, PwmChannel},
+    fcu_hal::{FcuDriver, OutputChannel, PwmChannel, FcuHardwareData},
 };
 use strum::EnumCount;
 
@@ -39,7 +39,11 @@ impl FcuDriver for FcuDriverMock {
         self.pwm[channel as usize]
     }
 
-    fn send_packet(&mut self, _packet: Packet, _destination: NetworkAddress) {}
+    fn hardware_data(&self) -> FcuHardwareData {
+        FcuHardwareData {
+            cpu_utilization: 0.0,
+        }
+    }
 
     // fn log_data_point(&mut self, _datapoint: DataPoint) {}
 

@@ -6,9 +6,11 @@ use crate::big_brother::BigBrotherError;
 pub struct NetworkMapEntry<T> {
     pub network_address: T,
     pub ip: [u8; 4],
+    pub port: u16,
     pub interface_index: u8,
     pub to_counter: u16,
     pub from_counter: u16,
+    pub from_session_id: u32,
 }
 
 pub struct NetworkMap<T, const NETWORK_MAP_SIZE: usize> {
@@ -29,6 +31,7 @@ where
         &mut self,
         from_address: T,
         ip: [u8; 4],
+        port: u16,
         interface_index: u8,
     ) -> Result<&mut NetworkMapEntry<T>, BigBrotherError> {
         for mapping in self.network_map.iter_mut() {
@@ -38,21 +41,25 @@ where
                         *mapping = NetworkMapEntry {
                             network_address: from_address,
                             ip,
+                            port,
                             interface_index,
                             to_counter: mapping.to_counter,
                             from_counter: mapping.from_counter,
+                            from_session_id: mapping.from_session_id,
                         };
 
                         return Ok(mapping);
                     }
-                }
+                },
                 None => {
                     *mapping = Some(NetworkMapEntry {
                         network_address: from_address,
                         ip,
+                        port,
                         interface_index,
                         to_counter: 0,
                         from_counter: 0,
+                        from_session_id: 0,
                     });
 
                     return Ok(mapping.as_mut().unwrap());
@@ -80,10 +87,27 @@ where
 
         Err(BigBrotherError::UnknownNetworkAddress)
     }
+
+    pub fn update_session_id(
+        &mut self,
+        address: T,
+        session_id: u32,
+    ) -> Result<(), BigBrotherError> {
+        let mapping = self.get_address_mapping(address)?;
+
+        if session_id != mapping.from_session_id {
+            mapping.from_counter = 0;
+            mapping.from_session_id = session_id;
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 pub mod tests {
+    use crate::big_brother::UDP_PORT;
+
     use super::*;
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -112,7 +136,7 @@ pub mod tests {
         let mut i = 0;
         for address in &NETWORK_ADDRESS_TEST_DEFAULTS {
             network_map
-                .map_network_address(*address, [123 + i, 0 + i, 200 + i, 42 + i], i % 2)
+                .map_network_address(*address, [123 + i, 0 + i, 200 + i, 42 + i], UDP_PORT, i % 2)
                 .unwrap();
             i += 1;
         }

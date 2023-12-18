@@ -14,9 +14,10 @@ strum = { version = "0.24", default-features = false, features = ["derive"] }
 mint = "0.5.9"
 defmt = { version = "0.3", features = ["encoding-rzcobs"] }
 defmt-brtt = { version = "0.1", default-features = false, features = ["rtt"] }
-panic-probe = { version = "0.3.1", features = ["print-defmt"] }
 ms5611-rs = { git = "https://github.com/DavidTheFighter/ms5611-rs" }
 bmi088-rs = { git = "https://github.com/DavidTheFighter/bmi088-rs" }
+defmt-serial = "0.7.0"
+rand_core = "0.6.4"
 
 [dependencies.shared]
 path = "../../shared"
@@ -45,10 +46,10 @@ rev = "b78409b326fcdfb2f26d6a721737c6842615d630"
 default-features = false
 features = ["cortex-m", "eh-alpha"]
 
-[dependencies.smoltcp]
-version = "0.10"
+[dependencies.ublox]
+ublox = "0.4.5"
 default-features = false
-features = ["medium-ethernet", "socket-udp", "proto-ipv4", "defmt"]
+features = ["serde"]
 
 # cargo build/run
 [profile.dev]

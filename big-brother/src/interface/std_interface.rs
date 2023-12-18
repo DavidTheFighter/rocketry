@@ -4,22 +4,40 @@ use crate::big_brother::{BigBrotherEndpoint, BigBrotherError, UDP_PORT};
 
 use super::BigBrotherInterface;
 
+pub const MAX_CHAIN_LENGTH: usize = 5;
+
 pub struct StdInterface {
     udp_socket: UdpSocket,
+    chain_port: Option<u16>,
 }
 
 impl StdInterface {
     pub fn new() -> Result<Self, BigBrotherError> {
-        let udp_socket = UdpSocket::bind(format!("0.0.0.0:{}", UDP_PORT))
-            .map_err(|_| BigBrotherError::SocketBindFailure)?;
-        udp_socket
-            .set_nonblocking(true)
-            .map_err(|_| BigBrotherError::SocketConfigFailure)?;
-        udp_socket
-            .set_broadcast(true)
-            .map_err(|_| BigBrotherError::SocketConfigFailure)?;
+        let mut chain_port = None;
 
-        Ok(Self { udp_socket })
+        for attempt in 0..MAX_CHAIN_LENGTH {
+            let port = UDP_PORT + attempt as u16;
+            let udp_socket = UdpSocket::bind(format!("0.0.0.0:{}", port));
+            if let Ok(udp_socket) = udp_socket {
+                udp_socket
+                    .set_nonblocking(true)
+                    .map_err(|_| BigBrotherError::SocketConfigFailure)?;
+                udp_socket
+                    .set_broadcast(true)
+                    .map_err(|_| BigBrotherError::SocketConfigFailure)?;
+
+                if attempt > 0 {
+                    chain_port = Some(port);
+                }
+
+                return Ok(Self {
+                    udp_socket,
+                    chain_port,
+                });
+            }
+        }
+
+        Err(BigBrotherError::SocketBindFailure)
     }
 }
 

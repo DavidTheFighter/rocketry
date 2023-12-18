@@ -75,6 +75,11 @@ pub enum FcuSensorData {
     },
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct FcuHardwareData {
+    pub cpu_utilization: f32,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FcuTelemetryFrame {
     pub timestamp: u64,
@@ -118,8 +123,10 @@ pub struct FcuDebugInfo {
     pub raw_gyroscope: Vector3<i16>,
     pub raw_magnetometer: Vector3<i16>,
     pub raw_barometer: u32,
-    pub raw_barometric_altitude: f32,
+    pub barometric_altitude: f32,
     pub accelerometer_calibration: Vector3<f32>,
+    pub barometer_calibration: f32,
+    pub cpu_utilization: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -167,7 +174,7 @@ pub trait FcuDriver {
     fn disable_logging_to_flash(&mut self);
     fn retrieve_log_flash_page(&mut self, addr: u32);
 
-    fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
+    fn hardware_data(&self) -> FcuHardwareData;
 
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }
@@ -281,12 +288,14 @@ impl FcuDebugInfo {
             raw_gyroscope: Vector3 { x: 0, y: 0, z: 0 },
             raw_magnetometer: Vector3 { x: 0, y: 0, z: 0 },
             raw_barometer: 0,
-            raw_barometric_altitude: 0.0,
+            barometric_altitude: 0.0,
             accelerometer_calibration: Vector3 {
                 x: 0.0,
                 y: 0.0,
                 z: 0.0,
             },
+            barometer_calibration: 0.0,
+            cpu_utilization: 78,
         }
     }
 }

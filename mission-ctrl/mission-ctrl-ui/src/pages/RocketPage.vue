@@ -178,14 +178,19 @@ export default {
           badValue: false,
         },
         {
-          name: "Raw Baro Alt",
-          value: util.nvalue(this.dataset.debug_data?.raw_barometric_altitude).toFixed(2),
+          name: "Baro Alt",
+          value: util.nvalue(this.dataset.debug_data?.barometric_altitude).toFixed(2),
           units: "m",
           badValue: false,
         },
         {
           name: "Accel Calib",
           value: util.nvecstr(this.dataset.debug_data?.accelerometer_calibration, 0),
+          badValue: false,
+        },
+        {
+          name: "Baro Calib",
+          value: this.dataset.debug_data?.barometer_calibration,
           badValue: false,
         },
       ];

@@ -8,7 +8,6 @@ mod sensors;
 mod logging;
 
 use defmt_brtt as _;
-use panic_probe as _;
 
 use core::panic::PanicInfo;
 use cortex_m_rt::{exception, ExceptionFrame};
@@ -31,20 +30,21 @@ mod app {
     use cortex_m::interrupt::Mutex;
     use flight_controller_rs::{Fcu, FcuBigBrother};
     use shared::comms_hal::{NetworkAddress, Packet};
-    use stm32f4::stm32f407::I2C1;
+    use stm32f4::stm32f407::{I2C1, DMA2, ADC1};
     use stm32f4xx_hal::{
         gpio::{self, Input, Output, PC3, PC14, PC15, PE4, PE5, PE8, PE9, Edge, Pin, Alternate, PinState},
         prelude::*,
         spi,
-        pac::{SPI1, USART2},
-        serial::{self, Serial},
+        pac::{SPI1, USART2, UART4},
+        serial::{self, Serial}, dma::{Channel1, Transfer, StreamsTuple, config::DmaConfig, self}, adc::{Adc, config::{AdcConfig, Sequence, SampleTime, Dma, Scan}},
     };
     use systick_monotonic::Systick;
+    use rand_core::RngCore;
 
     use crate::fcu_driver::{Stm32F407FcuDriver, FcuControlPins, fcu_update};
     use crate::drivers::{bmm150, w25x05};
     // use crate::comms::{send_packet, eth_interrupt, init_comms, NetworkingStorage};
-    use crate::sensors::{bmi088_interrupt, bmm150_interrupt, ms5611_update};
+    use crate::sensors::{bmi088_interrupt, bmm150_interrupt, ms5611_update, ublox_update, adc1_dma2_stream0_interrupt};
     use crate::logging::{self, DataLoggerType};
 
     const CRYSTAL_FREQ: u32 = 25_000_000;
@@ -73,6 +73,9 @@ mod app {
         mag_int_pin: PC3<Input>,
         usart2_tx: serial::Tx<USART2>,
         usart2_rx: serial::Rx<USART2>,
+        uart4: Serial<UART4, (Pin<'C', 10, Alternate<8>>, Pin<'C', 11, Alternate<8>>)>,
+        adc1_transfer: Transfer<dma::StreamX<DMA2, 0>, 0, Adc<ADC1>, dma::PeripheralToMemory, &'static mut [u16; 8]>,
+        adc1_other_buffer: Option<&'static mut [u16; 8]>,
         dwt: DWT,
     }
 
@@ -108,10 +111,19 @@ mod app {
 
     extern "Rust" {
         #[task(
-            shared = [fcu],
+            shared = [fcu, &cpu_utilization],
+            local = [adc1_transfer, adc1_other_buffer],
             priority = 7,
         )]
         fn fcu_update(mut ctx: fcu_update::Context);
+
+        #[task(
+            binds = DMA2_STREAM0,
+            local = [],
+            shared = [],
+            priority = 11,
+        )]
+        fn adc1_dma2_stream0_interrupt(ctx: adc1_dma2_stream0_interrupt::Context);
 
         #[task(
             binds = EXTI9_5,
@@ -135,6 +147,13 @@ mod app {
             priority = 3,
         )]
         fn ms5611_update(ctx: ms5611_update::Context);
+
+        #[task(
+            local = [uart4],
+            shared = [],
+            priority = 3,
+        )]
+        fn ublox_update(ctx: ublox_update::Context);
     }
 
     #[monotonic(binds = SysTick, default = true)]
@@ -180,12 +199,18 @@ mod app {
         let mut syscfg = p.SYSCFG.constrain();
         let mono = Systick::new(core.SYST, clocks.hclk().raw());
 
+        core.DCB.enable_trace();
         core.DWT.enable_cycle_counter();
 
         let output1_ctrl = gpioe.pe0.into_push_pull_output_in_state(PinState::Low);
         let output2_ctrl = gpioe.pe1.into_push_pull_output_in_state(PinState::Low);
         let output3_ctrl = gpioe.pe2.into_push_pull_output_in_state(PinState::Low);
         let output4_ctrl = gpioe.pe3.into_push_pull_output_in_state(PinState::Low);
+
+        let output1_cont = gpioa.pa3.into_analog();
+        let output2_cont = gpioa.pa4.into_analog();
+        let output3_cont = gpioa.pa6.into_analog();
+        let output4_cont = gpiob.pb0.into_analog();
 
         let i2c1_scl = gpiob.pb6.into_alternate_open_drain();
         let i2c1_sda = gpiob.pb7.into_alternate_open_drain();
@@ -200,11 +225,52 @@ mod app {
         let usart2_tx = gpiod.pd5.into_alternate();
         let usart2_rx = gpiod.pd6.into_alternate();
 
+        let uart4_tx = gpioc.pc10.into_alternate();
+        let uart4_rx = gpioc.pc11.into_alternate();
+
+        let dma2 = StreamsTuple::new(p.DMA2);
+
+        let mut adc1 = Adc::adc1(p.ADC1, true, AdcConfig::default().dma(Dma::Continuous).scan(Scan::Enabled));
+        adc1.configure_channel(&output1_cont, Sequence::One, SampleTime::Cycles_144);
+        adc1.configure_channel(&output2_cont, Sequence::Two, SampleTime::Cycles_144);
+        adc1.configure_channel(&output3_cont, Sequence::Three, SampleTime::Cycles_144);
+        adc1.configure_channel(&output4_cont, Sequence::Four, SampleTime::Cycles_144);
+
+        let adc1_buffer0 = cortex_m::singleton!(: [u16; 8] = [0; 8]).unwrap();
+        let adc1_buffer1 = cortex_m::singleton!(: [u16; 8] = [0; 8]).unwrap();
+
+        let adc1_transfer = Transfer::init_peripheral_to_memory(
+            dma2.0,
+            adc1,
+            adc1_buffer0,
+            None,
+            DmaConfig::default().transfer_complete_interrupt(false).memory_increment(true).double_buffer(false),
+        );
+
+        let tim2_pwm = p.TIM2.pwm_hz((
+            gpioa.pa15.into_alternate(),
+            gpiob.pb3.into_alternate(),
+        ), 50.Hz(), &clocks);
+
+        let (mut ch1, mut ch2) = tim2_pwm.split();
+
+        let ch1_duty = ((ch1.get_max_duty() as f32) * 0.075) as u16;
+
+        ch1.set_duty(ch1_duty);
+        ch1.enable();
+
+        ch2.set_duty(ch2.get_max_duty() / 3);
+        ch2.enable();
+
         let fcu_control_pins = FcuControlPins {
             output1_ctrl,
             output2_ctrl,
             output3_ctrl,
             output4_ctrl,
+            output1_cont,
+            output2_cont,
+            output3_cont,
+            output4_cont,
         };
 
         let i2c1_bus = ctx.local.i2c1_bus.write(shared_bus::BusManagerCortexM::new(
@@ -232,6 +298,13 @@ mod app {
             &clocks,
         ).unwrap().with_u8_data();
         usart2.listen(serial::Event::Rxne);
+
+        let uart4 = Serial::new(
+            p.UART4,
+            (uart4_tx, uart4_rx),
+            serial::config::Config::default().baudrate(115_200.bps()).parity_none().stopbits(serial::config::StopBits::STOP1),
+            &clocks,
+        ).unwrap().with_u8_data();
 
         let (usart2_tx, usart2_rx) = usart2.split();
 
@@ -290,8 +363,8 @@ mod app {
         bmi088_accel.set_range(AccelRange::G6).unwrap();
         bmi088_accel.configure_int1_pin(Bmi088PinMode::Output, Bmi088PinBehavior::PushPull, true, true).unwrap();
 
-        bmi088_gyro.set_range(GyroRange::Deg1000).unwrap();
-        bmi088_gyro.set_bandwidth(GyroBandwidth::Data100Filter32).unwrap();
+        bmi088_gyro.set_range(GyroRange::Deg2000).unwrap();
+        bmi088_gyro.set_bandwidth(GyroBandwidth::Data200Filter23).unwrap();
         bmi088_gyro.configure_int3_pin(Bmi088PinBehavior::PushPull, true, true).unwrap();
 
         let mut accel_int_pin = gpioe.pe8.into_pull_down_input();
@@ -328,10 +401,14 @@ mod app {
             ),
         );
 
+        let mut rand_source = p.RNG.constrain(&clocks);
+
         let big_brother = ctx.local.big_brother.write(
             FcuBigBrother::new(
                 NetworkAddress::FlightController,
+                rand_source.next_u32(),
                 [255, 255, 255, 255],
+                NetworkAddress::Broadcast,
                 [Some(smoltcp_interface), None],
             ),
         );
@@ -348,6 +425,7 @@ mod app {
 
         fcu_update::spawn().unwrap();
         ms5611_update::spawn().unwrap();
+        // ublox_update::spawn().unwrap();
 
         // Initiate a first read to get the data sequence going. I found that if I don't add this
         // then the first interrupt never gets triggered, likely because the line is already high
@@ -375,6 +453,9 @@ mod app {
                 mag_int_pin,
                 usart2_tx,
                 usart2_rx,
+                uart4,
+                adc1_transfer,
+                adc1_other_buffer: Some(adc1_buffer1),
                 dwt: core.DWT,
             },
             init::Monotonics(mono),
@@ -384,7 +465,7 @@ mod app {
     #[idle(local = [dwt], shared = [&cpu_utilization])]
     fn idle(ctx: idle::Context) -> ! {
         let mut last_report_time = crate::now();
-        let mut accum_cycles = 0;
+        let mut accum_idle_cycles = 0;
 
         loop {
             rtic::export::interrupt::free(|_cs| {
@@ -395,16 +476,16 @@ mod app {
                 let after = ctx.local.dwt.cyccnt.read();
 
                 let elapsed = after.wrapping_sub(before);
-                accum_cycles += elapsed;
+                accum_idle_cycles += elapsed;
 
                 let current_time = crate::now();
                 if current_time - last_report_time >= CPU_USAGE_RATE_MS {
                     let total_cycles = ((current_time - last_report_time) as u32) * (MCU_FREQ / 1000);
-                    let cpu_util = (100 * (total_cycles - accum_cycles)) / total_cycles;
+                    let cpu_util = (100 * (total_cycles - accum_idle_cycles)) / total_cycles;
 
                     ctx.shared.cpu_utilization.store(cpu_util, Ordering::Relaxed);
                     last_report_time = current_time;
-                    accum_cycles = 0;
+                    accum_idle_cycles = 0;
                 }
             });
         }
@@ -416,16 +497,16 @@ unsafe fn HardFault(ef: &ExceptionFrame) -> ! {
     panic!("{:?}", ef);
 }
 
-// #[defmt::panic_handler]
-// fn defmt_panic() -> ! {
-//     let dp = unsafe { pac::Peripherals::steal() };
-//     let gpioc = dp.GPIOC.split();
-//     let mut red_led = gpioc.pc15.into_push_pull_output();
+#[panic_handler]
+fn red_led_panic(_: &PanicInfo) -> ! {
+    let dp = unsafe { pac::Peripherals::steal() };
+    let gpioc = dp.GPIOC.split();
+    let mut red_led = gpioc.pc15.into_push_pull_output();
 
-//     loop {
-//         red_led.set_low();
-//         cortex_m::asm::delay(3_000_000);
-//         red_led.set_high();
-//         cortex_m::asm::delay(3_000_000);
-//     }
-// }
+    loop {
+        red_led.set_low();
+        cortex_m::asm::delay(3_000_000);
+        red_led.set_high();
+        cortex_m::asm::delay(3_000_000);
+    }
+}

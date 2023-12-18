@@ -81,10 +81,10 @@ impl FcuTelemetryHandler {
             if now - last_graph_update_time >= (1.0 / FCU_VISUAL_UPDATES_PER_S) as f64 {
                 last_graph_update_time = now;
 
-                // self.observer_handler.notify(ObserverEvent::SendPacket {
-                //     address: NetworkAddress::FlightController,
-                //     packet: Packet::RequestFcuDebugInfo },
-                // );
+                self.observer_handler.notify(ObserverEvent::SendPacket {
+                    address: NetworkAddress::FlightController,
+                    packet: Packet::RequestFcuDebugInfo },
+                );
 
                 FCU_TELEMETRY_ENDPOINT_DATA
                     .lock()
