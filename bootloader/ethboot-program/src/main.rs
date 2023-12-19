@@ -1,6 +1,6 @@
 use std::{fs::File, io::{Read, self, Write}, net::UdpSocket};
 
-use big_brother::BigBrother;
+use big_brother::{BigBrother, interface::std_interface::StdInterface};
 use ethboot_shared::{BOOTLOADER_PORT, BootloaderNetworkCommand, PROGRAM_CHUNK_LENGTH};
 use serde::{Deserialize, Deserializer};
 use shared::comms_hal::{Packet, NetworkAddress};
@@ -40,23 +40,39 @@ fn main() {
     udp_socket.set_nonblocking(true).expect("Failed to set non-blocking");
     let mut buffer = [0u8; WORKING_BUFFER_SIZE];
 
-    // let interfaces = [None, None];
-    // let mut comms: BigBrother<'_, 64, Packet, NetworkAddress> = BigBrother::new(NetworkAddress::EthbootProgrammer, interfaces);
+    let mut bb_interface = StdInterface::new().expect("Failed to create bb interface");
+    let mut comms: BigBrother<'_, 64, Packet, NetworkAddress> = BigBrother::new(
+        NetworkAddress::EthbootProgrammer,
+        rand::random(),
+        [255, 255, 255, 255],
+        NetworkAddress::Broadcast,
+        [Some(&mut bb_interface), None],
+    );
+
+    let mut timestamp = 0;
 
     // Wait until we get a ping back
     println!("Waiting for ping response");
     loop {
-        let command = BootloaderNetworkCommand::PingBootloader;
-        if let Some(size) = command.serialize(&mut buffer) {
-            udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
-        } else {
-            panic!("Failed to serialize command");
+        comms.poll_1ms(timestamp);
+
+        if timestamp % 100 == 0 {
+            let command = BootloaderNetworkCommand::PingBootloader;
+            if let Some(size) = command.serialize(&mut buffer) {
+                udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
+            } else {
+                panic!("Failed to serialize command");
+            }
+
+            let reset_packet = Packet::ResetMcu { magic_number: shared::RESET_MAGIC_NUMBER };
+            if let Err(e) = comms.send_packet(&reset_packet, NetworkAddress::FlightController) {
+                println!("Failed to send reset packet: {:?}", e);
+            }
         }
 
-        // let reset_packet = Packet::ResetMcu { magic_number: shared::RESET_MAGIC_NUMBER };
-        // if let Err(e) = comms.send_packet(&reset_packet, NetworkAddress::FlightController) {
-        //     println!("Failed to send reset packet: {:?}", e);
-        // }
+        if let Err(e) = comms.recv_packet() {
+            println!("BB recv error: {:?}", e);
+        }
 
         if let Some(command) = check_for_response(&mut udp_socket, &mut buffer) {
             if let BootloaderNetworkCommand::Response { command: _, success } = command {
@@ -66,7 +82,8 @@ fn main() {
             }
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(1));
+        timestamp += 1;
     }
 
     let bootloader_definition = load_bootloader_definition(bootloader_definition_file);
