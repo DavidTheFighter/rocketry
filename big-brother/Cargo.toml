@@ -9,8 +9,12 @@ edition = "2021"
 serde = { version = "1.0", default-features = false, features = ["derive"]  }
 postcard = "1.0.2"
 
+[dependencies.rand]
+version = "0.8"
+optional = true
+
 [dev-dependencies]
-rand = "0.8.5"
+rand = "0.8"
 
 [dependencies.smoltcp]
 version = "0.10"
@@ -21,4 +25,4 @@ features = ["medium-ethernet", "socket-udp", "proto-ipv4"]
 [features]
 default = ["smoltcp"]
 smoltcp = ["dep:smoltcp"]
-stdtcp = []
+stdtcp = ["dep:rand"]

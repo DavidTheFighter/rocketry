@@ -6,4 +6,4 @@ pub mod interface;
 mod network_map;
 pub mod serdes;
 
-pub use big_brother::BigBrother;
+pub use crate::big_brother::BigBrother;

@@ -9,10 +9,11 @@ pub const MAX_CHAIN_LENGTH: usize = 5;
 pub struct StdInterface {
     udp_socket: UdpSocket,
     chain_port: Option<u16>,
+    broadcast_ip: [u8; 4],
 }
 
 impl StdInterface {
-    pub fn new() -> Result<Self, BigBrotherError> {
+    pub fn new(broadcast_ip: [u8; 4]) -> Result<Self, BigBrotherError> {
         let mut chain_port = None;
 
         for attempt in 0..MAX_CHAIN_LENGTH {
@@ -33,6 +34,7 @@ impl StdInterface {
                 return Ok(Self {
                     udp_socket,
                     chain_port,
+                    broadcast_ip,
                 });
             }
         }
@@ -83,6 +85,10 @@ impl BigBrotherInterface for StdInterface {
         let remote = BigBrotherEndpoint { ip, port };
 
         Ok(Some((size, remote)))
+    }
+
+    fn broadcast_ip(&self) -> [u8; 4] {
+        self.broadcast_ip
     }
 
     fn as_mut_any(&mut self) -> Option<&mut dyn core::any::Any> {

@@ -7,6 +7,7 @@ use std::str::FromStr;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use big_brother::big_brother::UDP_PORT;
 use big_brother::interface::mock_interface::MockInterface;
 use driver::FcuDriverSim;
 use dynamics::Dynamics;
@@ -51,7 +52,6 @@ impl FcuSil {
         let big_brother = Rc::new(RefCell::new(FcuBigBrother::new(
             NetworkAddress::FlightController,
             rand::random(),
-            [255, 255, 255, 255],
             NetworkAddress::Broadcast,
             [Some(ip_interface_ref), None],
         )));
@@ -223,6 +223,7 @@ impl FcuSil {
                 NetworkAddress::FlightController,
                 from_addr,
                 [127, 0, 0, 1],
+                UDP_PORT,
                 self.temp_fcu_packet_counter,
                 packet,
             )

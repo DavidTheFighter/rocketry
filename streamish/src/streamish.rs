@@ -17,7 +17,6 @@ impl<'a> Streamish<'a> {
             comms: BigBrother::new(
                 NetworkAddress::Camera(0),
                 rand::random(),
-                [255, 255, 255, 255],
                 NetworkAddress::Broadcast,
                 [Some(interface), None],
             ),

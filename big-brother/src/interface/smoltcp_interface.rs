@@ -20,6 +20,7 @@ where
     device: D,
     sockets_set: iface::SocketSet<'a>,
     udp_socket_handle: iface::SocketHandle,
+    broadcast_ip: [u8; 4],
 }
 
 impl<'a, D> SmoltcpInterface<'a, D>
@@ -30,6 +31,7 @@ where
         mac_address: [u8; 6],
         mut device: D,
         ip_addr: [u8; 4],
+        broadcast_ip: [u8; 4],
         cidr_len: u8,
         storage: &'a mut SmoltcpInterfaceStorage<'a>,
         timestamp: u32,
@@ -60,6 +62,7 @@ where
             device,
             sockets_set,
             udp_socket_handle,
+            broadcast_ip,
         }
     }
 }
@@ -115,6 +118,10 @@ where
         };
 
         Ok(Some((size, remote)))
+    }
+
+    fn broadcast_ip(&self) -> [u8; 4] {
+        self.broadcast_ip
     }
 
     fn as_mut_any(&mut self) -> Option<&mut dyn core::any::Any> {

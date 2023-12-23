@@ -17,7 +17,7 @@ fn main() {
         }
     }
 
-    let mut interface = StdInterface::new().expect("Failed to create interface");
+    let mut interface = StdInterface::new([255, 255, 255, 255]).expect("Failed to create interface");
 
     let mut streamish = Streamish::new(&mut interface);
     streamish.run();

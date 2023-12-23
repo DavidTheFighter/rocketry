@@ -52,7 +52,6 @@ pub struct BigBrother<'a, const NETWORK_MAP_SIZE: usize, P, A> {
     pub(crate) host_addr: A,
     pub(crate) working_buffer: [u8; WORKING_BUFFER_SIZE],
     pub interfaces: [Option<&'a mut dyn BigBrotherInterface>; MAX_INTERFACE_COUNT],
-    pub(crate) broadcast_ip: [u8; 4],
     broadcast_address: A,
     session_id: u32,
     use_dedupe: bool,
@@ -69,14 +68,12 @@ where
     pub fn new(
         host_addr: A,
         session_id: u32,
-        broadcast_ip: [u8; 4],
         broadcast_address: A,
         interfaces: [Option<&'a mut dyn BigBrotherInterface>; MAX_INTERFACE_COUNT],
     ) -> Self {
         let mut bb = Self {
             network_map: NetworkMap::new(),
             host_addr,
-            broadcast_ip,
             broadcast_address,
             session_id,
             working_buffer: [0_u8; WORKING_BUFFER_SIZE],
@@ -200,15 +197,15 @@ where
                 &mut self.working_buffer,
             )?;
 
-            let destination_endpoint = BigBrotherEndpoint {
-                ip: self.broadcast_ip,
-                port: UDP_PORT,
-            };
-
             for interface in &mut self.interfaces {
                 if let Some(interface) = interface {
+                    let destination_endpoint = BigBrotherEndpoint {
+                        ip: interface.broadcast_ip(),
+                        port: UDP_PORT,
+                    };
+
                     interface.send_udp(
-                        destination_endpoint.clone(),
+                        destination_endpoint,
                         &mut self.working_buffer[..size],
                     )?;
                 }
@@ -329,7 +326,6 @@ mod tests {
         BigBrother::<64, TestPacket, TestNetworkAddress>::new(
             host_addr,
             session_id,
-            [255, 255, 255, 255],
             TestNetworkAddress::Broadcast,
             interfaces,
         )
@@ -756,6 +752,10 @@ mod tests {
             }
         }
 
+        fn broadcast_ip(&self) -> [u8; 4] {
+            [255, 255, 255, 255]
+        }
+        
         fn as_mut_any(&mut self) -> Option<&mut dyn core::any::Any> {
             Some(self)
         }
