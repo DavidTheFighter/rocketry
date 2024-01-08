@@ -22,4 +22,3 @@ path = "../../shared"
 
 [dependencies.big-brother]
 path = "../../big-brother"
-features = ["stdtcp"]

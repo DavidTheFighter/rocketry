@@ -26,7 +26,7 @@ impl MockPhysicalNet {
         print!("{:?}:{} -> {} bytes to ", payload.remote.ip, payload.remote.port, payload.data.len());
 
         if payload.host.ip == self.broadcast_ip {
-            println!("port {} broadcast on {} interfaces", payload.host.port, self.interface_map.len());
+            println!("port, {} broadcasted to {} interfaces", payload.host.port, self.interface_map.len());
 
             for (_ip, tx) in self.interface_map.iter_mut() {
                 tx.send(payload.clone()).expect("Failed to broadcast UDP payload over TX");
@@ -36,8 +36,16 @@ impl MockPhysicalNet {
                 println!("{:?}:{}", payload.host.ip, payload.host.port);
 
                 tx.send(payload).expect("Failed to send UDP payload over TX");
+            } else if payload.host.ip == [127, 0, 0, 1] {
+                println!("localhost:{} / {:?}:{}", payload.host.port, payload.remote.ip, payload.host.port);
+
+                if let Some(tx) = self.interface_map.get(&payload.remote.ip) {
+                    tx.send(payload).expect("Failed to send UDP payload over TX");
+                } else {
+                    eprintln!("Destination for UDP payload does not exist! {:?}", payload);
+                }
             } else {
-                panic!("Destination for UDP payload does not exist! {:?}", payload);
+                eprintln!("Destination for UDP payload does not exist! {:?}", payload);
             }
         }
     }
@@ -76,12 +84,21 @@ impl MockPhysicalNet {
 
         for i in 0..4 {
             if !self.subnet_mask[i] {
-                ip[i] = rand::random::<u8>().min(254);
+                ip[i] = rand_u8().min(254);
             }
         }
 
         ip
     }
+}
+
+fn rand_u8() -> u8 {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .subsec_nanos();
+
+    (nanos % 255) as u8
 }
 
 pub struct MockPhysicalInterface {

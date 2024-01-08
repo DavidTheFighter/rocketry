@@ -5,7 +5,7 @@ use postcard::{
 };
 use serde::{Deserialize, Serialize};
 
-use crate::big_brother::BigBrotherError;
+use crate::{big_brother::BigBrotherError, dedupe};
 
 // Serialization format:
 // u8: metadata size
@@ -17,7 +17,7 @@ use crate::big_brother::BigBrotherError;
 pub struct PacketMetadata<T> {
     pub to_addr: T,
     pub from_addr: T,
-    pub counter: u16,
+    pub counter: dedupe::CounterType,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -35,7 +35,7 @@ pub(crate) fn serialize_packet<P, A>(
     packet: &P,
     host_addr: A,
     destination: A,
-    counter: u16,
+    counter: dedupe::CounterType,
     buffer: &mut [u8],
 ) -> Result<usize, BigBrotherError>
 where
@@ -103,16 +103,9 @@ pub fn serialize_postcard<T>(value: &T, buffer: &mut [u8]) -> Result<usize, Serd
 where
     T: Serialize,
 {
-    match Cobs::try_new(Slice::new(buffer)) {
-        Ok(flavor) => {
-            let serialized = serialize_with_flavor::<T, Cobs<Slice>, &mut [u8]>(value, flavor);
-
-            match serialized {
-                Ok(output_buffer) => Ok(output_buffer.len()),
-                Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
-            }
-        }
-        Err(_err) => Err(SerdesError::Unknown),
+    match postcard::to_slice(value, buffer) {
+        Ok(buffer) => Ok(buffer.len()),
+        Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
     }
 }
 
@@ -120,7 +113,7 @@ pub fn deserialize_postcard<'a, T>(buffer: &'a mut [u8]) -> Result<T, SerdesErro
 where
     T: Deserialize<'a>,
 {
-    match from_bytes_cobs(buffer) {
+    match postcard::from_bytes(buffer) {
         Ok(value) => Ok(value),
         Err(err) => Err(postcard_serialization_err_to_hal_err(err)),
     }
@@ -240,7 +233,7 @@ pub mod tests {
 
         for address in &NETWORK_ADDRESS_TEST_DEFAULTS {
             for packet in &TEST_PACKET_DEFAULTS {
-                println!("Testing packet: {:?} to address: {:?}", packet, address);
+                // println!("Testing packet: {:?} to address: {:?}", packet, address);
 
                 let size =
                     serialize_packet(packet, host_addr, *address, counter, &mut buffer).unwrap();

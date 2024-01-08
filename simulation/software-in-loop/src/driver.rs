@@ -80,6 +80,10 @@ impl FcuDriver for FcuDriverSim {
         FcuHardwareData::default()
     }
 
+    fn reset_mcu(&mut self) {
+        // Nothing
+    }
+
     fn erase_flash_chip(&mut self) {
         // Nothing
     }

@@ -7,7 +7,8 @@ mod fcu_driver;
 mod sensors;
 mod logging;
 
-use defmt_brtt as _;
+// use defmt_brtt as _;
+use defmt_serial as _;
 
 use core::panic::PanicInfo;
 use cortex_m_rt::{exception, ExceptionFrame};
@@ -71,8 +72,7 @@ mod app {
         accel_int_pin: PE8<Input>,
         gyro_int_pin: PE9<Input>,
         mag_int_pin: PC3<Input>,
-        usart2_tx: serial::Tx<USART2>,
-        usart2_rx: serial::Rx<USART2>,
+        // usart2: Serial<USART2, (Pin<'D', 5, Alternate<7>>, Pin<'D', 6, Alternate<7>>)>,
         uart4: Serial<UART4, (Pin<'C', 10, Alternate<8>>, Pin<'C', 11, Alternate<8>>)>,
         adc1_transfer: Transfer<dma::StreamX<DMA2, 0>, 0, Adc<ADC1>, dma::PeripheralToMemory, &'static mut [u16; 8]>,
         adc1_other_buffer: Option<&'static mut [u16; 8]>,
@@ -94,6 +94,8 @@ mod app {
     fn heartbeat_blink_led(ctx: heartbeat_blink_led::Context) {
         heartbeat_blink_led::spawn_after(1000.millis().into()).unwrap();
         ctx.local.blue_led.toggle();
+
+        defmt::error!("Heartbeat");
     }
 
     #[task(
@@ -296,8 +298,10 @@ mod app {
             (usart2_tx, usart2_rx),
             serial::config::Config::default().baudrate(115_200.bps()),
             &clocks,
-        ).unwrap().with_u8_data();
-        usart2.listen(serial::Event::Rxne);
+        ).unwrap();
+        // usart2.listen(serial::Event::Rxne);
+
+        defmt_serial::defmt_serial(usart2);
 
         let uart4 = Serial::new(
             p.UART4,
@@ -305,8 +309,6 @@ mod app {
             serial::config::Config::default().baudrate(115_200.bps()).parity_none().stopbits(serial::config::StopBits::STOP1),
             &clocks,
         ).unwrap().with_u8_data();
-
-        let (usart2_tx, usart2_rx) = usart2.split();
 
         let eth_pins = stm32_eth::EthPins {
             ref_clk: gpioa.pa1,
@@ -395,6 +397,7 @@ mod app {
                 [0x00, 0x80, 0xE1, 0x00, 0x00, 0x01],
                 eth_device,
                 [169, 254, 0, 7],
+                [169, 254, 255, 255],
                 16,
                 ctx.local.smoltcp_interface_storage,
                 0,
@@ -407,7 +410,6 @@ mod app {
             FcuBigBrother::new(
                 NetworkAddress::FlightController,
                 rand_source.next_u32(),
-                [255, 255, 255, 255],
                 NetworkAddress::Broadcast,
                 [Some(smoltcp_interface), None],
             ),
@@ -451,8 +453,6 @@ mod app {
                 accel_int_pin,
                 gyro_int_pin,
                 mag_int_pin,
-                usart2_tx,
-                usart2_rx,
                 uart4,
                 adc1_transfer,
                 adc1_other_buffer: Some(adc1_buffer1),

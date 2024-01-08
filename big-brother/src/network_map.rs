@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::big_brother::BigBrotherError;
+use crate::{big_brother::BigBrotherError, dedupe};
+
+pub const MAX_UPSTREAM_LOCAL_PORTS: usize = 4;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct NetworkMapEntry<T> {
@@ -8,22 +10,31 @@ pub struct NetworkMapEntry<T> {
     pub ip: [u8; 4],
     pub port: u16,
     pub interface_index: u8,
-    pub to_counter: u16,
-    pub from_counter: u16,
+    pub to_counter: dedupe::CounterType,
+    pub from_counter: dedupe::CounterType,
+    pub broadcast_counter: dedupe::CounterType,
     pub from_session_id: u32,
 }
 
 pub struct NetworkMap<T, const NETWORK_MAP_SIZE: usize> {
     network_map: [Option<NetworkMapEntry<T>>; NETWORK_MAP_SIZE],
+    host_addr: T,
+    host_ip: Option<[u8; 4]>,
+    upstream_local_ports: [u16; MAX_UPSTREAM_LOCAL_PORTS],
+    num_upstream_local_ports: usize,
 }
 
 impl<T, const NETWORK_MAP_SIZE: usize> NetworkMap<T, NETWORK_MAP_SIZE>
 where
-    T: Copy + PartialEq + Eq,
+    T: Copy + PartialEq + Eq + core::fmt::Debug,
 {
-    pub fn new() -> Self {
+    pub fn new(host_addr: T) -> Self {
         Self {
             network_map: [None; NETWORK_MAP_SIZE],
+            host_addr,
+            host_ip: None,
+            upstream_local_ports: [0; MAX_UPSTREAM_LOCAL_PORTS],
+            num_upstream_local_ports: 0,
         }
     }
 
@@ -33,20 +44,32 @@ where
         ip: [u8; 4],
         port: u16,
         interface_index: u8,
+        update: bool,
     ) -> Result<&mut NetworkMapEntry<T>, BigBrotherError> {
         for mapping in self.network_map.iter_mut() {
             match mapping {
                 Some(mapping) => {
                     if mapping.network_address == from_address {
-                        *mapping = NetworkMapEntry {
-                            network_address: from_address,
-                            ip,
-                            port,
-                            interface_index,
-                            to_counter: mapping.to_counter,
-                            from_counter: mapping.from_counter,
-                            from_session_id: mapping.from_session_id,
-                        };
+                        if update {
+                            if mapping.ip != ip || mapping.port != port || mapping.interface_index != interface_index {
+                                // println!("{:?}: Remapped {:?} to {:?}:{} (i{} -> i{})", self.host_addr, from_address, ip, port, mapping.interface_index, interface_index);
+
+                                if from_address == self.host_addr {
+                                    self.host_ip = Some(ip);
+                                }
+                            }
+
+                            *mapping = NetworkMapEntry {
+                                network_address: from_address,
+                                ip,
+                                port,
+                                interface_index,
+                                to_counter: mapping.to_counter,
+                                from_counter: mapping.from_counter,
+                                broadcast_counter: mapping.broadcast_counter,
+                                from_session_id: mapping.from_session_id,
+                            };
+                        }
 
                         return Ok(mapping);
                     }
@@ -59,8 +82,23 @@ where
                         interface_index,
                         to_counter: 0,
                         from_counter: 0,
+                        broadcast_counter: 0,
                         from_session_id: 0,
                     });
+
+                    if from_address == self.host_addr {
+                        self.host_ip = Some(ip);
+                    } else if let Some(host_ip) = self.host_ip {
+                        if host_ip == ip {
+                            self.upstream_local_ports[self.num_upstream_local_ports] = port;
+                            self.num_upstream_local_ports += 1;
+
+                            // println!("{:?}: Upstream chain detected for {:?} ({:?}:{})", self.host_addr, from_address, ip, port);
+                        }
+                    }
+
+                    // println!("{:?}: Mapped {:?} to {:?}:{}", self.host_addr, from_address, ip, port);
+                    // defmt::info!("Mapped new address from {}:{}", ip, port);
 
                     return Ok(mapping.as_mut().unwrap());
                 }
@@ -97,10 +135,15 @@ where
 
         if session_id != mapping.from_session_id {
             mapping.from_counter = 0;
+            mapping.broadcast_counter = 0;
             mapping.from_session_id = session_id;
         }
 
         Ok(())
+    }
+
+    pub fn get_upstream_local_ports(&self) -> &[u16] {
+        &self.upstream_local_ports[..self.num_upstream_local_ports]
     }
 }
 
@@ -131,12 +174,18 @@ pub mod tests {
 
     #[test]
     fn test_mapping_iter() {
-        let mut network_map = NetworkMap::<TestNetworkAddress, 32>::new();
+        let mut network_map = NetworkMap::<TestNetworkAddress, 32>::new(TestNetworkAddress::FlightController);
 
         let mut i = 0;
         for address in &NETWORK_ADDRESS_TEST_DEFAULTS {
             network_map
-                .map_network_address(*address, [123 + i, 0 + i, 200 + i, 42 + i], UDP_PORT, i % 2)
+                .map_network_address(
+                    *address,
+                    [123 + i, 0 + i, 200 + i, 42 + i],
+                    UDP_PORT,
+                    i % 2,
+                    true,
+                )
                 .unwrap();
             i += 1;
         }
@@ -144,7 +193,7 @@ pub mod tests {
         i = 0;
         for address in &NETWORK_ADDRESS_TEST_DEFAULTS {
             let mapping = network_map.get_address_mapping(*address).unwrap();
-            println!("Testing address: {:?} with mapping: {:?}", address, mapping);
+            // println!("Testing address: {:?} with mapping: {:?}", address, mapping);
 
             assert_eq!(mapping.network_address, *address);
             assert_eq!(mapping.ip, [123 + i, 0 + i, 200 + i, 42 + i]);

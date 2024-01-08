@@ -3,13 +3,13 @@ use crate::big_brother::{BigBrotherEndpoint, BigBrotherError};
 #[cfg(feature = "smoltcp")]
 pub mod smoltcp_interface;
 
-#[cfg(feature = "stdtcp")]
+#[cfg(not(feature = "no_std"))]
 pub mod std_interface;
 
-#[cfg(any(feature = "stdtcp", test))]
+#[cfg(any(not(feature = "no_std"), test))]
 pub mod mock_interface;
 
-#[cfg(any(feature = "stdtcp", test))]
+#[cfg(any(not(feature = "no_std"), test))]
 pub mod mock_topology;
 
 pub trait BigBrotherInterface {

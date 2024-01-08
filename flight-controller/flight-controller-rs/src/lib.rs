@@ -148,6 +148,7 @@ impl<'a> Fcu<'a> {
         }
 
         for (source, packet) in packets {
+            // defmt::info!("Received packet from {:?}: {:?}", source, defmt::Debug2Format(packet));
             self.handle_packet(*source, packet);
         }
 
@@ -193,6 +194,11 @@ impl<'a> Fcu<'a> {
 
                 self.send_packet(source, packet);
             }
+            Packet::ResetMcu { magic_number } => {
+                if *magic_number == shared::RESET_MAGIC_NUMBER {
+                    self.driver.reset_mcu();
+                }
+            },
             _ => {}
         }
     }

@@ -1,0 +1,3 @@
+./build-sil \
+    && python -m pysim.app
+

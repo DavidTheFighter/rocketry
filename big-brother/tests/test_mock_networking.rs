@@ -2,7 +2,12 @@ use std::sync::{Arc, Mutex};
 
 use big_brother::{interface::{mock_topology::{MockPhysicalNet, MockPhysicalInterface}, mock_interface::MockInterface, BigBrotherInterface}, big_brother::{BigBrotherEndpoint, WORKING_BUFFER_SIZE, UDP_PORT}};
 
-
+fn rand_u32() -> u32 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .subsec_nanos()
+}
 
 /// Basic test to ensure I can put 2 interfaces on a net and they can talk
 #[test]
@@ -51,11 +56,11 @@ fn send_recv() {
         assert!(iface1.recv_udp(&mut recv_buffer).unwrap().is_none());
 
         for byte in dummy_data0.iter_mut() {
-            *byte = rand::random();
+            *byte = (rand_u32() % 255) as u8;
         }
 
         for byte in dummy_data1.iter_mut() {
-            *byte = rand::random();
+            *byte = (rand_u32() % 255) as u8;
         }
     }
 }
@@ -95,7 +100,7 @@ fn broadcast() {
         }
 
         for byte in dummy_data0.iter_mut() {
-            *byte = rand::random();
+            *byte = (rand_u32() % 255) as u8;
         }
 
         assert_empty_recv(ifaces);
@@ -122,7 +127,7 @@ fn many_phy_routing() {
 
         let sender_index = i % ifaces.len();
         let sender_ip = ifaces[sender_index].host_ip;
-        let mut receiver_index = rand::random::<usize>() % ifaces.len();
+        let mut receiver_index = (rand_u32() as usize) % ifaces.len();
         if receiver_index == sender_index {
             receiver_index = (receiver_index + 1) % ifaces.len();
         }
@@ -140,7 +145,7 @@ fn many_phy_routing() {
         assert_eq!(remote.port, UDP_PORT);
 
         for byte in dummy_data0.iter_mut() {
-            *byte = rand::random();
+            *byte = (rand_u32() % 255) as u8;
         }
 
         assert_empty_recv(ifaces.as_mut_slice());
@@ -170,7 +175,7 @@ fn many_ports_routing() {
         let sender_port = virt_ifaces[sender_index].host_port;
 
         let destination_ip = virt_ifaces[(i + 1) % virt_ifaces.len()].host_ip;
-        let destination_port = UDP_PORT + (rand::random::<u16>() % 2);
+        let destination_port = UDP_PORT + ((rand_u32() % 2) as u16);
 
         println!("-- Attempt {} :: {:?}:{} -> {:?}:{}", i, sender_ip, sender_port, destination_ip, destination_port);
 
@@ -194,7 +199,7 @@ fn many_ports_routing() {
         }
 
         for byte in dummy_data0.iter_mut() {
-            *byte = rand::random();
+            *byte = (rand_u32() % 255) as u8;
         }
 
         assert_empty_recv(virt_ifaces.as_mut_slice());

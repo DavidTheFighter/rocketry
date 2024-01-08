@@ -31,7 +31,7 @@ pub struct FcuSil {
     _ip_interface: Rc<RefCell<MockInterface>>,
     _big_brother: Rc<RefCell<FcuBigBrother<'static>>>,
     _data_point_logger: Rc<RefCell<DataPointLoggerMock>>,
-    temp_fcu_packet_counter: u16,
+    temp_fcu_packet_counter: u32,
     fcu: Fcu<'static>,
 }
 

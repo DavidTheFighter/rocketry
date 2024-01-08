@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 
 use serde::Serialize;
 
+use crate::dedupe;
 use crate::{big_brother::{BigBrotherEndpoint, BigBrotherError, WORKING_BUFFER_SIZE, BigBrotherPacket, UDP_PORT}, serdes};
 
 use super::{BigBrotherInterface, mock_topology::MockPhysicalInterface};
@@ -60,7 +61,7 @@ impl MockInterface {
         from_addr: A,
         remote_ip: [u8; 4],
         remote_port: u16,
-        counter: u16,
+        counter: dedupe::CounterType,
         packet: &P,
     ) -> Result<(), BigBrotherError>
     where
@@ -82,13 +83,17 @@ impl MockInterface {
             data: buffer[..size].to_vec(),
         };
 
+        self.add_recv_payload(payload);
+
+        Ok(())
+    }
+
+    pub fn add_recv_payload(&mut self, payload: MockPayload) {
         if self.physical_interface.is_some() {
             panic!("When using a mocked network topology, you should not add packets to the virtual interface directly. Instead, use another interface to send packets to this interface.");
         } else if let Some(pending_packets) = &mut self.pending_recv_packets {
             pending_packets.push_back(payload);
         }
-
-        Ok(())
     }
 }
 

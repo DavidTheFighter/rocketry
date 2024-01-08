@@ -40,7 +40,7 @@ fn main() {
     udp_socket.set_nonblocking(true).expect("Failed to set non-blocking");
     let mut buffer = [0u8; WORKING_BUFFER_SIZE];
 
-    let mut bb_interface = StdInterface::new([255, 255, 255, 255]).expect("Failed to create bb interface");
+    let mut bb_interface = StdInterface::new([169, 254, 255, 255]).expect("Failed to create bb interface");
     let mut comms: BigBrother<'_, 64, Packet, NetworkAddress> = BigBrother::new(
         NetworkAddress::EthbootProgrammer,
         rand::random(),

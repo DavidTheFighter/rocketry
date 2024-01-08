@@ -111,6 +111,17 @@ impl Logger {
     pub fn grab_timestep_frame(&self, py: Python, i: usize) -> PyResult<PyObject> {
         let dict = PyDict::new(py);
 
+        println!("Lens are {}, {}, {}, {}, {}, {} {}, {}",
+            self.position.len(),
+            self.velocity.len(),
+            self.acceleration.len(),
+            self.orientation.len(),
+            self.angular_velocity.len(),
+            self.angular_acceleration.len(),
+            self.telemetry.len(),
+            self.detailed_state.len(),
+        );
+
         dict.set_item("position", self.position[i].clone())?;
         dict.set_item("velocity", self.velocity[i].clone())?;
         dict.set_item("acceleration", self.acceleration[i].clone())?;

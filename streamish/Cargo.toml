@@ -14,4 +14,3 @@ rand = "0.8.5"
 
 [dependencies.big-brother]
 path = "../big-brother"
-features = ["stdtcp"]

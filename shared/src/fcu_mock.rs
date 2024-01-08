@@ -45,6 +45,10 @@ impl FcuDriver for FcuDriverMock {
         }
     }
 
+    fn reset_mcu(&mut self) {
+        // Nothing
+    }
+
     // fn log_data_point(&mut self, _datapoint: DataPoint) {}
 
     fn erase_flash_chip(&mut self) {

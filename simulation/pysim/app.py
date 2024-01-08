@@ -27,7 +27,7 @@ def main():
             replay = True
 
     config = SimConfig()
-    config.auto_ignite_solid_motor = True
+    config.auto_ignite_solid_motor = False
 
     if not replay:
         sim = Simulation(config, data_queue, log_to_file=True)

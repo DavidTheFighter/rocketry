@@ -85,6 +85,10 @@ impl FcuDriver for Stm32F407FcuDriver {
         self.hardware_data.clone()
     }
 
+    fn reset_mcu(&mut self) {
+        cortex_m::peripheral::SCB::sys_reset();
+    }
+
     fn as_mut_any(&mut self) -> &mut dyn core::any::Any {
         self
     }

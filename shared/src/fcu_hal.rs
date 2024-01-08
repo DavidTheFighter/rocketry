@@ -175,6 +175,7 @@ pub trait FcuDriver {
     fn retrieve_log_flash_page(&mut self, addr: u32);
 
     fn hardware_data(&self) -> FcuHardwareData;
+    fn reset_mcu(&mut self);
 
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }

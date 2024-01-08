@@ -1,2 +1,2 @@
-cargo objcopy --release -- -O ihex fcu-stm32f407.hex
 cargo objcopy --release -- -O binary fcu-stm32f407.bin
+cargo objcopy --release -- fcu-stm32f407.elf

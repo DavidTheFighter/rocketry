@@ -54,6 +54,7 @@ Cargo.lock
 # Binary files
 *.hex
 *.bin
+*.elf
 
 # Python files
 .venv
