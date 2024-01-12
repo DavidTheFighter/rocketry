@@ -1,3 +1,2 @@
 ./build-sil \
-    && python -m pysim.app
-
+    && python -m pysim.solid_rocket_app

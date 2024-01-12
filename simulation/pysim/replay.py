@@ -4,7 +4,7 @@ from pysim.config import *
 import numpy as np
 from software_in_loop import Logger
 
-MISSION_CTRL_PORT = 25565
+MISSION_CTRL_PORT = 25560
 
 class SimReplay():
     def __init__(self, config: SimConfig, logger: Logger):
@@ -19,11 +19,10 @@ class SimReplay():
 
         packet_accum = []
 
-        print(self.logger.num_timesteps())
         for i in range(self.logger.num_timesteps()):
             t = float(i) * dt
 
-            packet_accum += self.logger.get_outbound_packets(i)
+            packet_accum += self.logger.get_network_packet_bytes(i)
 
             if i % (int(self.config.fcu_update_rate / dt)) == 0:
                 print('Time {:.2f} s'.format(t))
@@ -31,11 +30,11 @@ class SimReplay():
                 data = self.logger.grab_timestep_frame(i)
 
                 # Do some calcs to make the webview easier
-                data['fcu_position'] = data['telemetry']['position']
-                data['fcu_velocity'] = data['telemetry']['velocity']
-                data['fcu_acceleration'] = data['telemetry']['acceleration']
-                data['fcu_orientation'] = data['telemetry']['orientation']
-                data['fcu_angular_velocity'] = data['telemetry']['angular_velocity']
+                data['fcu_position'] = data['fcu_telemetry']['position']
+                data['fcu_velocity'] = data['fcu_telemetry']['velocity']
+                data['fcu_acceleration'] = data['fcu_telemetry']['acceleration']
+                data['fcu_orientation'] = data['fcu_telemetry']['orientation']
+                data['fcu_angular_velocity'] = data['fcu_telemetry']['angular_velocity']
                 data['fcu_angular_acceleration'] = data['angular_acceleration']
 
                 data['dposition'] = [x2 - x1 for x1, x2 in zip(data['position'], data['fcu_position'])]

@@ -1,14 +1,14 @@
 use std::sync::{Mutex, Arc};
 use std::collections::VecDeque;
 
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 
 use crate::dedupe;
 use crate::{big_brother::{BigBrotherEndpoint, BigBrotherError, WORKING_BUFFER_SIZE, BigBrotherPacket, UDP_PORT}, serdes};
 
 use super::{BigBrotherInterface, mock_topology::MockPhysicalInterface};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MockPayload {
     pub host: BigBrotherEndpoint,       // To
     pub remote: BigBrotherEndpoint,     // From

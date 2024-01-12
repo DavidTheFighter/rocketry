@@ -49,7 +49,7 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Calibrating {
 
         if self.zero {
             let up = UnitVector3::new_normalize(Vector3::new(0.0, 1.0, 0.0).normalize());
-            let measured_up = UnitVector3::new_normalize(down);
+            let measured_up = -UnitVector3::new_normalize(down);
 
             let dot = measured_up.dot(&up);
             let angle = dot.acos();

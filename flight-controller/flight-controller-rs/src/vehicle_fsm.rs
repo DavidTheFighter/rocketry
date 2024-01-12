@@ -34,7 +34,9 @@ pub struct Armed;
 pub struct Ignition;
 
 #[derive(Debug)]
-pub struct Ascent;
+pub struct Ascent {
+    time_since_state_entry: f32,
+}
 
 #[derive(Debug)]
 pub struct Descent;

@@ -24,20 +24,20 @@ pub enum BigBrotherError {
     SendFailure,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BigBrotherEndpoint {
     pub ip: [u8; 4],
     pub port: u16,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub(crate) enum BigBrotherPacket<T> {
+pub enum BigBrotherPacket<T> {
     MetaPacket(BigBrotherMetapacket),
     UserPacket(T),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) enum BigBrotherMetapacket {
+pub enum BigBrotherMetapacket {
     Heartbeat {
         session_id: u32,
     },
@@ -215,7 +215,7 @@ where
                         port: UDP_PORT,
                     };
 
-                    // // print!("Broad({}->{}): ", self.broadcast_counter - 1, self.broadcast_counter);
+                    // print!("Broad({}->{}): ", self.broadcast_counter - 1, self.broadcast_counter);
                     interface.send_udp(
                         destination_endpoint,
                         &mut self.working_buffer[..size],

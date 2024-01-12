@@ -1,12 +1,12 @@
 import math
 
-from software_in_loop import FcuSil, Dynamics
+from software_in_loop import FcuSil, SilVehicleDynamics
 from pysim.config import SimConfig
 
 SOLID_MOTOR_IGNITER_NAME = 'SolidMotorIgniter'
 
 class VehicleComponents:
-    def __init__(self, fcu: FcuSil, dynamics: Dynamics, config: SimConfig):
+    def __init__(self, fcu: FcuSil, dynamics: SilVehicleDynamics, config: SimConfig):
         self.fcu = fcu
         self.dynamics = dynamics
         self.config = config

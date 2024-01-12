@@ -4,40 +4,47 @@ use crate::big_brother::{BigBrotherEndpoint, UDP_PORT};
 
 use super::mock_interface::MockPayload;
 
+#[derive(Debug, Clone)]
 pub struct MockPhysicalNet {
     interface_map: HashMap<[u8; 4], mpsc::Sender<MockPayload>>,
     subnet_ip: [u8; 4],
     subnet_mask: [bool; 4],
     broadcast_ip: [u8; 4],
+    packet_log: Option<Vec<MockPayload>>,
 }
 
 impl MockPhysicalNet {
     pub fn new(subnet_ip: [u8; 4], subnet_mask: [bool; 4], broadcast_ip: [u8; 4]) -> Self {
-        println!("New physical net on {:?} w/ mask {:?} w/ broadcast {:?}", subnet_ip, subnet_mask, broadcast_ip);
+        // println!("New physical net on {:?} w/ mask {:?} w/ broadcast {:?}", subnet_ip, subnet_mask, broadcast_ip);
         Self {
             interface_map: HashMap::new(),
             subnet_ip,
             subnet_mask,
             broadcast_ip,
+            packet_log: None,
         }
     }
 
     pub fn send_udp(&mut self, payload: MockPayload) {
-        print!("{:?}:{} -> {} bytes to ", payload.remote.ip, payload.remote.port, payload.data.len());
+        // print!("{:?}:{} -> {} bytes to ", payload.remote.ip, payload.remote.port, payload.data.len());
+
+        if let Some(log) = &mut self.packet_log {
+            log.push(payload.clone());
+        }
 
         if payload.host.ip == self.broadcast_ip {
-            println!("port, {} broadcasted to {} interfaces", payload.host.port, self.interface_map.len());
+            // println!("port, {} broadcasted to {} interfaces", payload.host.port, self.interface_map.len());
 
             for (_ip, tx) in self.interface_map.iter_mut() {
                 tx.send(payload.clone()).expect("Failed to broadcast UDP payload over TX");
             }
         } else {
             if let Some(tx) = self.interface_map.get(&payload.host.ip) {
-                println!("{:?}:{}", payload.host.ip, payload.host.port);
+                // println!("{:?}:{}", payload.host.ip, payload.host.port);
 
                 tx.send(payload).expect("Failed to send UDP payload over TX");
             } else if payload.host.ip == [127, 0, 0, 1] {
-                println!("localhost:{} / {:?}:{}", payload.host.port, payload.remote.ip, payload.host.port);
+                // println!("localhost:{} / {:?}:{}", payload.host.port, payload.remote.ip, payload.host.port);
 
                 if let Some(tx) = self.interface_map.get(&payload.remote.ip) {
                     tx.send(payload).expect("Failed to send UDP payload over TX");
@@ -79,6 +86,23 @@ impl MockPhysicalNet {
         self.broadcast_ip
     }
 
+    pub fn enable_payload_logging(&mut self) {
+        if self.packet_log.is_none() {
+            self.packet_log = Some(Vec::new());
+        }
+    }
+
+    pub fn take_payload_log(&mut self) -> Vec<MockPayload> {
+        if self.packet_log.is_none() {
+            Vec::new()
+        } else {
+            let log = self.packet_log.take().unwrap();
+            self.packet_log = Some(Vec::new());
+
+            log
+        }
+    }
+
     fn generate_random_ip(&self) -> [u8; 4] {
         let mut ip = self.subnet_ip;
 
@@ -118,7 +142,7 @@ impl MockPhysicalInterface {
             .expect("Failed to unlock MockPhysicalNet for physical interface init")
             .register_physical_interface(tx);
 
-        println!("New phy iface @ {:?}", host_ip);
+        // println!("New phy iface @ {:?}", host_ip);
 
         Self {
             host_ip,
@@ -137,24 +161,24 @@ impl MockPhysicalInterface {
     }
 
     pub fn recv_udp(&mut self, port: u16) -> Option<MockPayload> {
-        print!("{:?}:{} <- ", self.host_ip, port);
+        // print!("{:?}:{} <- ", self.host_ip, port);
 
         if let Some(payload) = self.virtual_rx_queue.get_mut(&port).unwrap().pop_front() {
-            println!("{} bytes from {:?}:{} via queue", payload.data.len(), payload.remote.ip, payload.remote.port);
+            // println!("{} bytes from {:?}:{} via queue", payload.data.len(), payload.remote.ip, payload.remote.port);
             return Some(payload);
         }
 
         loop {
             if let Ok(payload) = self.interface_rx.try_recv() {
                 if payload.host.port == port {
-                    println!("{} bytes from {:?}:{} via mpsc", payload.data.len(), payload.remote.ip, payload.remote.port);
+                    // println!("{} bytes from {:?}:{} via mpsc", payload.data.len(), payload.remote.ip, payload.remote.port);
                     return Some(payload);
                 } else {
-                    print!(". ");
+                    // print!(". ");
                     self.virtual_rx_queue.get_mut(&payload.host.port).unwrap().push_back(payload);
                 }
             } else {
-                println!(" 0 bytes (buffers empty)");
+                // println!(" 0 bytes (buffers empty)");
                 return None;
             }
         }
@@ -169,7 +193,7 @@ impl MockPhysicalInterface {
         self.num_virtual_interfaces += 1;
         self.virtual_rx_queue.insert(host.port, VecDeque::new());
 
-        println!("New virtual iface @ {:?}:{}", host.ip, host.port);
+        // println!("New virtual iface @ {:?}:{}", host.ip, host.port);
 
         host
     }

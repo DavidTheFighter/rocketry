@@ -9,7 +9,7 @@ from queue import Queue
 import json
 import software_in_loop
 
-from pysim.simulation import Simulation
+from pysim.simulation.solid_rocket import SolidRocketSimulation
 from pysim.replay import SimReplay
 from pysim.config import SimConfig
 
@@ -27,10 +27,9 @@ def main():
             replay = True
 
     config = SimConfig()
-    config.auto_ignite_solid_motor = False
 
     if not replay:
-        sim = Simulation(config, data_queue, log_to_file=True)
+        sim = SolidRocketSimulation(config, data_queue, log_to_file=True)
         print("Simulating...")
         sim.simulate_until_done()
         print("Done! Replaying")

@@ -1,4 +1,4 @@
-import software_in_loop
+import software_in_loop as sil
 import time
 import math
 from threading import Thread
@@ -11,11 +11,21 @@ from pysim.vehicle_components import VehicleComponents
 
 # [x, y, z] - [east, height, north]
 
-class Simulation:
+class SolidRocketSimulation:
     def __init__(self, config: SimConfig, loggingQueue=None, log_to_file=False) -> None:
-        self.fcu = software_in_loop.FcuSil()
-        self.dynamics = software_in_loop.Dynamics()
-        self.logger = software_in_loop.Logger()
+        self.radio_network = sil.SilNetwork([10, 0, 0, 0])
+
+        self.fcu_radio_phy = sil.SilNetworkPhy(self.radio_network)
+        self.fcu_radio_iface = sil.SilNetworkIface(self.fcu_radio_phy)
+
+        self.mission_ctrl_radio_phy = sil.SilNetworkPhy(self.radio_network)
+        self.mission_ctrl_radio_iface = sil.SilNetworkIface(self.mission_ctrl_radio_phy)
+
+        self.fcu = sil.FcuSil([self.fcu_radio_iface])
+        self.mission_ctrl = sil.MissionControl([self.mission_ctrl_radio_iface])
+
+        self.dynamics = sil.SilVehicleDynamics()
+        self.logger = sil.Logger([self.radio_network])
         self.config = config
         self.vehicle_components = VehicleComponents(self.fcu, self.dynamics, self.config)
         self.logger.dt = self.config.sim_update_rate
@@ -55,10 +65,10 @@ class Simulation:
     def simulate_until_ascent(self, ascent_timeout_s=5.0):
         self.simulate_until_idle()
 
-        self.fcu.send_arm_vehicle_packet()
+        self.mission_ctrl.send_arm_vehicle_packet()
         self.simulate_for(self.config.fcu_update_rate)
 
-        self.fcu.send_ignite_solid_motor_packet()
+        self.mission_ctrl.send_ignite_solid_motor_packet()
         self.simulate_for(self.config.fcu_update_rate)
 
         assert self.fcu['vehicle_state'] == 'Ignition'
@@ -73,12 +83,8 @@ class Simulation:
         assert self.fcu['vehicle_state'] == 'Ascent'
 
     def advance_timestep(self):
+        self.mission_ctrl.update_timestep(self.dt)
         self.fcu.update_timestamp(self.t)
-
-        if self.dynamics.position[1] < -1e-3:
-            print("Vehicle landed at {:.6f} s".format(self.t))
-            self.t += self.dt
-            return False
 
         self.dynamics.update(self.dt)
         self.vehicle_components.update(self.t, self.dt)
@@ -118,14 +124,15 @@ class Simulation:
         if math.fmod(self.t, self.config.dev_stats_rate) <= self.dt:
             self.fcu.start_dev_stats_frame()
 
+        self.logger.log_common_data()
         self.logger.log_fcu_data(self.fcu)
-        self.logger.log_dev_stats(self.fcu)
-        self.logger.log_position(self.dynamics.position)
-        self.logger.log_velocity(self.dynamics.velocity)
-        self.logger.log_acceleration(self.dynamics.acceleration_world_frame)
-        self.logger.log_orientation(self.dynamics.orientation)
-        self.logger.log_angular_velocity(self.dynamics.angular_velocity)
-        self.logger.log_angular_acceleration(self.dynamics.angular_acceleration)
+        self.logger.log_dynamics_data(self.dynamics)
+        # self.logger.log_dev_stats(self.fcu)
+
+        if self.dynamics.position[1] < -1e-3:
+            print("Vehicle landed at {:.6f} s".format(self.t))
+            self.t += self.dt
+            return False
 
         self.t += self.dt
 
@@ -136,4 +143,4 @@ class Simulation:
         replay.replay(self.logging)
 
 if __name__ == "__main__":
-    Simulation().simulate()
+    print("This file is not meant to be run directly")

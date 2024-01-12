@@ -20,7 +20,7 @@ class SimConfig:
     accel_noise: float = 0.01 # Meters per second squared
     gps_xz_noise: float = 5.0 # Meters
     gps_y_noise: float = 10.0 # Meters
-    baro_noise: float = 0.1 # Meters
+    baro_noise: float = 0.5 # Meters
     gyro_noise: float = 0.01 # Radians per second
 
     accel_bias: float = 0.05 # Meters per second squared
@@ -33,10 +33,10 @@ class SimConfig:
     fcu_config: dict = field(default_factory=lambda: {
         "telemetry_rate": 0.02, # Seconds
         "startup_acceleration_threshold": 0.5, # Meters per second squared
-        "position_kalman_process_variance": 1e-1,
+        "position_kalman_process_variance": 1e-3,
         "calibration_duration": 2.5, # Seconds
         "accelerometer_noise_std_dev": [0.01]*3, # Meters per second squared
-        "barometer_noise_std_dev": 0.1, # Meters
+        "barometer_noise_std_dev": 1.0, # Meters
         "gps_noise_std_dev": [5.0, 10.0, 5.0], # Meters
     })
 

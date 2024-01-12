@@ -1,11 +1,8 @@
 use std::any::Any;
 use std::net::UdpSocket;
 
-use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuTelemetryFrame, FcuDevStatsFrame, FcuHardwareData};
-use shared::comms_hal::{Packet, NetworkAddress};
+use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuHardwareData};
 use strum::EnumCount;
-
-const BUFFER_SIZE: usize = 1024;
 
 #[derive(Debug)]
 pub struct FcuDriverSim {
@@ -13,11 +10,8 @@ pub struct FcuDriverSim {
     pwm: [f32; PwmChannel::COUNT],
     continuities: [bool; OutputChannel::COUNT],
     socket: Option<UdpSocket>,
-    pub packet_log_queue: Vec<Packet>,
     pub current_sim_timestamp: f32,
     pub last_sim_timestamp_update_timestamp: f64,
-    pub last_telem_packet: Option<FcuTelemetryFrame>,
-    pub last_dev_stats_packet: Option<FcuDevStatsFrame>,
 }
 
 impl FcuDriver for FcuDriverSim {
@@ -46,35 +40,6 @@ impl FcuDriver for FcuDriverSim {
     fn get_pwm_channel(&self, channel: PwmChannel) -> f32 {
         self.pwm[channel as usize]
     }
-
-    // fn send_packet(&mut self, packet: Packet, _destination: NetworkAddress) {
-    //     let mut buffer = [0_u8; BUFFER_SIZE];
-
-    //     if let Packet::FcuTelemetry(frame) = &packet {
-    //         self.last_telem_packet = Some(frame.clone());
-    //     }
-
-    //     if let Packet::FcuDevStatsFrame(frame) = &packet {
-    //         self.last_dev_stats_packet = Some(frame.clone());
-    //     }
-
-    //     self.packet_log_queue.push(packet.clone());
-
-    //     if let Some(socket) = self.socket.as_mut() {
-    //         // match packet.serialize(&mut buffer) {
-    //         //     Ok(size) => {
-    //         //         let address = "127.0.0.1:25565";
-
-    //         //         if let Err(err) = socket.send_to(&buffer[0..size], address) {
-    //         //             println!("FcuDriverSim: Failed to send packet: {err}");
-    //         //         }
-    //         //     }
-    //         //     Err(err) => {
-    //         //         println!("FcuDriverSim: Failed to serialize packet: {:?}", err);
-    //         //     }
-    //         // }
-    //     }
-    // }
 
     fn hardware_data(&self) -> FcuHardwareData {
         FcuHardwareData::default()
@@ -112,11 +77,8 @@ impl FcuDriverSim {
             pwm: [0.0; PwmChannel::COUNT],
             continuities: [false; OutputChannel::COUNT],
             socket: None,
-            packet_log_queue: Vec::new(),
             current_sim_timestamp: 0.0,
             last_sim_timestamp_update_timestamp: get_timestamp(),
-            last_telem_packet: None,
-            last_dev_stats_packet: None,
         }
     }
 

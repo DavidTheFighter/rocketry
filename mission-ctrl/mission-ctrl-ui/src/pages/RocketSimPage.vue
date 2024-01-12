@@ -2,7 +2,7 @@
   <div id="page">
     <div class="row">
       <RealtimeLineGraphChartjs
-        :datasets="positionDataset"
+        :data-description="positionDataset"
         :dataset="dataset"
         :xTitle="'Position (m)'"
         :numXTicks="10"
@@ -12,7 +12,7 @@
         class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
-        :datasets="velocityDataset"
+        :data-description="velocityDataset"
         :dataset="dataset"
         :xTitle="'Velocity (m/s)'"
         :numXTicks="10"
@@ -22,7 +22,7 @@
         class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
-        :datasets="accelerationDataset"
+        :data-description="accelerationDataset"
         :dataset="dataset"
         :xTitle="'Acceleration (m/s^2)'"
         :numXTicks="10"
@@ -32,7 +32,7 @@
         class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
-        :datasets="angularVelocityDataset"
+        :data-description="angularVelocityDataset"
         :dataset="dataset"
         :xTitle="'Angular Velocity (°/s)'"
         :numXTicks="10"
@@ -48,7 +48,7 @@
     </div>
     <div class="row">
       <RealtimeLineGraphChartjs
-        :datasets="dpositionDataset"
+        :data-description="dpositionDataset"
         :dataset="dataset"
         :xTitle="'Δ Position XZ/Y (m)'"
         :numXTicks="10"
@@ -58,7 +58,7 @@
         class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
-        :datasets="dvelocityDataset"
+        :data-description="dvelocityDataset"
         :dataset="dataset"
         :xTitle="'Δ Velocity XZ/Y (m/s)'"
         :numXTicks="10"
@@ -68,7 +68,7 @@
         class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
-        :datasets="dOrientationDataset"
+        :data-description="dOrientationDataset"
         :dataset="dataset"
         :xTitle="'Δ Orientation (°)'"
         :numXTicks="10"
@@ -78,7 +78,7 @@
         class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
-        :datasets="dangularVelocityDataset"
+        :data-description="dangularVelocityDataset"
         :dataset="dataset"
         :xTitle="'Δ Angular Velocity (°/s)'"
         :numXTicks="10"
@@ -94,7 +94,7 @@
     </div>
     <div class="row">
       <RealtimeLineGraphChartjs
-        :datasets="fcuPositionDataset"
+        :data-description="fcuPositionDataset"
         :dataset="dataset"
         :xTitle="'FCU Position (m)'"
         :numXTicks="10"
@@ -104,7 +104,7 @@
         class="columnFourth"
       />
       <RealtimeLineGraphChartjs
-        :datasets="fcuVelocityDataset"
+        :data-description="fcuVelocityDataset"
         :dataset="dataset"
         :xTitle="'FCU Velocity (m/s)'"
         :numXTicks="10"
@@ -114,7 +114,7 @@
         class="columnFourth"
       />
       <RealtimeLineGraphChartjs
-        :datasets="fcuAccelerationDataset"
+        :data-description="fcuAccelerationDataset"
         :dataset="dataset"
         :xTitle="'FCU Acceleration (m/s^2)'"
         :numXTicks="10"
@@ -428,11 +428,11 @@ export default {
       return [
         {
           name: "Vehicle State",
-          value: this.dataset.telemetry?.vehicle_state,
+          value: this.dataset.fcu_telemetry?.vehicle_state,
         },
         // {
         //   name: 'Battery Voltage',
-        //   value: this.nzero(this.dataset.telemetry?.battery_voltage).toFixed(1),
+        //   value: this.nzero(this.dataset.fcu_telemetry?.battery_voltage).toFixed(1),
         //   units: "V",
         // },
         {
@@ -455,7 +455,7 @@ export default {
         // },
         {
           name: 'Apogee',
-          value: this.nzero(this.dataset.telemetry?.apogee).toFixed(1),
+          value: this.nzero(this.dataset.fcu_telemetry?.apogee).toFixed(1),
           units: 'm',
           badValue: false,
         },
@@ -466,7 +466,7 @@ export default {
         },
         {
           name: 'Y-σ',
-          value: this.indexFixed(this.dataset.detailed_state?.position_error, 1, 2),
+          value: this.indexFixed(this.dataset.fcu_debug_info?.position_error, 1, 2),
           badValue: false,
         },
         {
@@ -476,7 +476,7 @@ export default {
         },
         {
           name: 'Yv-σ',
-          value: this.indexFixed(this.dataset.detailed_state?.velocity_error, 1, 2),
+          value: this.indexFixed(this.dataset.fcu_debug_info?.velocity_error, 1, 2),
           badValue: false,
         },
         {
@@ -487,7 +487,7 @@ export default {
       ];
     },
     rocketOrientation() {
-      return this.dataset?.telemetry?.orientation;
+      return this.dataset?.fcu_telemetry?.orientation;
     },
   },
   watch: {
@@ -507,7 +507,7 @@ export default {
       try {
         this.dataset = await this.timeoutFetch('http://localhost:5000/simdata', this.refreshTimeMillis - 1);
       } catch (error) {
-        this.dataset = [];
+        // Nothing
       }
     },
     async timeoutFetch(url, timeout) {
@@ -582,26 +582,26 @@ export default {
       return value[index].toFixed(precision);
     },
     positionXZErrorStr() {
-      const x = this.indexFixed(this.dataset.detailed_state?.position_error, 0, 2);
-      const z = this.indexFixed(this.dataset.detailed_state?.position_error, 2, 2);
+      const x = this.indexFixed(this.dataset.fcu_debug_info?.position_error, 0, 2);
+      const z = this.indexFixed(this.dataset.fcu_debug_info?.position_error, 2, 2);
       return `${x}, ${z}`;
     },
     velocityXZErrorStr() {
-      const x = this.indexFixed(this.dataset.detailed_state?.velocity_error, 0, 2);
-      const z = this.indexFixed(this.dataset.detailed_state?.velocity_error, 2, 2);
+      const x = this.indexFixed(this.dataset.fcu_debug_info?.velocity_error, 0, 2);
+      const z = this.indexFixed(this.dataset.fcu_debug_info?.velocity_error, 2, 2);
       return `${x}, ${z}`;
     },
     accelerationXYZErrorStr() {
-      const x = this.nzeroIndex(this.dataset.detailed_state?.acceleration_error, 0);
-      const y = this.nzeroIndex(this.dataset.detailed_state?.acceleration_error, 1);
-      const z = this.nzeroIndex(this.dataset.detailed_state?.acceleration_error, 2);
+      const x = this.nzeroIndex(this.dataset.fcu_debug_info?.acceleration_error, 0);
+      const y = this.nzeroIndex(this.dataset.fcu_debug_info?.acceleration_error, 1);
+      const z = this.nzeroIndex(this.dataset.fcu_debug_info?.acceleration_error, 2);
       const error = Math.sqrt(x*x + y*y + z*z).toFixed(2);
       return `${error}`;
     },
     accelerometerBiasStr() {
-      const x = this.nzeroIndex(this.dataset.detailed_state?.accelerometer_bias, 0).toFixed(2);
-      const y = this.nzeroIndex(this.dataset.detailed_state?.accelerometer_bias, 1).toFixed(2);
-      const z = this.nzeroIndex(this.dataset.detailed_state?.accelerometer_bias, 2).toFixed(2);
+      const x = this.nzeroIndex(this.dataset.fcu_debug_info?.accelerometer_bias, 0).toFixed(2);
+      const y = this.nzeroIndex(this.dataset.fcu_debug_info?.accelerometer_bias, 1).toFixed(2);
+      const z = this.nzeroIndex(this.dataset.fcu_debug_info?.accelerometer_bias, 2).toFixed(2);
       return `${x}, ${y}, ${z}`;
     },
   },

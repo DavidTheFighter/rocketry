@@ -1,23 +1,27 @@
-use big_brother::big_brother::WORKING_BUFFER_SIZE;
+use big_brother::{big_brother::BigBrotherPacket, interface::{mock_topology::MockPhysicalNet, mock_interface::MockPayload}, serdes::{PacketMetadata, self}};
 use shared::{fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame}, comms_hal::{Packet, NetworkAddress}};
 use pyo3::{prelude::*, types::{PyDict, PyList}};
 use serde::{Serialize, Deserialize};
-use std::{io::Write, thread};
+use std::{io::Write, thread, sync::{Arc, Mutex}};
 
-use crate::{FcuSil, driver::FcuDriverSim, ser::dict_from_obj};
+use crate::{fcu::FcuSil, ser::dict_from_obj, network::SilNetwork, dynamics::SilVehicleDynamics};
 
 type Scalar = f64;
 
 #[pyclass]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Logger {
     #[pyo3(get, set)]
     pub dt: Scalar,
+    #[serde(skip)]
+    networks: Vec<Arc<Mutex<MockPhysicalNet>>>,
+    num_timesteps: usize,
     // Per timestep data
-    pub telemetry: Vec<FcuTelemetryFrame>,
-    pub detailed_state: Vec<FcuDebugInfo>,
+    pub fcu_telemetry: Vec<FcuTelemetryFrame>,
+    pub fcu_debug_info: Vec<FcuDebugInfo>,
     pub dev_stats: Vec<FcuDevStatsFrame>,
-    pub outbound_packets: Vec<Vec<Packet>>,
+    pub network_packets: Vec<Vec<(PacketMetadata<NetworkAddress>, Packet)>>,
+    pub network_payloads: Vec<Vec<MockPayload>>,
     #[pyo3(get, set)]
     pub position: Vec<Vec<Scalar>>,
     #[pyo3(get, set)]
@@ -35,13 +39,26 @@ pub struct Logger {
 #[pymethods]
 impl Logger {
     #[new]
-    pub fn new() -> Self {
+    pub fn new(sil_networks: &PyList) -> Self {
+        let mut networks = Vec::new();
+
+        for sil_network in sil_networks.iter() {
+            let sil_network = sil_network
+                .extract::<PyRefMut<'_, SilNetwork>>()
+                .expect("Failed to extract network");
+
+            networks.push(sil_network.network.clone());
+        }
+
         Self {
             dt: 0.0,
-            telemetry: Vec::new(),
-            detailed_state: Vec::new(),
+            networks,
+            num_timesteps: 0,
+            fcu_telemetry: Vec::new(),
+            fcu_debug_info: Vec::new(),
             dev_stats: Vec::new(),
-            outbound_packets: Vec::new(),
+            network_packets: Vec::new(),
+            network_payloads: Vec::new(),
             position: Vec::new(),
             velocity: Vec::new(),
             acceleration: Vec::new(),
@@ -51,121 +68,83 @@ impl Logger {
         }
     }
 
+    pub fn log_common_data(&mut self) {
+        let mut packets = Vec::new();
+        let mut payloads = Vec::new();
+
+        for network in &self.networks {
+            let mut network = network.lock().unwrap();
+            let network_payloads = network.take_payload_log();
+
+            for payload in network_payloads {
+                let metadata = serdes::deserialize_metadata(&payload.data.as_slice()).unwrap();
+                let bb_packet: BigBrotherPacket<Packet> = serdes::deserialize_packet(&payload.data.as_slice()).unwrap();
+
+                if let BigBrotherPacket::UserPacket(packet) = bb_packet {
+                    packets.push((metadata, packet));
+                }
+                payloads.push(payload);
+            }
+        }
+
+        self.network_packets.push(packets);
+        self.network_payloads.push(payloads);
+        self.num_timesteps += 1;
+    }
+
     pub fn log_fcu_data(&mut self, fcu: &mut FcuSil) {
-        let debug_info = fcu.fcu.generate_debug_info();
-
-        let driver = fcu
-            .fcu
-            .driver
-            .as_mut_any()
-            .downcast_mut::<FcuDriverSim>()
-            .expect("Failed to retrieve driver from FCU object");
-
-        if let Some(packet) = &driver.last_telem_packet {
-            self.telemetry.push(packet.clone());
+        if let Some(frame) = &fcu.fcu.last_telemetry_frame {
+            self.fcu_telemetry.push(frame.clone());
         }
 
-        self.detailed_state.push(debug_info);
-
-        self.outbound_packets.push(driver.packet_log_queue.clone());
-        driver.packet_log_queue.clear();
+        self.fcu_debug_info.push(fcu.fcu.generate_debug_info());
     }
 
-    pub fn log_dev_stats(&mut self, fcu: &mut FcuSil) {
-        let driver = fcu
-            .fcu
-            .driver
-            .as_mut_any()
-            .downcast_mut::<FcuDriverSim>()
-            .expect("Failed to retrieve driver from FCU object");
-
-        if let Some(frame) = &driver.last_dev_stats_packet {
-            self.dev_stats.push(frame.clone());
-        }
-    }
-
-    pub fn log_position(&mut self, vec: Vec<Scalar>) {
-        self.position.push(vec);
-    }
-
-    pub fn log_velocity(&mut self, vec: Vec<Scalar>) {
-        self.velocity.push(vec);
-    }
-
-    pub fn log_acceleration(&mut self, vec: Vec<Scalar>) {
-        self.acceleration.push(vec);
-    }
-
-    pub fn log_orientation(&mut self, vec: Vec<Scalar>) {
-        self.orientation.push(vec);
-    }
-
-    pub fn log_angular_velocity(&mut self, vec: Vec<Scalar>) {
-        self.angular_velocity.push(vec);
-    }
-
-    pub fn log_angular_acceleration(&mut self, vec: Vec<Scalar>) {
-        self.angular_acceleration.push(vec);
+    pub fn log_dynamics_data(&mut self, dynamics: &mut SilVehicleDynamics) {
+        self.position.push(dynamics.get_position().unwrap());
+        self.velocity.push(dynamics.get_velocity().unwrap());
+        self.acceleration.push(dynamics.get_acceleration_world_frame().unwrap());
+        self.orientation.push(dynamics.get_orientation().unwrap());
+        self.angular_velocity.push(dynamics.get_angular_velocity().unwrap());
+        self.angular_acceleration.push(dynamics.get_angular_acceleration().unwrap());
     }
 
     pub fn grab_timestep_frame(&self, py: Python, i: usize) -> PyResult<PyObject> {
         let dict = PyDict::new(py);
 
-        println!("Lens are {}, {}, {}, {}, {}, {} {}, {}",
-            self.position.len(),
-            self.velocity.len(),
-            self.acceleration.len(),
-            self.orientation.len(),
-            self.angular_velocity.len(),
-            self.angular_acceleration.len(),
-            self.telemetry.len(),
-            self.detailed_state.len(),
-        );
+        // println!("Lens are {}, {}, {}, {}, {}, {} {}, {}",
+        //     self.position.len(),
+        //     self.velocity.len(),
+        //     self.acceleration.len(),
+        //     self.orientation.len(),
+        //     self.angular_velocity.len(),
+        //     self.angular_acceleration.len(),
+        //     self.fcu_telemetry.len(),
+        //     self.fcu_debug_info.len(),
+        // );
 
-        dict.set_item("position", self.position[i].clone())?;
-        dict.set_item("velocity", self.velocity[i].clone())?;
-        dict.set_item("acceleration", self.acceleration[i].clone())?;
-        dict.set_item("orientation", self.orientation[i].clone())?;
-        dict.set_item("angular_velocity", self.angular_velocity[i].clone())?;
-        dict.set_item("angular_acceleration", self.angular_acceleration[i].clone())?;
+        if self.position.len() > 0 {
+            dict.set_item("position", self.position[i].clone())?;
+            dict.set_item("velocity", self.velocity[i].clone())?;
+            dict.set_item("acceleration", self.acceleration[i].clone())?;
+            dict.set_item("orientation", self.orientation[i].clone())?;
+            dict.set_item("angular_velocity", self.angular_velocity[i].clone())?;
+            dict.set_item("angular_acceleration", self.angular_acceleration[i].clone())?;
+        }
 
-        dict.set_item("telemetry", dict_from_obj(py, &self.telemetry[i]))?;
-        dict.set_item("detailed_state", dict_from_obj(py, &self.detailed_state[i]))?;
+        if self.fcu_telemetry.len() > 0 {
+            dict.set_item("fcu_telemetry", dict_from_obj(py, &self.fcu_telemetry[i]))?;
+            dict.set_item("fcu_debug_info", dict_from_obj(py, &self.fcu_debug_info[i]))?;
+        }
 
         Ok(dict.into())
     }
 
-    pub fn get_outbound_packets(&mut self, py: Python, i: usize) -> PyResult<PyObject> {
+    pub fn get_network_packet_bytes(&mut self, py: Python, i: usize) -> PyResult<PyObject> {
         let packet_list = PyList::empty(py);
-        let mut buffer = [0_u8; WORKING_BUFFER_SIZE];
-        for packet in &self.outbound_packets[i] {
-            // let byte_list = PyList::empty(py);
 
-            // let from_addr = NetworkAddress::FlightController;
-            // let to_addr = NetworkAddress::MissionControl;
-
-            // let to_size = to_addr.serialize(&mut buffer).unwrap();
-            // byte_list.append(to_size as u8)?;
-
-            // let from_size = from_addr.serialize(&mut buffer).unwrap();
-            // byte_list.append(from_size as u8)?;
-
-            // to_addr.serialize(&mut buffer).unwrap();
-            // for byte in &buffer[..to_size] {
-            //     byte_list.append(*byte)?;
-            // }
-
-            // from_addr.serialize(&mut buffer).unwrap();
-            // for byte in &buffer[..from_size] {
-            //     byte_list.append(*byte)?;
-            // }
-
-            // let size = packet.serialize(&mut buffer).unwrap();
-            // for byte in &buffer[..size] {
-            //     byte_list.append(*byte)?;
-            // }
-
-            // packet_list.append(byte_list)?;
+        for payload in &self.network_payloads[i] {
+            packet_list.append(PyList::new(py, payload.data.iter()))?;
         }
 
         Ok(packet_list.into())
@@ -181,7 +160,7 @@ impl Logger {
     }
 
     pub fn num_timesteps(&self) -> PyResult<usize> {
-        Ok(self.position.len())
+        Ok(self.num_timesteps)
     }
 
     pub fn dump_to_file(&self) {

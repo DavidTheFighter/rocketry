@@ -44,6 +44,7 @@ pub struct Fcu<'a> {
     pub comms: &'a mut FcuBigBrother<'a>,
     pub data_logger: &'a mut dyn DataPointLogger<FcuSensorData>,
     pub state_vector: StateVector,
+    pub last_telemetry_frame: Option<FcuTelemetryFrame>,
     alert_manager: AlertManager<FcuAlertCondition>,
     dev_stats: DevStatsCollector,
     vehicle_fsm_state: Option<vehicle_fsm::FsmState>,
@@ -86,6 +87,7 @@ impl<'a> Fcu<'a> {
             comms,
             data_logger,
             state_vector,
+            last_telemetry_frame: None,
             alert_manager: AlertManager::new(),
             dev_stats: DevStatsCollector::new(),
             vehicle_fsm_state: None,
@@ -124,9 +126,12 @@ impl<'a> Fcu<'a> {
         self.time_since_last_heartbeat += dt;
 
         if self.time_since_last_telemetry >= self.config.telemetry_rate {
+            let telemetry = self.generate_telemetry_frame();
+            self.last_telemetry_frame = Some(telemetry.clone());
+
             self.send_packet(
                 NetworkAddress::MissionControl,
-                Packet::FcuTelemetry(self.generate_telemetry_frame()),
+                Packet::FcuTelemetry(telemetry),
             );
             self.time_since_last_telemetry = 0.0;
         }
@@ -260,7 +265,7 @@ impl<'a> Fcu<'a> {
         self.state_vector.update_sensor_data(data);
     }
 
-    fn configure_fcu(&mut self, config: FcuConfig) {
+    pub fn configure_fcu(&mut self, config: FcuConfig) {
         self.config = config.clone();
         self.state_vector.update_config(&config);
     }

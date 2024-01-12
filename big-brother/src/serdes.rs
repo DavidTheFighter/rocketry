@@ -31,7 +31,7 @@ pub enum SerdesError {
     BadEncoding,
 }
 
-pub(crate) fn serialize_packet<P, A>(
+pub fn serialize_packet<P, A>(
     packet: &P,
     host_addr: A,
     destination: A,
@@ -66,8 +66,8 @@ where
     Ok(buf_ptr)
 }
 
-pub(crate) fn deserialize_metadata<'a, A>(
-    buffer: &'a mut [u8],
+pub fn deserialize_metadata<'a, A>(
+    buffer: &'a [u8],
 ) -> Result<PacketMetadata<A>, BigBrotherError>
 where
     A: Deserialize<'a>,
@@ -76,14 +76,14 @@ where
 
     let mut buf_ptr = 2;
 
-    let metadata = deserialize_postcard(&mut buffer[buf_ptr..(buf_ptr + metadata_size)])
+    let metadata = deserialize_postcard(&buffer[buf_ptr..(buf_ptr + metadata_size)])
         .map_err(|e| BigBrotherError::SerializationError(e))?;
     buf_ptr += metadata_size;
 
     Ok(metadata)
 }
 
-pub(crate) fn deserialize_packet<'a, T>(buffer: &'a mut [u8]) -> Result<T, BigBrotherError>
+pub fn deserialize_packet<'a, T>(buffer: &'a [u8]) -> Result<T, BigBrotherError>
 where
     T: Deserialize<'a>,
 {
@@ -92,7 +92,7 @@ where
 
     let mut buf_ptr = 2 + metadata_size;
 
-    let packet = deserialize_postcard(&mut buffer[buf_ptr..(buf_ptr + packet_size)])
+    let packet = deserialize_postcard(&buffer[buf_ptr..(buf_ptr + packet_size)])
         .map_err(|e| BigBrotherError::SerializationError(e))?;
     buf_ptr += packet_size;
 
@@ -109,7 +109,7 @@ where
     }
 }
 
-pub fn deserialize_postcard<'a, T>(buffer: &'a mut [u8]) -> Result<T, SerdesError>
+pub fn deserialize_postcard<'a, T>(buffer: &'a [u8]) -> Result<T, SerdesError>
 where
     T: Deserialize<'a>,
 {
