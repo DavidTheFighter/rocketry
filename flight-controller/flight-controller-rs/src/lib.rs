@@ -17,19 +17,20 @@ macro_rules! silprintln {
 mod dev_stats;
 pub mod state_vector;
 pub mod vehicle_fsm;
+pub mod debug_info;
 
 use big_brother::BigBrother;
 use dev_stats::DevStatsCollector;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::{
-        FcuConfig, FcuDebugInfo, FcuDriver, FcuSensorData, FcuTelemetryFrame,
-        PwmChannel, VehicleState, FcuAlertCondition, OutputChannel,
+        FcuConfig, FcuDriver, FcuSensorData, FcuTelemetryFrame,
+        PwmChannel, VehicleState, FcuAlertCondition, OutputChannel, FcuDebugInfoVariant,
     }, alerts::AlertManager, DataPointLogger, COMMS_NETWORK_MAP_SIZE,
 };
 use mint::Vector3;
 use state_vector::StateVector;
-use strum::EnumCount;
+use strum::{EnumCount, IntoEnumIterator};
 
 pub const HEARTBEAT_RATE: f32 = 0.25;
 pub const ALERT_RATE: f32 = 1.0;
@@ -45,6 +46,7 @@ pub struct Fcu<'a> {
     pub data_logger: &'a mut dyn DataPointLogger<FcuSensorData>,
     pub state_vector: StateVector,
     pub last_telemetry_frame: Option<FcuTelemetryFrame>,
+    debug_info_enabled: bool,
     alert_manager: AlertManager<FcuAlertCondition>,
     dev_stats: DevStatsCollector,
     vehicle_fsm_state: Option<vehicle_fsm::FsmState>,
@@ -88,6 +90,7 @@ impl<'a> Fcu<'a> {
             data_logger,
             state_vector,
             last_telemetry_frame: None,
+            debug_info_enabled: true,
             alert_manager: AlertManager::new(),
             dev_stats: DevStatsCollector::new(),
             vehicle_fsm_state: None,
@@ -152,6 +155,13 @@ impl<'a> Fcu<'a> {
             self.time_since_last_alert_update = 0.0;
         }
 
+        if self.debug_info_enabled {
+            for variant in FcuDebugInfoVariant::iter() {
+                let variant_data = self.generate_debug_info(variant);
+                self.send_packet(NetworkAddress::MissionControl, Packet::FcuDebugInfo(variant_data));
+            };
+        }
+
         for (source, packet) in packets {
             // defmt::info!("Received packet from {:?}: {:?}", source, defmt::Debug2Format(packet));
             self.handle_packet(*source, packet);
@@ -193,11 +203,8 @@ impl<'a> Fcu<'a> {
             Packet::StartDevStatsFrame => {
                 self.dev_stats.start_collection(self.driver.timestamp());
             }
-            Packet::RequestFcuDebugInfo => {
-                let frame = self.generate_debug_info();
-                let packet = Packet::FcuDebugInfo(frame);
-
-                self.send_packet(source, packet);
+            Packet::EnableDebugInfo(enable) => {
+                self.debug_info_enabled = *enable;
             }
             Packet::ResetMcu { magic_number } => {
                 if *magic_number == shared::RESET_MAGIC_NUMBER {
@@ -226,36 +233,6 @@ impl<'a> Fcu<'a> {
             apogee: self.apogee,
             battery_voltage: 11.1169875,
             data_logged_bytes: self.data_logger.get_bytes_logged(),
-        }
-    }
-
-    pub fn generate_debug_info(&self) -> FcuDebugInfo {
-        FcuDebugInfo {
-            timestamp: (self.driver.timestamp() * 1e3) as u64,
-            vehicle_state: self.vehicle_state,
-            position: self.state_vector.get_position().into(),
-            velocity: self.state_vector.get_velocity().into(),
-            acceleration: self.state_vector.get_acceleration().into(),
-            orientation: self.state_vector.get_orientation().into(),
-            angular_velocity: self.state_vector.get_angular_velocity().into(),
-            angular_acceleration: self.state_vector.get_angular_acceleration(),
-            position_error: self.state_vector.get_position_std_dev().into(),
-            velocity_error: self.state_vector.get_velocity_std_dev().into(),
-            acceleration_error: self.state_vector.get_acceleration_std_dev().into(),
-            output_channels_bitmask: 0,
-            output_channels_continuity_bitmask: self.get_output_channels_continuity_bitmask() as u32,
-            pwm_channels: [0.0; PwmChannel::COUNT],
-            apogee: self.apogee,
-            battery_voltage: 11.1169875,
-            data_logged_bytes: self.data_logger.get_bytes_logged(),
-            raw_accelerometer: self.state_vector.sensor_data.accelerometer_raw.into(),
-            raw_gyroscope: self.state_vector.sensor_data.gyroscope_raw.into(),
-            raw_magnetometer: self.state_vector.sensor_data.magnetometer_raw.into(),
-            raw_barometer: self.state_vector.sensor_data.barometer_raw,
-            accelerometer_calibration: self.state_vector.sensor_calibration.accelerometer.into(),
-            barometric_altitude: self.state_vector.sensor_data.barometer_altitude,
-            barometer_calibration: self.state_vector.sensor_calibration.barometeric_altitude,
-            cpu_utilization: self.driver.hardware_data().cpu_utilization as u32,
         }
     }
 

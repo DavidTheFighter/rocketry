@@ -166,8 +166,18 @@ impl FcuSil {
 
     // Returns general and widely needed fields from the FCU
     fn __getitem__(&self, key: &str, py: Python) -> PyResult<PyObject> {
-        let debug_info = self.fcu.generate_debug_info();
-        let dict = dict_from_obj(py, &debug_info);
+        let dict = PyDict::new(py);
+
+        let debug_info_callback = |debug_info_variant| {
+            let debug_info_dict = dict_from_obj(py, &debug_info_variant);
+
+            for value in debug_info_dict.values() {
+                for (key, value) in value.downcast::<PyDict>().unwrap().iter() {
+                    dict.set_item(key, value).expect("Failed to set item in dict");
+                }
+            }
+        };
+        self.fcu.generate_debug_info_all_variants(debug_info_callback);
 
         let output_channels = PyDict::new(py);
         for channel in OutputChannel::iter() {

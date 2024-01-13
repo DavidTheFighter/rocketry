@@ -18,7 +18,7 @@ pub struct Logger {
     num_timesteps: usize,
     // Per timestep data
     pub fcu_telemetry: Vec<FcuTelemetryFrame>,
-    pub fcu_debug_info: Vec<FcuDebugInfo>,
+    pub fcu_debug_info: Vec<Vec<FcuDebugInfo>>,
     pub dev_stats: Vec<FcuDevStatsFrame>,
     pub network_packets: Vec<Vec<(PacketMetadata<NetworkAddress>, Packet)>>,
     pub network_payloads: Vec<Vec<MockPayload>>,
@@ -97,7 +97,12 @@ impl Logger {
             self.fcu_telemetry.push(frame.clone());
         }
 
-        self.fcu_debug_info.push(fcu.fcu.generate_debug_info());
+        let mut debug_infos = Vec::new();
+        let debug_info_callback = |debug_info_variant| {
+            debug_infos.push(debug_info_variant);
+        };
+        fcu.fcu.generate_debug_info_all_variants(debug_info_callback);
+        self.fcu_debug_info.push(debug_infos);
     }
 
     pub fn log_dynamics_data(&mut self, dynamics: &mut SilVehicleDynamics) {
@@ -112,17 +117,6 @@ impl Logger {
     pub fn grab_timestep_frame(&self, py: Python, i: usize) -> PyResult<PyObject> {
         let dict = PyDict::new(py);
 
-        // println!("Lens are {}, {}, {}, {}, {}, {} {}, {}",
-        //     self.position.len(),
-        //     self.velocity.len(),
-        //     self.acceleration.len(),
-        //     self.orientation.len(),
-        //     self.angular_velocity.len(),
-        //     self.angular_acceleration.len(),
-        //     self.fcu_telemetry.len(),
-        //     self.fcu_debug_info.len(),
-        // );
-
         if self.position.len() > 0 {
             dict.set_item("position", self.position[i].clone())?;
             dict.set_item("velocity", self.velocity[i].clone())?;
@@ -134,7 +128,16 @@ impl Logger {
 
         if self.fcu_telemetry.len() > 0 {
             dict.set_item("fcu_telemetry", dict_from_obj(py, &self.fcu_telemetry[i]))?;
-            dict.set_item("fcu_debug_info", dict_from_obj(py, &self.fcu_debug_info[i]))?;
+
+            let debug_info_dict = PyDict::new(py);
+            for variant in &self.fcu_debug_info[i] {
+                for value in dict_from_obj(py, variant).values() {
+                    for (key, value) in value.downcast::<PyDict>().unwrap().iter() {
+                        debug_info_dict.set_item(key, value)?;
+                    }
+                }
+            }
+            dict.set_item("fcu_debug_info", debug_info_dict)?;
         }
 
         Ok(dict.into())

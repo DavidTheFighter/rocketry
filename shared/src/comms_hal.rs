@@ -87,7 +87,7 @@ pub enum Packet {
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
     EcuTelemetry(EcuTelemetryFrame),
-    RequestFcuDebugInfo,
+    EnableDebugInfo(bool),
     FcuDebugInfo(FcuDebugInfo),
     FcuDevStatsFrame(FcuDevStatsFrame),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
@@ -162,7 +162,7 @@ pub mod tests_data {
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame::default()),
         Packet::AlertBitmask(0xAAAA_AAAA),
-        Packet::RequestFcuDebugInfo,
+        Packet::EnableDebugInfo(true),
         Packet::FcuDebugInfo(FcuDebugInfo::default()),
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
         Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),

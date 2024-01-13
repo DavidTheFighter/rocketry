@@ -68,10 +68,15 @@ impl FcuTelemetryHandler {
                     Packet::FcuDebugInfo(debug_info) => {
                         self.last_debug_info = debug_info;
 
-                        FCU_DEBUG_INFO_ENDPOINT_DATA
+                        let mut endpoint_data = FCU_DEBUG_INFO_ENDPOINT_DATA
                             .lock()
-                            .expect("Failed to lock debug info")
-                            .replace(self.populate_debug_info());
+                            .expect("Failed to lock debug info");
+
+                        if endpoint_data.is_none() {
+                            endpoint_data.replace(Value::Object(rocket::serde::json::serde_json::Map::new()));
+                        }
+
+                        self.populate_debug_info(endpoint_data.as_mut().unwrap());
                     },
                     _ => {}
                 }
@@ -80,11 +85,6 @@ impl FcuTelemetryHandler {
             let now = timestamp();
             if now - last_graph_update_time >= (1.0 / FCU_VISUAL_UPDATES_PER_S) as f64 {
                 last_graph_update_time = now;
-
-                self.observer_handler.notify(ObserverEvent::SendPacket {
-                    address: NetworkAddress::FlightController,
-                    packet: Packet::RequestFcuDebugInfo },
-                );
 
                 FCU_TELEMETRY_ENDPOINT_DATA
                     .lock()
@@ -155,17 +155,19 @@ impl FcuTelemetryHandler {
 
     }
 
-    fn populate_debug_info(&self) -> Value {
-        let mut debug_info = rocket::serde::json::to_value(&self.last_debug_info)
+    fn populate_debug_info(&self, existing_data: &mut Value) {
+        let debug_info = rocket::serde::json::to_value(&self.last_debug_info)
             .expect("Failed to convert debug info to serde value");
 
-        let debug_info_map = debug_info
+        let existing_data = existing_data
             .as_object_mut()
             .expect("Failed to convert serde value to serde object");
 
-        debug_info_map.insert(String::from("Funny business"), json!(true));
-
-        debug_info
+        for value in debug_info.as_object().unwrap().values() {
+            for (key, value) in value.as_object().unwrap() {
+                existing_data.insert(key.clone(), value.clone());
+            }
+        }
     }
 
     fn populate_graph_frame(&self) -> Map<String, Value> {
@@ -198,9 +200,9 @@ pub fn fcu_telemetry_thread(observer_handler: Arc<ObserverHandler>) {
 
 #[get("/fcu-telemetry")]
 pub fn fcu_telemetry_endpoint<'a>() -> Json<Value> {
-    let mut latest_telemetry = FCU_TELEMETRY_ENDPOINT_DATA.lock().expect("Failed to lock telemetry state");
+    let latest_telemetry = FCU_TELEMETRY_ENDPOINT_DATA.lock().expect("Failed to lock telemetry state");
 
-    if let Some(latest_telemetry) = latest_telemetry.as_mut() {
+    if let Some(latest_telemetry) = latest_telemetry.as_ref() {
         let telem = latest_telemetry.clone();
         Json(telem.clone())
     } else {
@@ -210,9 +212,9 @@ pub fn fcu_telemetry_endpoint<'a>() -> Json<Value> {
 
 #[get("/fcu-telemetry/graph")]
 pub fn fcu_telemetry_graph() -> Json<Value> {
-    let mut latest_graph = FCU_GRAPH_ENDPOINT_DATA.lock().expect("Failed to lock FCU telemetry graph data");
+    let latest_graph = FCU_GRAPH_ENDPOINT_DATA.lock().expect("Failed to lock FCU telemetry graph data");
 
-    if let Some(latest_graph) = latest_graph.as_mut() {
+    if let Some(latest_graph) = latest_graph.as_ref() {
         let graph_data = latest_graph.clone();
         Json(graph_data.clone())
     } else {
@@ -224,8 +226,9 @@ pub fn fcu_telemetry_graph() -> Json<Value> {
 pub fn fcu_debug_data() -> Json<Value> {
     let latest_debug_info = FCU_DEBUG_INFO_ENDPOINT_DATA.lock().expect("Failed to lock debug info");
 
-    if let Some(latest_debug_info) = latest_debug_info.as_ref() {
-        Json(latest_debug_info.clone())
+    if let Some(debug_info) = latest_debug_info.as_ref() {
+        let debug_info = debug_info.clone();
+        Json(debug_info.clone())
     } else {
         Json(Value::Null)
     }

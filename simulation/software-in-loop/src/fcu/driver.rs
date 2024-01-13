@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::net::UdpSocket;
 
 use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuHardwareData};
 use strum::EnumCount;
@@ -9,7 +8,6 @@ pub struct FcuDriverSim {
     outputs: [bool; OutputChannel::COUNT],
     pwm: [f32; PwmChannel::COUNT],
     continuities: [bool; OutputChannel::COUNT],
-    socket: Option<UdpSocket>,
     pub current_sim_timestamp: f32,
     pub last_sim_timestamp_update_timestamp: f64,
 }
@@ -76,7 +74,6 @@ impl FcuDriverSim {
             outputs: [false; OutputChannel::COUNT],
             pwm: [0.0; PwmChannel::COUNT],
             continuities: [false; OutputChannel::COUNT],
-            socket: None,
             current_sim_timestamp: 0.0,
             last_sim_timestamp_update_timestamp: get_timestamp(),
         }
