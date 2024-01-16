@@ -44,7 +44,7 @@ impl PositionFilter {
             state: SVector::<f32, STATE_LEN>::zeros(),
             state_cov: SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * 1e-4,
             process_noise_cov: SMatrix::<f32, STATE_LEN, STATE_LEN>::identity()
-                * config.position_kalman_process_variance,
+                * config.kalman_process_variance,
             measurement_noise_cov,
         }
     }

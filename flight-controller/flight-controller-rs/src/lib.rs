@@ -65,18 +65,23 @@ impl<'a> Fcu<'a> {
         let default_fcu_config = FcuConfig {
             telemetry_rate: 0.02,
             startup_acceleration_threshold: 0.1,
-            position_kalman_process_variance: 1e-3,
             calibration_duration: 5.0,
+            kalman_process_variance: 1e-1,
             accelerometer_noise_std_dev: Vector3 {
-                x: 0.001,
-                y: 0.001,
-                z: 0.001,
+                x: 0.01,
+                y: 0.01,
+                z: 0.01,
             },
-            barometer_noise_std_dev: 0.7,
+            barometer_noise_std_dev: 0.5,
             gps_noise_std_dev: Vector3 {
                 x: 1.5,
                 y: 3.0,
                 z: 1.5,
+            },
+            gyro_noise_std_dev: Vector3 {
+                x: 0.1,
+                y: 0.1,
+                z: 0.1,
             },
         };
 

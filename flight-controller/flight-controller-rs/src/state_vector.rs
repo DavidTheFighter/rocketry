@@ -4,10 +4,9 @@ use nalgebra::{UnitQuaternion, Vector3};
 
 use shared::standard_atmosphere::convert_pressure_to_altitude;
 
-use self::{orientation::OrientationFilter, position::PositionFilter};
+use self::kalman::KalmanFilter;
 
-pub mod orientation;
-pub mod position;
+pub mod kalman;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct SensorCalibrationData {
@@ -33,8 +32,7 @@ pub struct SensorData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StateVector {
-    pub(crate) position_filter: PositionFilter,
-    pub(crate) orientation_filter: OrientationFilter,
+    pub(crate) kalman: KalmanFilter,
     pub(crate) sensor_calibration: SensorCalibrationData,
     pub(crate) sensor_data: SensorData,
     pub landed: bool,
@@ -43,8 +41,7 @@ pub struct StateVector {
 impl StateVector {
     pub fn new(config: &FcuConfig) -> Self {
         Self {
-            position_filter: PositionFilter::new(config),
-            orientation_filter: OrientationFilter::new(),
+            kalman: KalmanFilter::new(config),
             sensor_calibration: SensorCalibrationData {
                 accelerometer: Vector3::new(0.0, 0.0, 0.0),
                 gyroscope: Vector3::new(0.0, 0.0, 0.0),
@@ -68,12 +65,11 @@ impl StateVector {
     }
 
     pub fn predict(&mut self, dt: f32) {
-        self.position_filter.predict(dt);
-        self.orientation_filter.predict(dt);
+        self.kalman.predict(dt);
     }
 
-    pub fn update_config(&mut self, _config: &FcuConfig) {
-        // TODO
+    pub fn update_config(&mut self, config: &FcuConfig) {
+        self.kalman.update_config(config);
     }
 
     pub fn update_calibration(&mut self, sensor_calibration: SensorCalibrationData) {
@@ -92,7 +88,7 @@ impl StateVector {
                 let mut acceleration = acceleration.into();
                 acceleration += self.sensor_calibration.accelerometer;
                 acceleration = self
-                    .orientation_filter
+                    .kalman
                     .orientation
                     .transform_vector(&acceleration);
 
@@ -100,7 +96,7 @@ impl StateVector {
                     acceleration.y += GRAVITY;
                 }
 
-                self.position_filter.update_acceleration(acceleration);
+                self.kalman.update_acceleration(acceleration);
             }
             FcuSensorData::Gyroscope {
                 angular_velocity,
@@ -112,20 +108,20 @@ impl StateVector {
                 let mut angular_velocity = angular_velocity.into();
                 angular_velocity += self.sensor_calibration.gyroscope;
 
-                self.orientation_filter.update_gyroscope(angular_velocity);
+                self.kalman.update_gyroscope(angular_velocity);
             }
             FcuSensorData::Magnetometer {
                 magnetic_field,
                 raw_data,
             } => {
-                self.sensor_data.magnetometer = magnetic_field.into();
-                self.sensor_data.magnetometer_raw = raw_data.into();
+                // self.sensor_data.magnetometer = magnetic_field.into();
+                // self.sensor_data.magnetometer_raw = raw_data.into();
 
-                let mut magnetic_field = magnetic_field.into();
-                magnetic_field += self.sensor_calibration.magnetometer;
+                // let mut magnetic_field = magnetic_field.into();
+                // magnetic_field += self.sensor_calibration.magnetometer;
 
-                self.orientation_filter
-                    .update_magnetic_field(magnetic_field);
+                // self.kalman
+                //     .update_magnetic_field(magnetic_field);
             }
             FcuSensorData::Barometer {
                 pressure,
@@ -140,41 +136,41 @@ impl StateVector {
 
                 let altitude = self.sensor_data.barometer_altitude + self.sensor_calibration.barometeric_altitude;
 
-                self.position_filter.update_barometric_pressure(altitude);
+                self.kalman.update_barometric_pressure(altitude);
             }
         }
     }
 
     pub fn get_position(&self) -> Vector3<f32> {
-        self.position_filter.position
+        self.kalman.position
     }
 
     pub fn get_position_std_dev(&self) -> Vector3<f32> {
-        self.position_filter.position_std_dev
+        self.kalman.position_std_dev
     }
 
     pub fn get_velocity(&self) -> Vector3<f32> {
-        self.position_filter.velocity
+        self.kalman.velocity
     }
 
     pub fn get_velocity_std_dev(&self) -> Vector3<f32> {
-        self.position_filter.velocity_std_dev
+        self.kalman.velocity_std_dev
     }
 
     pub fn get_acceleration(&self) -> Vector3<f32> {
-        self.position_filter.acceleration
+        self.kalman.acceleration
     }
 
     pub fn get_acceleration_std_dev(&self) -> Vector3<f32> {
-        self.position_filter.acceleration_std_dev
+        self.kalman.acceleration_std_dev
     }
 
     pub fn get_orientation(&self) -> UnitQuaternion<f32> {
-        self.orientation_filter.orientation
+        self.kalman.orientation
     }
 
     pub fn get_angular_velocity(&self) -> Vector3<f32> {
-        self.orientation_filter.angular_velocity
+        self.kalman.angular_velocity
     }
 
     pub fn get_angular_acceleration(&self) -> mint::Vector3<f32> {

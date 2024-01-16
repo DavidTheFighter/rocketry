@@ -366,7 +366,7 @@ mod app {
         bmi088_accel.configure_int1_pin(Bmi088PinMode::Output, Bmi088PinBehavior::PushPull, true, true).unwrap();
 
         bmi088_gyro.set_range(GyroRange::Deg2000).unwrap();
-        bmi088_gyro.set_bandwidth(GyroBandwidth::Data200Filter23).unwrap();
+        bmi088_gyro.set_bandwidth(GyroBandwidth::Data100Filter12).unwrap();
         bmi088_gyro.configure_int3_pin(Bmi088PinBehavior::PushPull, true, true).unwrap();
 
         let mut accel_int_pin = gpioe.pe8.into_pull_down_input();

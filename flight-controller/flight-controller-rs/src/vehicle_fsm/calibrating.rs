@@ -57,15 +57,13 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Calibrating {
             if angle.abs() < f32::EPSILON {
                 let zeroed_orientation = UnitQuaternion::identity();
 
-                fcu.state_vector.position_filter.zero();
-                fcu.state_vector.orientation_filter.zero(zeroed_orientation);
+                fcu.state_vector.kalman.zero(zeroed_orientation);
             } else {
                 let axis = UnitVector3::new_normalize(measured_up.cross(&up));
 
                 let zeroed_orientation = UnitQuaternion::from_axis_angle(&axis, angle);
 
-                fcu.state_vector.position_filter.zero();
-                fcu.state_vector.orientation_filter.zero(zeroed_orientation);
+                fcu.state_vector.kalman.zero(zeroed_orientation);
             }
         }
     }

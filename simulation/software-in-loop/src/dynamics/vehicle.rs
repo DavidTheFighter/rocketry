@@ -41,7 +41,7 @@ impl SilVehicleDynamics {
         } else {
             self.velocity += self.acceleration_world_frame * dt;
         }
-        self.position += self.velocity * dt;
+        self.position += self.velocity * dt + 0.5 * self.acceleration_world_frame * dt * dt;
 
         self.angular_velocity += (self.angular_acceleration + self.angular_forces) * dt;
         self.orientation = integrate_angular_velocity_rk4(self.orientation, self.angular_velocity, dt);

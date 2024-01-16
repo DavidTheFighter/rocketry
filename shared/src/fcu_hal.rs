@@ -154,11 +154,12 @@ pub struct FcuDevStatsFrame {
 pub struct FcuConfig {
     pub telemetry_rate: f32,
     pub startup_acceleration_threshold: f32,
-    pub position_kalman_process_variance: f32,
     pub calibration_duration: f32,
+    pub kalman_process_variance: f32,
     pub accelerometer_noise_std_dev: Vector3<f32>,
     pub barometer_noise_std_dev: f32,
     pub gps_noise_std_dev: Vector3<f32>,
+    pub gyro_noise_std_dev: Vector3<f32>,
     // Add a bitfield to contain all of the eventual bool configs
     // pub log_dev_stats: bool,
     //
@@ -313,8 +314,8 @@ impl FcuConfig {
         Self {
             telemetry_rate: 0.02,
             startup_acceleration_threshold: 0.1,
-            position_kalman_process_variance: 1e-3,
             calibration_duration: 5.0,
+            kalman_process_variance: 1e-3,
             accelerometer_noise_std_dev: Vector3 {
                 x: 1e-2,
                 y: 1e-2,
@@ -325,6 +326,11 @@ impl FcuConfig {
                 x: 5.0,
                 y: 10.0,
                 z: 5.0,
+            },
+            gyro_noise_std_dev: Vector3 {
+                x: 1e-2,
+                y: 1e-2,
+                z: 1e-2,
             },
         }
     }

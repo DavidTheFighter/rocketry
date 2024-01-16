@@ -24,6 +24,7 @@ def dataset_default():
         'fcu_position': [[], [], []],
         'fcu_velocity': [[], [], []],
         'fcu_acceleration': [[], [], []],
+        'fcu_angular_velocity': [[], [], []],
     }
 
 dataset = dataset_default()

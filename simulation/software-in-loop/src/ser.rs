@@ -20,7 +20,7 @@ pub fn list_from_array<T: Serialize>(py: Python, list: T) -> &PyList {
         } else if value.is_boolean() {
             list.append(value.as_bool().unwrap()).unwrap();
         } else {
-            panic!("Unsupported type {:?} for list", value);
+            panic!("Unsupported type {:?} for list ({:?}", value, list);
         }
     }
 
@@ -49,7 +49,7 @@ pub fn dict_from_obj<T: Serialize>(py: Python, obj: T) -> &PyDict {
         } else if value.is_boolean() {
             dict.set_item(key, value.as_bool().unwrap()).unwrap();
         } else {
-            panic!("Unsupported type {:?} for key {:?}", value, key);
+            panic!("Unsupported type {:?} for key {:?} ({:?})", value, key, dict);
         }
     }
 

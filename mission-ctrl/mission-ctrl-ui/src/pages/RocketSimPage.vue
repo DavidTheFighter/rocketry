@@ -123,13 +123,22 @@
         :label-legend="false"
         class="columnFourth"
       />
-      <EmptyComponent class="columnFourth" />
+      <RealtimeLineGraphChartjs
+        :data-description="fcuAngularVelocityDataset"
+        :dataset="dataset"
+        :xTitle="'FCU Angular Velocity (°/s)'"
+        :numXTicks="10"
+        :scaleXTicks="2"
+        :paddingFigs="0"
+        :label-legend="false"
+        class="columnFourth"
+      />
     </div>
   </div>
 </template>
 
 <script>
-import EmptyComponent from '../components/EmptyComponent.vue';
+// import EmptyComponent from '../components/EmptyComponent.vue';
 // import RealtimeLineGraph from '../components/RealtimeLineGraph.vue';
 import RealtimeLineGraphChartjs from '../components/RealtimeLineGraphChartjs.vue';
 import OrientationVisualization from '@/components/OrientationVisualization.vue';
@@ -138,7 +147,7 @@ import DatasetDisplay from '../components/DatasetDisplay.vue';
 export default {
   name: 'RocketSimPage',
   components: {
-    EmptyComponent,
+    // EmptyComponent,
     // RealtimeLineGraph,
     RealtimeLineGraphChartjs,
     OrientationVisualization,
@@ -323,6 +332,7 @@ export default {
           dataName: 'dangular_velocity',
           dataIndex: 0,
           units: "°/s",
+          scale: 57.29578,
         },
         {
           name: 'Y',
@@ -330,6 +340,7 @@ export default {
           dataName: 'dangular_velocity',
           dataIndex: 1,
           units: "°/s",
+          scale: 57.29578,
         },
         {
           name: 'Z',
@@ -337,6 +348,7 @@ export default {
           dataName: 'dangular_velocity',
           dataIndex: 2,
           units: "°/s",
+          scale: 57.29578,
         }
       ];
     },
@@ -412,6 +424,34 @@ export default {
           dataName: 'fcu_acceleration',
           dataIndex: 2,
           units: "m",
+        },
+      ];
+    },
+    fcuAngularVelocityDataset() {
+      return [
+        {
+          name: 'X',
+          color: '#D00',
+          dataName: 'fcu_angular_velocity',
+          dataIndex: 0,
+          units: "°/s",
+          scale: 57.29578,
+        },
+        {
+          name: 'Y',
+          color: '#0BF',
+          dataName: 'fcu_angular_velocity',
+          dataIndex: 1,
+          units: "°/s",
+          scale: 57.29578,
+        },
+        {
+          name: 'Z',
+          color: '#0B0',
+          dataName: 'fcu_angular_velocity',
+          dataIndex: 2,
+          units: "°/s",
+          scale: 57.29578,
         },
       ];
     },

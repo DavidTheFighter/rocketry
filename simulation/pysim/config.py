@@ -33,11 +33,12 @@ class SimConfig:
     fcu_config: dict = field(default_factory=lambda: {
         "telemetry_rate": 0.02, # Seconds
         "startup_acceleration_threshold": 0.5, # Meters per second squared
-        "position_kalman_process_variance": 1e-3,
         "calibration_duration": 2.5, # Seconds
+        "kalman_process_variance": 1e-1,
         "accelerometer_noise_std_dev": [0.01]*3, # Meters per second squared
         "barometer_noise_std_dev": 1.0, # Meters
         "gps_noise_std_dev": [5.0, 10.0, 5.0], # Meters
+        "gyro_noise_std_dev": [0.1]*3, # Radians per second
     })
 
     def is_time_before_thrust(self, t):

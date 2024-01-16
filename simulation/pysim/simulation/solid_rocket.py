@@ -129,7 +129,7 @@ class SolidRocketSimulation:
         self.logger.log_dynamics_data(self.dynamics)
         # self.logger.log_dev_stats(self.fcu)
 
-        if self.dynamics.position[1] < -1e-3:
+        if self.dynamics.position[1] < -1.0:
             print("Vehicle landed at {:.6f} s".format(self.t))
             self.t += self.dt
             return False
