@@ -19,6 +19,7 @@ def dataset_default():
         'angular_velocity': [[], [], []],
         'dposition': [[], [], []],
         'dvelocity': [[], [], []],
+        'dacceleration': [[], [], []],
         'dorientation': [[]],
         'dangular_velocity': [[], [], []],
         'fcu_position': [[], [], []],
@@ -71,6 +72,9 @@ def delappvec(lst: list, val, size: int):
 
 def distr(lst: list, val, size: int):
     for i in range(size):
+        while len(lst[i]) < DATA_LENGTH:
+            lst[i] = [0] + lst[i]
+
         lst[i].append(val[i])
 
         if len(lst[i]) > DATA_LENGTH:

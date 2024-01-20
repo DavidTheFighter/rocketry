@@ -76,8 +76,8 @@ impl StateVector {
         self.sensor_calibration = sensor_calibration;
     }
 
-    pub fn update_sensor_data(&mut self, data: FcuSensorData) {
-        match data {
+    pub fn update_sensor_data(&mut self, data: &FcuSensorData) {
+        match *data {
             FcuSensorData::Accelerometer {
                 acceleration,
                 raw_data,

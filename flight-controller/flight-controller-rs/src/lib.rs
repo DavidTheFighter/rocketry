@@ -244,7 +244,11 @@ impl<'a> Fcu<'a> {
     pub fn update_sensor_data(&mut self, data: FcuSensorData) {
         self.data_logger.log_data_point(&data);
 
-        self.state_vector.update_sensor_data(data);
+        self.state_vector.update_sensor_data(&data);
+
+        if self.debug_info_enabled {
+            self.send_packet(NetworkAddress::MissionControl, Packet::FcuDebugSensorMeasurement(data));
+        }
     }
 
     pub fn configure_fcu(&mut self, config: FcuConfig) {

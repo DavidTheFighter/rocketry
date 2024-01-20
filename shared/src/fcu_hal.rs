@@ -54,7 +54,7 @@ impl Into<AlertBitmaskType> for FcuAlertCondition {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum FcuSensorData {
     Accelerometer {
         acceleration: Vector3<f32>,

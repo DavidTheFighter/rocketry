@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use shared::comms_hal::{Packet, NetworkAddress};
+use shared::comms_hal::Packet;
 use shared::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo};
 use rocket::serde::{json::{Json, Value, json, serde_json::Map}, Serialize};
 

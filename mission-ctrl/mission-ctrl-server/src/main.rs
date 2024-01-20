@@ -5,6 +5,7 @@ mod input;
 pub(crate) mod observer;
 mod ecu_telemetry;
 mod fcu_telemetry;
+mod logging;
 mod cameras;
 
 use std::sync::Arc;
@@ -82,6 +83,11 @@ async fn main() {
     let observer_handler_ref = observer_handler.clone();
     join_handles.push(thread::spawn(move || {
         camera_streaming_thread(observer_handler_ref);
+    }));
+
+    let observer_handler_ref = observer_handler.clone();
+    join_handles.push(thread::spawn(move || {
+        logging::logging_thread(observer_handler_ref);
     }));
 
     let shutdown_handle_ref = shutdown_handle.clone();

@@ -5,7 +5,7 @@ use crate::{
     ecu_hal::{
         EcuDAQFrame, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame, FuelTankState, IgniterConfig,
     },
-    fcu_hal::{FcuConfig, FcuDebugInfo, FcuDevStatsFrame, FcuTelemetryFrame},
+    fcu_hal::{FcuConfig, FcuDebugInfo, FcuDevStatsFrame, FcuTelemetryFrame, FcuSensorData},
     SensorConfig,
 };
 
@@ -90,6 +90,7 @@ pub enum Packet {
     EnableDebugInfo(bool),
     FcuDebugInfo(FcuDebugInfo),
     FcuDevStatsFrame(FcuDevStatsFrame),
+    FcuDebugSensorMeasurement(FcuSensorData),
     EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
     AlertBitmask(u32),
     // FcuDataLogPage(DataLogBuffer),
@@ -103,6 +104,7 @@ pub enum Packet {
 pub mod tests_data {
     use super::*;
     use crate::{SensorCalibration, fcu_hal::{ARMING_MAGIC_NUMBER, IGNITION_MAGIC_NUMBER}, RESET_MAGIC_NUMBER};
+    use mint::Vector3;
     use strum::EnumCount;
 
     const SENSOR_CALIBRATION: SensorCalibration = SensorCalibration {
@@ -165,6 +167,10 @@ pub mod tests_data {
         Packet::EnableDebugInfo(true),
         Packet::FcuDebugInfo(FcuDebugInfo::default()),
         Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
+        Packet::FcuDebugSensorMeasurement(FcuSensorData::Accelerometer {
+            acceleration: Vector3 { x: 0.1, y: 0.2, z: 0.3 },
+            raw_data: Vector3 { x: 14, y: -72, z: 19852 },
+        }),
         Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),
         Packet::Heartbeat,
         Packet::StopApplication,

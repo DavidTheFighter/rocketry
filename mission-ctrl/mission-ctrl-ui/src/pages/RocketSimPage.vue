@@ -48,9 +48,55 @@
     </div>
     <div class="row">
       <RealtimeLineGraphChartjs
+        :data-description="fcuPositionDataset"
+        :dataset="dataset"
+        :xTitle="'FCU Position (m)'"
+        :numXTicks="10"
+        :scaleXTicks="2"
+        :paddingFigs="0"
+        :label-legend="false"
+        class="columnThreeSixteenth"
+      />
+      <RealtimeLineGraphChartjs
+        :data-description="fcuVelocityDataset"
+        :dataset="dataset"
+        :xTitle="'FCU Velocity (m/s)'"
+        :numXTicks="10"
+        :scaleXTicks="2"
+        :paddingFigs="0"
+        :label-legend="false"
+        class="columnThreeSixteenth"
+      />
+      <RealtimeLineGraphChartjs
+        :data-description="fcuAccelerationDataset"
+        :dataset="dataset"
+        :xTitle="'FCU Acceleration (m/s^2)'"
+        :numXTicks="10"
+        :scaleXTicks="2"
+        :paddingFigs="0"
+        :label-legend="false"
+        class="columnThreeSixteenth"
+      />
+      <RealtimeLineGraphChartjs
+        :data-description="fcuAngularVelocityDataset"
+        :dataset="dataset"
+        :xTitle="'FCU Angular Velocity (°/s)'"
+        :numXTicks="10"
+        :scaleXTicks="2"
+        :paddingFigs="0"
+        :label-legend="false"
+        class="columnThreeSixteenth"
+      />
+      <DatasetDisplay
+        :states="numberDataset"
+        class="columnFourth"
+      />
+    </div>
+    <div class="row">
+      <RealtimeLineGraphChartjs
         :data-description="dpositionDataset"
         :dataset="dataset"
-        :xTitle="'Δ Position XZ/Y (m)'"
+        :xTitle="'Δ Position XYZ (m)'"
         :numXTicks="10"
         :scaleXTicks="2"
         :paddingFigs="0"
@@ -60,7 +106,7 @@
       <RealtimeLineGraphChartjs
         :data-description="dvelocityDataset"
         :dataset="dataset"
-        :xTitle="'Δ Velocity XZ/Y (m/s)'"
+        :xTitle="'Δ Velocity XYZ (m/s)'"
         :numXTicks="10"
         :scaleXTicks="2"
         :paddingFigs="0"
@@ -68,9 +114,9 @@
         class="columnThreeSixteenth"
       />
       <RealtimeLineGraphChartjs
-        :data-description="dOrientationDataset"
+        :data-description="daccelerationDataset"
         :dataset="dataset"
-        :xTitle="'Δ Orientation (°)'"
+        :xTitle="'Δ Acceleration XYZ (m/s^2)'"
         :numXTicks="10"
         :scaleXTicks="2"
         :paddingFigs="0"
@@ -87,46 +133,10 @@
         :label-legend="false"
         class="columnThreeSixteenth"
       />
-      <DatasetDisplay
-        :states="numberDataset"
-        class="columnFourth"
-      />
-    </div>
-    <div class="row">
       <RealtimeLineGraphChartjs
-        :data-description="fcuPositionDataset"
+        :data-description="dOrientationDataset"
         :dataset="dataset"
-        :xTitle="'FCU Position (m)'"
-        :numXTicks="10"
-        :scaleXTicks="2"
-        :paddingFigs="0"
-        :label-legend="false"
-        class="columnFourth"
-      />
-      <RealtimeLineGraphChartjs
-        :data-description="fcuVelocityDataset"
-        :dataset="dataset"
-        :xTitle="'FCU Velocity (m/s)'"
-        :numXTicks="10"
-        :scaleXTicks="2"
-        :paddingFigs="0"
-        :label-legend="false"
-        class="columnFourth"
-      />
-      <RealtimeLineGraphChartjs
-        :data-description="fcuAccelerationDataset"
-        :dataset="dataset"
-        :xTitle="'FCU Acceleration (m/s^2)'"
-        :numXTicks="10"
-        :scaleXTicks="2"
-        :paddingFigs="0"
-        :label-legend="false"
-        class="columnFourth"
-      />
-      <RealtimeLineGraphChartjs
-        :data-description="fcuAngularVelocityDataset"
-        :dataset="dataset"
-        :xTitle="'FCU Angular Velocity (°/s)'"
+        :xTitle="'Δ Orientation (°)'"
         :numXTicks="10"
         :scaleXTicks="2"
         :paddingFigs="0"
@@ -266,7 +276,7 @@ export default {
     dpositionDataset() {
       return [
         {
-          name: 'XZ',
+          name: 'X',
           color: '#D00',
           dataName: 'dposition',
           dataIndex: 0,
@@ -291,25 +301,50 @@ export default {
     dvelocityDataset() {
       return [
       {
-          name: 'XZ',
+          name: 'X',
           color: '#D00',
           dataName: 'dvelocity',
           dataIndex: 0,
-          units: "m",
+          units: "m/s",
         },
         {
           name: 'Y',
           color: '#0BF',
           dataName: 'dvelocity',
           dataIndex: 1,
-          units: "m",
+          units: "m/s",
         },
         {
           name: 'Z',
           color: '#0B0',
           dataName: 'dvelocity',
           dataIndex: 3,
-          units: "m",
+          units: "m/s",
+        }
+      ];
+    },
+    daccelerationDataset() {
+      return [
+      {
+          name: 'X',
+          color: '#D00',
+          dataName: 'dacceleration',
+          dataIndex: 0,
+          units: "m/s^2",
+        },
+        {
+          name: 'Y',
+          color: '#0BF',
+          dataName: 'dacceleration',
+          dataIndex: 1,
+          units: "m/s^2",
+        },
+        {
+          name: 'Z',
+          color: '#0B0',
+          dataName: 'dacceleration',
+          dataIndex: 3,
+          units: "m/s^2",
         }
       ];
     },

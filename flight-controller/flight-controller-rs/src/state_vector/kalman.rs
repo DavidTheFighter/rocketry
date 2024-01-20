@@ -7,8 +7,9 @@ use num_traits::Float;
 
 pub(super) const STATE_LEN: usize = 16;
 pub(super) const MEASURE_LEN: usize = 10;
-pub(super) const SIGMA_LEN: usize = 2 * STATE_LEN + 1;
-pub(super) const STATE_LEN_2: usize = STATE_LEN * 2;
+pub(super) const SIGMA_BASE: usize = STATE_LEN;
+pub(super) const SIGMA_LEN: usize = 2 * SIGMA_BASE + 1;
+pub(super) const SIGMA_LEN_MINUS_1: usize = SIGMA_LEN - 1;
 
 const ALPHA: f32 = 1.0;
 const BETA: f32 = 2.0;
@@ -55,12 +56,12 @@ impl KalmanFilter {
         let mut wm = SVector::<f32, SIGMA_LEN>::zeros();
         let mut wc = SVector::<f32, SIGMA_LEN>::zeros();
 
-        wm[0] = ALPHA.powi(2) / (ALPHA.powi(2) + (STATE_LEN as f32));
-        wc[0] = ALPHA.powi(2) / (ALPHA.powi(2) + (STATE_LEN as f32));
+        wm[0] = ALPHA.powi(2) / (ALPHA.powi(2) + (SIGMA_BASE as f32));
+        wc[0] = ALPHA.powi(2) / (ALPHA.powi(2) + (SIGMA_BASE as f32));
 
-        for i in 1..(2 * STATE_LEN + 1) {
-            wm[i] = 1.0 / (2.0 * (ALPHA.powi(2) + (STATE_LEN as f32)));
-            wc[i] = 1.0 / (2.0 * (ALPHA.powi(2) + (STATE_LEN as f32)));
+        for i in 1..SIGMA_LEN {
+            wm[i] = 1.0 / (2.0 * (ALPHA.powi(2) + (SIGMA_BASE as f32)));
+            wc[i] = 1.0 / (2.0 * (ALPHA.powi(2) + (SIGMA_BASE as f32)));
         }
 
         Self {
@@ -108,11 +109,11 @@ impl KalmanFilter {
         // Compute predicted state covariance at k+1 given k
         let mut cov_kp1_k = SMatrix::<f32, STATE_LEN, STATE_LEN>::zeros();
         for i in 0..SIGMA_LEN {
-            let mut diff = sp_kp1_k[i] - x_kp1_k;
-            // diff[9] = 0.0;
+            let diff = sp_kp1_k[i] - x_kp1_k;
             cov_kp1_k += self.wc[i] * diff * diff.transpose();
         }
 
+        // TODO Optimze to add along diagonal?
         cov_kp1_k += &self.process_noise_cov;
 
         self.state = x_kp1_k;
@@ -203,7 +204,6 @@ impl KalmanFilter {
         //     - kalman_gain * measurement_model)
         //     * &self.state_cov;
 
-        // let prev_state_cov = self.state_cov.clone();
         self.state_cov = &self.state_cov - kalman_gain * cov_y * kalman_gain.transpose();
 
         for x in self.state.iter() {
@@ -356,8 +356,8 @@ impl KalmanFilter {
         sp
     }
 
-    fn calc_sp_deltas(&self, state_cov: &SMatrix<f32, STATE_LEN, STATE_LEN>) -> [SVector<f32, STATE_LEN>; STATE_LEN_2] {
-        let mut deltas = [SVector::<f32, STATE_LEN>::zeros(); STATE_LEN_2];
+    fn calc_sp_deltas(&self, state_cov: &SMatrix<f32, STATE_LEN, STATE_LEN>) -> [SVector<f32, STATE_LEN>; SIGMA_LEN_MINUS_1] {
+        let mut deltas = [SVector::<f32, STATE_LEN>::zeros(); SIGMA_LEN_MINUS_1];
 
         // println!("sigma_scaling = {}, state_cov = {}", self.sigma_scaling, state_cov.diagonal());
         let lower = (self.sigma_scaling * state_cov).cholesky().expect("Failed to compute cholesky").l();
