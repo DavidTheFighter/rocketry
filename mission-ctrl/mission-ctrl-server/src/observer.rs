@@ -20,6 +20,10 @@ pub enum ObserverEvent {
         camera_address: NetworkAddress,
         browser_session: String,
     },
+    UpdateBitrate {
+        source_address: NetworkAddress,
+        bitrate: u32,
+    },
 }
 
 #[derive(Debug, Clone)]

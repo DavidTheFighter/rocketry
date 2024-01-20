@@ -153,6 +153,12 @@ export default {
           units: "m",
           badValue: false,
         },
+        {
+          name: "Bitrate",
+          value: (util.nvalue(this.dataset.fcu_bitrate) / 1024.0).toFixed(1),
+          units: "kbps",
+          badValue: false,
+        }
       ];
     },
     debugInfo() {

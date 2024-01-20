@@ -6,16 +6,17 @@ use shared::comms_hal::{NetworkAddress, Packet};
 use crate::{observer::{ObserverHandler, ObserverEvent, ObserverResponse}, process_is_running, timestamp};
 
 const NETWORK_MAP_SIZE: usize = 128;
-const HEARTBEAT_TIME_S: f64 = 0.25;
 
 struct CommsThread {
     observer_handler: Arc<ObserverHandler>,
+    start_timestamp: f64,
 }
 
 impl CommsThread {
     pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
         Self {
             observer_handler,
+            start_timestamp: timestamp(),
         }
     }
 
@@ -29,7 +30,7 @@ impl CommsThread {
             [Some(&mut std_interface), None],
         );
 
-        let mut last_heartbeat_time = timestamp() - HEARTBEAT_TIME_S;
+        let mut last_poll_time = timestamp();
 
         while process_is_running() {
             if let Some((event_id, address, packet)) = self.get_send_packet_event() {
@@ -69,12 +70,10 @@ impl CommsThread {
                 }
             }
 
-            if timestamp() - last_heartbeat_time > HEARTBEAT_TIME_S {
-                if let Err(err) = bb.send_packet(&Packet::Heartbeat, NetworkAddress::Broadcast) {
-                    eprintln!("comms_thread: Failed to send heartbeat: {:?}", err);
-                }
+            if timestamp() - last_poll_time > 0.001 {
+                bb.poll_1ms(((timestamp() - self.start_timestamp) * 1e3) as u32);
 
-                last_heartbeat_time = timestamp();
+                self.update_bitrates(bb.get_recv_bitrate() as u32);
             }
         }
     }
@@ -87,6 +86,13 @@ impl CommsThread {
         }
 
         None
+    }
+
+    fn update_bitrates(&mut self, bitrate: u32) {
+        self.observer_handler.notify(ObserverEvent::UpdateBitrate {
+            source_address: NetworkAddress::FlightController,
+            bitrate,
+        });
     }
 }
 

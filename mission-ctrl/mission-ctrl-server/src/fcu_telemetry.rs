@@ -2,7 +2,7 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use shared::comms_hal::Packet;
+use shared::comms_hal::{Packet, NetworkAddress};
 use shared::fcu_hal::{FcuTelemetryFrame, FcuDebugInfo};
 use rocket::serde::{json::{Json, Value, json, serde_json::Map}, Serialize};
 
@@ -38,6 +38,7 @@ struct FcuTelemetryHandler {
     telemetry_rate_record_time: f64,
     last_telemetry_timestamp: f64,
     current_telemetry_rate_hz: u32,
+    fcu_bitrate: u32,
 }
 
 impl FcuTelemetryHandler {
@@ -49,6 +50,7 @@ impl FcuTelemetryHandler {
             telemetry_rate_record_time: 1.0,
             last_telemetry_timestamp: timestamp(),
             current_telemetry_rate_hz: 0,
+            fcu_bitrate: 0,
         }
     }
 
@@ -150,6 +152,7 @@ impl FcuTelemetryHandler {
 
         telemetry_frame_map.insert(String::from("telemetry_rate"), Value::Number(self.current_telemetry_rate_hz.into()));
         telemetry_frame_map.insert(String::from("telemetry_delta_t"), Value::Number(telemetry_delta_t.into()));
+        telemetry_frame_map.insert(String::from("fcu_bitrate"), Value::Number(self.fcu_bitrate.into()));
 
         telemetry_frame
 
@@ -179,12 +182,20 @@ impl FcuTelemetryHandler {
         graph_data
     }
 
-    fn get_packet(&self) -> Option<Packet> {
+    fn get_packet(&mut self) -> Option<Packet> {
         let timeout = Duration::from_millis(1);
 
         if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
-            if let ObserverEvent::PacketReceived { address: _, ip: _, packet } = event {
-                return Some(packet);
+            match event {
+                ObserverEvent::PacketReceived { address: _, ip: _, packet } => {
+                    return Some(packet);
+                },
+                ObserverEvent::UpdateBitrate { source_address, bitrate } => {
+                    if source_address == NetworkAddress::FlightController {
+                        self.fcu_bitrate = bitrate;
+                    }
+                },
+                _ => {}
             }
         }
 

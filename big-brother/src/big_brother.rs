@@ -9,6 +9,7 @@ use crate::{
 pub const UDP_PORT: u16 = 25560;
 pub const MAX_INTERFACE_COUNT: usize = 2;
 pub const WORKING_BUFFER_SIZE: usize = 256;
+pub const BITRATE_MEASUREMENT_DURATION_MS: u32 = 1000;
 
 #[derive(Debug, Clone)]
 pub enum BigBrotherError {
@@ -58,6 +59,11 @@ pub struct BigBrother<'a, const NETWORK_MAP_SIZE: usize, P, A> {
     use_dedupe: bool,
     missed_packets: u32,
     last_heartbeat_timestamp: u32,
+    last_bitrate_measurement_timestamp: u32,
+    recv_byte_counter: usize,
+    send_byte_counter: usize,
+    recv_bitrate: usize,
+    send_bitrate: usize,
     _packet_type: core::marker::PhantomData<P>,
 }
 
@@ -83,6 +89,11 @@ where
             use_dedupe: true,
             missed_packets: 0,
             last_heartbeat_timestamp: 0,
+            last_bitrate_measurement_timestamp: 0,
+            recv_byte_counter: 0,
+            send_byte_counter: 0,
+            recv_bitrate: 0,
+            send_bitrate: 0,
             _packet_type: core::marker::PhantomData,
         };
 
@@ -104,6 +115,8 @@ where
     pub fn recv_packet(&mut self) -> Result<Option<(P, A)>, BigBrotherError> {
         loop {
             if let Some((size, source_interface_index, remote)) = self.recv_next_udp()? {
+                self.recv_byte_counter += size;
+
                 let metadata = deserialize_metadata(&mut self.working_buffer)?;
 
                 let mapping = self.network_map.map_network_address(
@@ -178,6 +191,16 @@ where
             );
         }
 
+        if timestamp.wrapping_sub(self.last_bitrate_measurement_timestamp) > BITRATE_MEASUREMENT_DURATION_MS {
+            self.last_bitrate_measurement_timestamp = timestamp;
+
+            self.recv_bitrate = (self.recv_byte_counter * 8 * 1000) / (BITRATE_MEASUREMENT_DURATION_MS as usize);
+            self.send_bitrate = (self.send_byte_counter * 8 * 1000) / (BITRATE_MEASUREMENT_DURATION_MS as usize);
+
+            self.recv_byte_counter = 0;
+            self.send_byte_counter = 0;
+        }
+
         for interface in &mut self.interfaces {
             if let Some(interface) = interface {
                 interface.poll(timestamp);
@@ -197,6 +220,14 @@ where
         }
     }
 
+    pub fn get_recv_bitrate(&self) -> usize {
+        self.recv_bitrate
+    }
+
+    pub fn get_send_bitrate(&self) -> usize {
+        self.send_bitrate
+    }
+
     fn send_bb_packet(&mut self, packet: BigBrotherPacket<&P>, destination: A) -> Result<(), BigBrotherError> {
         if destination.is_broadcast() {
             let size = serialize_packet(
@@ -207,6 +238,7 @@ where
                 &mut self.working_buffer,
             )?;
             self.broadcast_counter = self.broadcast_counter.wrapping_add(1);
+            self.send_byte_counter += size;
 
             for interface in &mut self.interfaces {
                 if let Some(interface) = interface {
@@ -234,6 +266,7 @@ where
                 &mut self.working_buffer,
             )?;
             mapping.to_counter = mapping.to_counter.wrapping_add(1);
+            self.send_byte_counter += size;
 
             let destination_endpoint = BigBrotherEndpoint {
                 ip: mapping.ip,
