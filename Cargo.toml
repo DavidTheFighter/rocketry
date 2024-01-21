@@ -5,7 +5,7 @@ members = [
     "big-brother",
     "bootloader/ethboot-program",
     "bootloader/ethboot-shared",
-    "ecu/engine-controller",
+    "engine-controller/ecu-rs",
     "flight-controller/flight-controller-rs",
     "mission-ctrl/mission-ctrl-server",
     "shared",
@@ -15,6 +15,6 @@ members = [
 
 exclude = [
     "bootloader/stm32f4xx-ethboot",
-    "ecu/targets/stm32f407",
+    "engine-controller/ecu-stm32f407",
     "flight-controller/fcu-stm32f407",
 ]
