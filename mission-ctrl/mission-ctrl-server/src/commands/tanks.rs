@@ -1,14 +1,9 @@
 use std::sync::Arc;
 
-use shared::{
-    comms_hal::{Packet, NetworkAddress}, ecu_hal::FuelTankState,
-};
-use rocket::{
-    serde::json::Json,
-    State,
-};
+use rocket::{serde::json::Json, State};
+use shared::comms_hal::{NetworkAddress, Packet};
 
-use crate::{observer::ObserverHandler, commands::CommandResponse};
+use crate::{commands::CommandResponse, observer::ObserverHandler};
 
 use super::send_command;
 
@@ -17,7 +12,7 @@ pub fn fuel_pressurize(observer_handler: &State<Arc<ObserverHandler>>) -> Json<C
     send_command(
         observer_handler,
         NetworkAddress::EngineController(0),
-        Packet::TransitionFuelTankState(FuelTankState::Pressurized),
+        Packet::DoNothing,
     )
 }
 
@@ -26,7 +21,7 @@ pub fn fuel_idle(observer_handler: &State<Arc<ObserverHandler>>) -> Json<Command
     send_command(
         observer_handler,
         NetworkAddress::EngineController(0),
-        Packet::TransitionFuelTankState(FuelTankState::Idle),
+        Packet::DoNothing,
     )
 }
 
@@ -35,6 +30,6 @@ pub fn fuel_depressurize(observer_handler: &State<Arc<ObserverHandler>>) -> Json
     send_command(
         observer_handler,
         NetworkAddress::EngineController(0),
-        Packet::TransitionFuelTankState(FuelTankState::Depressurized),
+        Packet::DoNothing,
     )
 }

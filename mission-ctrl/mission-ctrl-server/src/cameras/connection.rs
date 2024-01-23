@@ -1,11 +1,24 @@
-use std::{process::{Child, Command, Stdio}, net::{Ipv4Addr, UdpSocket}, sync::{Arc, atomic::{AtomicBool, Ordering, AtomicU64}, RwLock}, time::Duration};
+use std::{
+    net::{Ipv4Addr, UdpSocket},
+    process::{Child, Command, Stdio},
+    sync::{
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc, RwLock,
+    },
+    time::Duration,
+};
 
-use shared::comms_hal::{NetworkAddress, Packet};
+use shared::{
+    comms_hal::{NetworkAddress, Packet},
+    streamish_hal::StreamishCommand,
+};
 
-use crate::{timestamp, observer::{ObserverHandler, ObserverEvent}};
+use crate::{
+    observer::{ObserverEvent, ObserverHandler},
+    timestamp,
+};
 
 use super::{webrtc::WebRtcStream, CAMERA_CONNECTION_TIMEOUT, CAMERA_STARTUP_TIMEOUT_GRACE};
-
 
 pub struct CameraConnection {
     pub address: NetworkAddress,
@@ -24,14 +37,15 @@ impl CameraConnection {
         browser_streams: Arc<RwLock<Vec<WebRtcStream>>>,
         observer_handler: Arc<ObserverHandler>,
     ) -> Option<CameraConnection> {
-        if let Some(transcode_process) = Self::start_transcode_process(
-            connection_ip,
-            connection_port,
-            transcode_port,
-        ) {
+        if let Some(transcode_process) =
+            Self::start_transcode_process(connection_ip, connection_port, transcode_port)
+        {
+            let command = StreamishCommand::StartCameraStream {
+                port: transcode_port,
+            };
             observer_handler.notify(ObserverEvent::SendPacket {
                 address,
-                packet: Packet::StartCameraStream { port: connection_port },
+                packet: Packet::StreamishCommand(command),
             });
 
             let alive = Arc::new(AtomicBool::new(true));
@@ -47,7 +61,7 @@ impl CameraConnection {
                     last_ping_ref,
                     address,
                     transcode_port,
-                    browser_streams
+                    browser_streams,
                 );
             });
 
@@ -60,7 +74,10 @@ impl CameraConnection {
             });
         }
 
-        eprintln!("Failed to start transcoding process for camera: {:?}", address);
+        eprintln!(
+            "Failed to start transcoding process for camera: {:?}",
+            address
+        );
 
         None
     }
@@ -72,11 +89,15 @@ impl CameraConnection {
     }
 
     pub fn drop_connection(&mut self) {
-        self.transcode_process.kill().expect("Failed to kill transcoding process");
+        self.transcode_process
+            .kill()
+            .expect("Failed to kill transcoding process");
         self.alive.store(false, Ordering::Relaxed);
+
+        let command = StreamishCommand::StopCameraStream;
         self.observer_handler.notify(ObserverEvent::SendPacket {
             address: self.address,
-            packet: Packet::StopCameraStream,
+            packet: Packet::StreamishCommand(command),
         });
     }
 
@@ -90,7 +111,8 @@ impl CameraConnection {
         let mut buffer = vec![0; 1600];
         let socket = UdpSocket::bind(format!("127.0.0.1:{}", transcode_port))
             .expect("Failed to bind to transcode socket");
-        socket.set_read_timeout(Some(Duration::from_millis(100)))
+        socket
+            .set_read_timeout(Some(Duration::from_millis(100)))
             .expect("Failed to set transcode socket timeout");
 
         while alive.load(Ordering::Relaxed) {
@@ -112,9 +134,16 @@ impl CameraConnection {
         }
     }
 
-    fn start_transcode_process(connection_ip: Ipv4Addr, connection_port: u16, transcode_port: u16) -> Option<Child> {
+    fn start_transcode_process(
+        connection_ip: Ipv4Addr,
+        connection_port: u16,
+        transcode_port: u16,
+    ) -> Option<Child> {
         Command::new("ffmpeg")
-            .args(["-i", format!("udp://{}:{}", connection_ip, connection_port).as_str()])
+            .args([
+                "-i",
+                format!("udp://{}:{}", connection_ip, connection_port).as_str(),
+            ])
             .args(["-c:v", "copy"])
             .args(["-cpu-used", "5"])
             .args(["-deadline", "1"])

@@ -1,4 +1,7 @@
-use std::{sync::{mpsc, Mutex, Arc}, collections::{HashMap, VecDeque}};
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::{mpsc, Arc, Mutex},
+};
 
 use crate::big_brother::{BigBrotherEndpoint, UDP_PORT};
 
@@ -36,18 +39,21 @@ impl MockPhysicalNet {
             // println!("port, {} broadcasted to {} interfaces", payload.host.port, self.interface_map.len());
 
             for (_ip, tx) in self.interface_map.iter_mut() {
-                tx.send(payload.clone()).expect("Failed to broadcast UDP payload over TX");
+                tx.send(payload.clone())
+                    .expect("Failed to broadcast UDP payload over TX");
             }
         } else {
             if let Some(tx) = self.interface_map.get(&payload.host.ip) {
                 // println!("{:?}:{}", payload.host.ip, payload.host.port);
 
-                tx.send(payload).expect("Failed to send UDP payload over TX");
+                tx.send(payload)
+                    .expect("Failed to send UDP payload over TX");
             } else if payload.host.ip == [127, 0, 0, 1] {
                 // println!("localhost:{} / {:?}:{}", payload.host.port, payload.remote.ip, payload.host.port);
 
                 if let Some(tx) = self.interface_map.get(&payload.remote.ip) {
-                    tx.send(payload).expect("Failed to send UDP payload over TX");
+                    tx.send(payload)
+                        .expect("Failed to send UDP payload over TX");
                 } else {
                     eprintln!("Destination for UDP payload does not exist! {:?}", payload);
                 }
@@ -57,10 +63,7 @@ impl MockPhysicalNet {
         }
     }
 
-    pub fn register_physical_interface(
-        &mut self,
-        tx: mpsc::Sender<MockPayload>,
-    ) -> [u8; 4] {
+    pub fn register_physical_interface(&mut self, tx: mpsc::Sender<MockPayload>) -> [u8; 4] {
         let mut attempts = 0;
         let mut ip;
 
@@ -175,7 +178,10 @@ impl MockPhysicalInterface {
                     return Some(payload);
                 } else {
                     // print!(". ");
-                    self.virtual_rx_queue.get_mut(&payload.host.port).unwrap().push_back(payload);
+                    self.virtual_rx_queue
+                        .get_mut(&payload.host.port)
+                        .unwrap()
+                        .push_back(payload);
                 }
             } else {
                 // println!(" 0 bytes (buffers empty)");

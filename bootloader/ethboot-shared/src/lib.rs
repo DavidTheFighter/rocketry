@@ -1,15 +1,20 @@
 #![no_std]
 
-use postcard::{ser_flavors::{Cobs, Slice}, serialize_with_flavor, from_bytes_cobs};
-use serde::{Serialize, Deserialize};
+use postcard::{
+    from_bytes_cobs,
+    ser_flavors::{Cobs, Slice},
+    serialize_with_flavor,
+};
+use serde::{Deserialize, Serialize};
 use smoltcp::{
     iface::{self, Interface},
     phy::Device,
+    socket::udp::{PacketBuffer, RecvError, SendError, Socket as UdpSocket, UdpMetadata},
     storage::PacketMetadata,
-    wire, time::Instant,
-    socket::udp::{Socket as UdpSocket, PacketBuffer, UdpMetadata, SendError, RecvError},
+    time::Instant,
+    wire,
 };
-use strum_macros::{FromRepr, EnumIter, EnumDiscriminants};
+use strum_macros::{EnumDiscriminants, EnumIter, FromRepr};
 
 pub const BOOTLOADER_PORT: u16 = 4080;
 pub const PROGRAM_CHUNK_LENGTH: usize = 256;
@@ -124,11 +129,7 @@ where
     ) -> Self {
         let (rx_buffer, tx_buffer) = socket_buffer.into_udp_socket_buffers();
 
-        let mut interface = Interface::new(
-            config,
-            device,
-            timestamp,
-        );
+        let mut interface = Interface::new(config, device, timestamp);
 
         interface.update_ip_addrs(|addr| {
             addr.push(ip_addr).ok();
@@ -137,7 +138,9 @@ where
         let mut sockets_set = iface::SocketSet::new(&mut sockets[..]);
 
         let mut udp_socket = UdpSocket::new(rx_buffer, tx_buffer);
-        udp_socket.bind(BOOTLOADER_PORT).expect("failed to bind UDP socket");
+        udp_socket
+            .bind(BOOTLOADER_PORT)
+            .expect("failed to bind UDP socket");
 
         let udp_socket_handle = sockets_set.add(udp_socket);
 
@@ -150,12 +153,21 @@ where
         }
     }
 
-    pub fn complete_action<'b>(&mut self, working_buffer: &'b mut [u8], error: Option<BootloaderError>) {
+    pub fn complete_action<'b>(
+        &mut self,
+        working_buffer: &'b mut [u8],
+        error: Option<BootloaderError>,
+    ) {
         if let Some(source) = self.last_send_source {
-            self.send(source, BootloaderNetworkCommand::Response {
-                command: 0,
-                success: error.is_none(),
-            }, working_buffer).ok();
+            self.send(
+                source,
+                BootloaderNetworkCommand::Response {
+                    command: 0,
+                    success: error.is_none(),
+                },
+                working_buffer,
+            )
+            .ok();
         }
     }
 
@@ -164,27 +176,32 @@ where
         timestamp: Instant,
         working_buffer: &'b mut [u8; 512],
     ) -> Result<BootloaderAction<'b>, BootloaderError> {
-        self.interface.poll(
-            timestamp,
-            self.device,
-            &mut self.sockets_set,
-        );
+        self.interface
+            .poll(timestamp, self.device, &mut self.sockets_set);
 
         if let Some((source, command)) = self.receive(working_buffer)? {
             self.last_send_source = Some(source);
             match command {
                 BootloaderNetworkCommand::PingBootloader => {
-                    self.send(source, BootloaderNetworkCommand::Response {
-                        command: BootloaderNetworkCommandIndex::PingBootloader as u8,
-                        success: true,
-                    }, working_buffer)?;
+                    self.send(
+                        source,
+                        BootloaderNetworkCommand::Response {
+                            command: BootloaderNetworkCommandIndex::PingBootloader as u8,
+                            success: true,
+                        },
+                        working_buffer,
+                    )?;
 
                     return Ok(BootloaderAction::Ping);
-                },
+                }
                 BootloaderNetworkCommand::EraseFlash { sector } => {
                     return Ok(BootloaderAction::EraseFlash { sector });
-                },
-                BootloaderNetworkCommand::ProgramFlash { flash_offset, buffer_offset, buffer_length } => {
+                }
+                BootloaderNetworkCommand::ProgramFlash {
+                    flash_offset,
+                    buffer_offset,
+                    buffer_length,
+                } => {
                     let slice_start = buffer_offset as usize;
                     let slice_end = (buffer_offset + buffer_length) as usize;
 
@@ -192,20 +209,27 @@ where
                         offset: flash_offset,
                         data: &working_buffer[slice_start..slice_end],
                     });
-                },
-                BootloaderNetworkCommand::VerifyFlash { start_offset, end_offset, checksum } => {
+                }
+                BootloaderNetworkCommand::VerifyFlash {
+                    start_offset,
+                    end_offset,
+                    checksum,
+                } => {
                     return Ok(BootloaderAction::VerifyFlash {
                         start_offset,
                         end_offset,
                         checksum,
                     });
-                },
-                BootloaderNetworkCommand::Response { command: _, success: _ } => {
+                }
+                BootloaderNetworkCommand::Response {
+                    command: _,
+                    success: _,
+                } => {
                     return Ok(BootloaderAction::None);
-                },
+                }
                 BootloaderNetworkCommand::BootIntoApplication => {
                     return Ok(BootloaderAction::BootIntoApplication);
-                },
+                }
             }
         }
 
@@ -218,10 +242,13 @@ where
         command: BootloaderNetworkCommand,
         buffer: &mut [u8],
     ) -> Result<(), BootloaderError> {
-        let udp_socket = self.sockets_set.get_mut::<UdpSocket>(self.udp_socket_handle);
+        let udp_socket = self
+            .sockets_set
+            .get_mut::<UdpSocket>(self.udp_socket_handle);
 
         if let Some(size) = command.serialize(buffer) {
-            udp_socket.send_slice(&buffer[..size], dest)
+            udp_socket
+                .send_slice(&buffer[..size], dest)
                 .map_err(|send_err| BootloaderError::from(send_err))
         } else {
             Err(BootloaderError::SerializationError)
@@ -232,7 +259,9 @@ where
         &mut self,
         buffer: &mut [u8],
     ) -> Result<Option<(wire::IpEndpoint, BootloaderNetworkCommand)>, BootloaderError> {
-        let udp_socket = self.sockets_set.get_mut::<UdpSocket>(self.udp_socket_handle);
+        let udp_socket = self
+            .sockets_set
+            .get_mut::<UdpSocket>(self.udp_socket_handle);
 
         if !udp_socket.can_recv() {
             return Ok(None);
@@ -245,10 +274,8 @@ where
                 } else {
                     Ok(None)
                 }
-            },
-            Err(recv_err) => {
-                Err(BootloaderError::from(recv_err))
-            },
+            }
+            Err(recv_err) => Err(BootloaderError::from(recv_err)),
         }
     }
 }
@@ -258,12 +285,12 @@ impl BootloaderNetworkCommand {
         let result = match Cobs::try_new(Slice::new(&mut buffer[1..])) {
             Ok(flavor) => {
                 let serialized =
-                    serialize_with_flavor::<BootloaderNetworkCommand, Cobs<Slice>, &mut [u8]>(self, flavor);
+                    serialize_with_flavor::<BootloaderNetworkCommand, Cobs<Slice>, &mut [u8]>(
+                        self, flavor,
+                    );
 
                 match serialized {
-                    Ok(output_buffer) => {
-                        Some(output_buffer.len() + 1)
-                    },
+                    Ok(output_buffer) => Some(output_buffer.len() + 1),
                     Err(_) => None,
                 }
             }
@@ -286,10 +313,17 @@ impl BootloaderNetworkCommand {
         }
     }
 
-    pub fn retrieve_program_data(packet_buffer: &mut [u8], output_buffer: &mut [u8; PROGRAM_CHUNK_LENGTH]) {
+    pub fn retrieve_program_data(
+        packet_buffer: &mut [u8],
+        output_buffer: &mut [u8; PROGRAM_CHUNK_LENGTH],
+    ) {
         let size = packet_buffer[0] as usize;
 
-        for (i, o) in packet_buffer.iter().skip(size).zip(output_buffer.iter_mut()) {
+        for (i, o) in packet_buffer
+            .iter()
+            .skip(size)
+            .zip(output_buffer.iter_mut())
+        {
             *o = *i;
         }
     }

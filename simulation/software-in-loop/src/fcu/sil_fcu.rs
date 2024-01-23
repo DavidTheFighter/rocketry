@@ -1,20 +1,20 @@
-use std::str::FromStr;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::str::FromStr;
 
-use big_brother::big_brother::MAX_INTERFACE_COUNT;
-use big_brother::interface::BigBrotherInterface;
-use big_brother::interface::mock_interface::MockInterface;
 use super::FcuDriverSim;
 use crate::network::SilNetworkIface;
+use crate::ser::{dict_from_obj, obj_from_dict};
+use big_brother::big_brother::MAX_INTERFACE_COUNT;
+use big_brother::interface::mock_interface::MockInterface;
+use big_brother::interface::BigBrotherInterface;
 use flight_controller_rs::{Fcu, FcuBigBrother};
+use mint::Vector3;
+use pyo3::exceptions::PyTypeError;
+use pyo3::prelude::*;
+use pyo3::types::{PyDict, PyList};
 use shared::comms_hal::NetworkAddress;
 use shared::fcu_hal::{FcuSensorData, OutputChannel};
-use mint::Vector3;
-use pyo3::prelude::*;
-use pyo3::exceptions::PyTypeError;
-use pyo3::types::{PyList, PyDict};
-use crate::ser::{dict_from_obj, obj_from_dict};
 use shared::logger::DataPointLoggerMock;
 use strum::IntoEnumIterator;
 
@@ -34,12 +34,12 @@ impl FcuSil {
     #[new]
     pub fn new(network_ifaces: &PyList) -> Self {
         let driver = Rc::new(RefCell::new(FcuDriverSim::new()));
-        let driver_ref: &'static mut FcuDriverSim = unsafe {
-            std::mem::transmute(&mut *driver.borrow_mut())
-        };
+        let driver_ref: &'static mut FcuDriverSim =
+            unsafe { std::mem::transmute(&mut *driver.borrow_mut()) };
 
         let mut big_brother_ifaces = [None, None];
-        let mut big_brother_ifaces_ref: [Option<&'static mut dyn BigBrotherInterface>; MAX_INTERFACE_COUNT] = [None, None];
+        let mut big_brother_ifaces_ref: [Option<&'static mut dyn BigBrotherInterface>;
+            MAX_INTERFACE_COUNT] = [None, None];
 
         for (i, sil_iface) in network_ifaces.iter().enumerate().take(2) {
             let mut sil_iface = sil_iface
@@ -63,14 +63,12 @@ impl FcuSil {
             NetworkAddress::Broadcast,
             big_brother_ifaces_ref,
         )));
-        let big_brother_ref: &'static mut FcuBigBrother<'static> = unsafe {
-            std::mem::transmute(&mut *big_brother.borrow_mut())
-        };
+        let big_brother_ref: &'static mut FcuBigBrother<'static> =
+            unsafe { std::mem::transmute(&mut *big_brother.borrow_mut()) };
 
         let data_point_logger = Rc::new(RefCell::new(DataPointLoggerMock));
-        let data_point_logger_ref: &'static mut DataPointLoggerMock = unsafe {
-            std::mem::transmute(&mut *data_point_logger.borrow_mut())
-        };
+        let data_point_logger_ref: &'static mut DataPointLoggerMock =
+            unsafe { std::mem::transmute(&mut *data_point_logger.borrow_mut()) };
 
         let fcu = Fcu::new(driver_ref, big_brother_ref, data_point_logger_ref);
 
@@ -91,14 +89,22 @@ impl FcuSil {
     pub fn update_acceleration(&mut self, accel: &PyList) {
         self.fcu.update_sensor_data(FcuSensorData::Accelerometer {
             acceleration: list_to_vec3(accel),
-            raw_data: Vector3 { x: 42, y: 42, z: 42 },
+            raw_data: Vector3 {
+                x: 42,
+                y: 42,
+                z: 42,
+            },
         });
     }
 
     pub fn update_angular_velocity(&mut self, angular_velocity: &PyList) {
-        self.fcu.update_sensor_data(FcuSensorData::Gyroscope{
+        self.fcu.update_sensor_data(FcuSensorData::Gyroscope {
             angular_velocity: list_to_vec3(angular_velocity),
-            raw_data: Vector3 { x: 42, y: 42, z: 42 },
+            raw_data: Vector3 {
+                x: 42,
+                y: 42,
+                z: 42,
+            },
         });
     }
 
@@ -158,7 +164,9 @@ impl FcuSil {
             .driver
             .as_mut_any()
             .downcast_mut::<FcuDriverSim>()
-            .ok_or(PyTypeError::new_err("Failed to retrieve driver from FCU object"))?
+            .ok_or(PyTypeError::new_err(
+                "Failed to retrieve driver from FCU object",
+            ))?
             .set_output_channel_continuity(channel, state);
 
         Ok(())
@@ -173,11 +181,13 @@ impl FcuSil {
 
             for value in debug_info_dict.values() {
                 for (key, value) in value.downcast::<PyDict>().unwrap().iter() {
-                    dict.set_item(key, value).expect("Failed to set item in dict");
+                    dict.set_item(key, value)
+                        .expect("Failed to set item in dict");
                 }
             }
         };
-        self.fcu.generate_debug_info_all_variants(debug_info_callback);
+        self.fcu
+            .generate_debug_info_all_variants(debug_info_callback);
 
         let output_channels = PyDict::new(py);
         for channel in OutputChannel::iter() {
@@ -197,7 +207,8 @@ impl FcuSil {
         }
         dict.set_item("output_continuities", output_channel_continuities)?;
 
-        dict.get_item_with_error(key).map(|value| value.to_object(py))
+        dict.get_item_with_error(key)
+            .map(|value| value.to_object(py))
     }
 
     // Returns fields related to the state vector of the FCU
@@ -225,13 +236,28 @@ pub fn convert_pressure_to_altitude(pressure: f32, temperature: f32) -> f32 {
 
 fn list_to_vec3(list: &PyList) -> Vector3<f32> {
     if list.len() != 3 {
-        panic!("Tried converting a pylist of len() != 3 to a vec3: {:?}", list);
+        panic!(
+            "Tried converting a pylist of len() != 3 to a vec3: {:?}",
+            list
+        );
     }
 
     Vector3 {
-        x: list.get_item(0).unwrap().extract::<f32>().expect(".x was not a number"),
-        y: list.get_item(1).unwrap().extract::<f32>().expect(".y was not a number"),
-        z: list.get_item(2).unwrap().extract::<f32>().expect(".z was not a number"),
+        x: list
+            .get_item(0)
+            .unwrap()
+            .extract::<f32>()
+            .expect(".x was not a number"),
+        y: list
+            .get_item(1)
+            .unwrap()
+            .extract::<f32>()
+            .expect(".y was not a number"),
+        z: list
+            .get_item(2)
+            .unwrap()
+            .extract::<f32>()
+            .expect(".z was not a number"),
     }
 }
 

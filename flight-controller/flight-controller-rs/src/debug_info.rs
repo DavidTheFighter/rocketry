@@ -1,6 +1,6 @@
 use strum::{EnumCount, IntoEnumIterator};
 
-use shared::fcu_hal::{FcuDebugInfo, PwmChannel, FcuDebugInfoVariant};
+use shared::fcu_hal::{FcuDebugInfo, FcuDebugInfoVariant, PwmChannel};
 
 use crate::Fcu;
 
@@ -22,7 +22,8 @@ impl<'a> Fcu<'a> {
                 velocity_error: self.state_vector.get_velocity_std_dev().into(),
                 acceleration_error: self.state_vector.get_acceleration_std_dev().into(),
                 output_channels_bitmask: 0,
-                output_channels_continuity_bitmask: self.get_output_channels_continuity_bitmask() as u32,
+                output_channels_continuity_bitmask: self.get_output_channels_continuity_bitmask()
+                    as u32,
                 pwm_channels: [0.0; PwmChannel::COUNT],
             },
             FcuDebugInfoVariant::SensorData => FcuDebugInfo::SensorData {
@@ -32,7 +33,11 @@ impl<'a> Fcu<'a> {
                 raw_gyroscope: self.state_vector.sensor_data.gyroscope_raw.into(),
                 raw_magnetometer: self.state_vector.sensor_data.magnetometer_raw.into(),
                 raw_barometer: self.state_vector.sensor_data.barometer_raw,
-                accelerometer_calibration: self.state_vector.sensor_calibration.accelerometer.into(),
+                accelerometer_calibration: self
+                    .state_vector
+                    .sensor_calibration
+                    .accelerometer
+                    .into(),
                 barometric_altitude: self.state_vector.sensor_data.barometer_altitude,
                 barometer_calibration: self.state_vector.sensor_calibration.barometeric_altitude,
             },

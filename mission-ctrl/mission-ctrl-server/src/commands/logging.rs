@@ -1,22 +1,15 @@
 use std::sync::Arc;
 
-use shared::comms_hal::{Packet, NetworkAddress};
-use rocket::{
-    serde::json::Json,
-    State,
-};
+use rocket::{serde::json::Json, State};
+use shared::comms_hal::{NetworkAddress, Packet};
 
-use crate::{observer::ObserverHandler, commands::CommandResponse};
+use crate::{commands::CommandResponse, observer::ObserverHandler};
 
-use super::{send_command, format_response};
+use super::{format_response, send_command};
 
 #[post("/erase-flash")]
-pub fn erase_flash(observer_handler: &State<Arc<ObserverHandler>>) -> Json<CommandResponse> {
-    send_command(
-        observer_handler,
-        NetworkAddress::FlightController,
-        Packet::EraseDataLogFlash,
-    )
+pub fn erase_flash(_observer_handler: &State<Arc<ObserverHandler>>) -> Json<CommandResponse> {
+    return format_response(format!("You know this command doesn't work"), false);
 }
 
 #[post("/set-logging", data = "<args>")]
@@ -25,10 +18,7 @@ pub fn set_logging(
     args: Json<Vec<String>>,
 ) -> Json<CommandResponse> {
     if args.len() != 2 {
-        return format_response(
-            format!("{} <true|false>", args[0]),
-            false,
-        );
+        return format_response(format!("{} <true|false>", args[0]), false);
     }
 
     let state = match args[1].as_str() {
@@ -51,10 +41,7 @@ pub fn set_logging(
 
 #[post("/retrieve-logs")]
 pub fn retrieve_logs(_observer_handler: &State<Arc<ObserverHandler>>) -> Json<CommandResponse> {
-    return format_response(
-        format!("You know this command doesn't work"),
-        false,
-    );
+    return format_response(format!("You know this command doesn't work"), false);
 
     // let mut data = Vec::new();
     // let mut addr = 0;

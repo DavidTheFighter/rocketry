@@ -1,6 +1,13 @@
 use std::sync::{Arc, Mutex};
 
-use big_brother::{interface::{mock_topology::{MockPhysicalNet, MockPhysicalInterface}, mock_interface::MockInterface, BigBrotherInterface}, big_brother::{BigBrotherEndpoint, WORKING_BUFFER_SIZE, UDP_PORT}};
+use big_brother::{
+    big_brother::{BigBrotherEndpoint, UDP_PORT, WORKING_BUFFER_SIZE},
+    interface::{
+        mock_interface::MockInterface,
+        mock_topology::{MockPhysicalInterface, MockPhysicalNet},
+        BigBrotherInterface,
+    },
+};
 
 fn rand_u32() -> u32 {
     std::time::SystemTime::now()
@@ -29,10 +36,15 @@ fn send_recv() {
         assert!(iface0.recv_udp(&mut recv_buffer).unwrap().is_none());
         assert!(iface1.recv_udp(&mut recv_buffer).unwrap().is_none());
 
-        iface0.send_udp(BigBrotherEndpoint {
-            ip: iface1.host_ip,
-            port: iface1.host_port,
-        }, &mut dummy_data0).unwrap();
+        iface0
+            .send_udp(
+                BigBrotherEndpoint {
+                    ip: iface1.host_ip,
+                    port: iface1.host_port,
+                },
+                &mut dummy_data0,
+            )
+            .unwrap();
 
         let (size, remote) = iface1.recv_udp(&mut recv_buffer).unwrap().unwrap();
         assert_eq!(size, dummy_data0.len());
@@ -42,10 +54,15 @@ fn send_recv() {
         assert!(iface0.recv_udp(&mut recv_buffer).unwrap().is_none());
         assert!(iface1.recv_udp(&mut recv_buffer).unwrap().is_none());
 
-        iface1.send_udp(BigBrotherEndpoint {
-            ip: iface0.host_ip,
-            port: iface0.host_port,
-        }, &mut dummy_data1).unwrap();
+        iface1
+            .send_udp(
+                BigBrotherEndpoint {
+                    ip: iface0.host_ip,
+                    port: iface0.host_port,
+                },
+                &mut dummy_data1,
+            )
+            .unwrap();
 
         let (size, remote) = iface0.recv_udp(&mut recv_buffer).unwrap().unwrap();
         assert_eq!(size, dummy_data1.len());
@@ -86,10 +103,15 @@ fn broadcast() {
 
         let broadcaster_ip = ifaces[i % 3].host_ip;
 
-        ifaces[i % 3].send_udp(BigBrotherEndpoint {
-            ip: broadcast_ip,
-            port: UDP_PORT,
-        }, &mut dummy_data0).unwrap();
+        ifaces[i % 3]
+            .send_udp(
+                BigBrotherEndpoint {
+                    ip: broadcast_ip,
+                    port: UDP_PORT,
+                },
+                &mut dummy_data0,
+            )
+            .unwrap();
 
         for iface in ifaces.iter_mut() {
             let (size, remote) = iface.recv_udp(&mut recv_buffer).unwrap().unwrap();
@@ -133,12 +155,20 @@ fn many_phy_routing() {
         }
         let destination_ip = ifaces[receiver_index].host_ip;
 
-        ifaces[sender_index].send_udp(BigBrotherEndpoint {
-            ip: destination_ip,
-            port: UDP_PORT,
-        }, &mut dummy_data0).unwrap();
+        ifaces[sender_index]
+            .send_udp(
+                BigBrotherEndpoint {
+                    ip: destination_ip,
+                    port: UDP_PORT,
+                },
+                &mut dummy_data0,
+            )
+            .unwrap();
 
-        let (size, remote) = ifaces[receiver_index].recv_udp(&mut recv_buffer).unwrap().unwrap();
+        let (size, remote) = ifaces[receiver_index]
+            .recv_udp(&mut recv_buffer)
+            .unwrap()
+            .unwrap();
         assert_eq!(size, dummy_data0.len());
         assert_eq!(recv_buffer, dummy_data0);
         assert_eq!(remote.ip, sender_ip);
@@ -177,12 +207,20 @@ fn many_ports_routing() {
         let destination_ip = virt_ifaces[(i + 1) % virt_ifaces.len()].host_ip;
         let destination_port = UDP_PORT + ((rand_u32() % 2) as u16);
 
-        println!("-- Attempt {} :: {:?}:{} -> {:?}:{}", i, sender_ip, sender_port, destination_ip, destination_port);
+        println!(
+            "-- Attempt {} :: {:?}:{} -> {:?}:{}",
+            i, sender_ip, sender_port, destination_ip, destination_port
+        );
 
-        virt_ifaces[sender_index].send_udp(BigBrotherEndpoint {
-            ip: destination_ip,
-            port: destination_port,
-        }, &mut dummy_data0).unwrap();
+        virt_ifaces[sender_index]
+            .send_udp(
+                BigBrotherEndpoint {
+                    ip: destination_ip,
+                    port: destination_port,
+                },
+                &mut dummy_data0,
+            )
+            .unwrap();
 
         for iface in virt_ifaces.iter_mut() {
             if iface.host_ip == sender_ip {
@@ -228,4 +266,3 @@ fn assert_empty_recv(ifaces: &mut [MockInterface]) {
         assert!(iface.recv_udp(&mut buffer).unwrap().is_none())
     }
 }
-

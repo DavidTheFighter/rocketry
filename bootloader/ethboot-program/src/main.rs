@@ -1,9 +1,13 @@
-use std::{fs::File, io::{Read, self, Write}, net::UdpSocket};
+use std::{
+    fs::File,
+    io::{self, Read, Write},
+    net::UdpSocket,
+};
 
-use big_brother::{BigBrother, interface::std_interface::StdInterface};
-use ethboot_shared::{BOOTLOADER_PORT, BootloaderNetworkCommand, PROGRAM_CHUNK_LENGTH};
+use big_brother::{interface::std_interface::StdInterface, BigBrother};
+use ethboot_shared::{BootloaderNetworkCommand, BOOTLOADER_PORT, PROGRAM_CHUNK_LENGTH};
 use serde::{Deserialize, Deserializer};
-use shared::comms_hal::{Packet, NetworkAddress};
+use shared::comms_hal::{NetworkAddress, Packet};
 
 const WORKING_BUFFER_SIZE: usize = PROGRAM_CHUNK_LENGTH * 2;
 
@@ -27,7 +31,10 @@ fn main() {
     println!("Command line args: {:?}", cmd_args);
 
     if cmd_args.len() != 4 {
-        println!("Usage: {} <bootloader_definition_file> <binary_file> <ip_addr>", cmd_args[0]);
+        println!(
+            "Usage: {} <bootloader_definition_file> <binary_file> <ip_addr>",
+            cmd_args[0]
+        );
         return;
     }
 
@@ -36,11 +43,15 @@ fn main() {
     let mcu_blt_address = format!("{}:{}", cmd_args[3], BOOTLOADER_PORT);
     // let mcu_app_address = format!("{}:{}", cmd_args[3], UDP_RECV_PORT);
 
-    let mut udp_socket = UdpSocket::bind(format!("0.0.0.0:{}", BOOTLOADER_PORT)).expect("Failed to bind UDP socket");
-    udp_socket.set_nonblocking(true).expect("Failed to set non-blocking");
+    let mut udp_socket =
+        UdpSocket::bind(format!("0.0.0.0:{}", BOOTLOADER_PORT)).expect("Failed to bind UDP socket");
+    udp_socket
+        .set_nonblocking(true)
+        .expect("Failed to set non-blocking");
     let mut buffer = [0u8; WORKING_BUFFER_SIZE];
 
-    let mut bb_interface = StdInterface::new([169, 254, 255, 255]).expect("Failed to create bb interface");
+    let mut bb_interface =
+        StdInterface::new([169, 254, 255, 255]).expect("Failed to create bb interface");
     let mut comms: BigBrother<'_, 64, Packet, NetworkAddress> = BigBrother::new(
         NetworkAddress::EthbootProgrammer,
         rand::random(),
@@ -58,12 +69,16 @@ fn main() {
         if timestamp % 100 == 0 {
             let command = BootloaderNetworkCommand::PingBootloader;
             if let Some(size) = command.serialize(&mut buffer) {
-                udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
+                udp_socket
+                    .send_to(&buffer[..size], mcu_blt_address.clone())
+                    .unwrap();
             } else {
                 panic!("Failed to serialize command");
             }
 
-            let reset_packet = Packet::ResetMcu { magic_number: shared::RESET_MAGIC_NUMBER };
+            let reset_packet = Packet::ResetMcu {
+                magic_number: shared::RESET_MAGIC_NUMBER,
+            };
             if let Err(e) = comms.send_packet(&reset_packet, NetworkAddress::FlightController) {
                 println!("Failed to send reset packet: {:?}", e);
             }
@@ -74,7 +89,11 @@ fn main() {
         }
 
         if let Some(command) = check_for_response(&mut udp_socket, &mut buffer) {
-            if let BootloaderNetworkCommand::Response { command: _, success } = command {
+            if let BootloaderNetworkCommand::Response {
+                command: _,
+                success,
+            } = command
+            {
                 if success {
                     break;
                 }
@@ -105,7 +124,8 @@ fn main() {
 
     let start_sector = start_sector.expect("Failed to find start sector");
 
-    println!("Flash goes from 0x{:X} to 0x{:X}, erasing sectors {} to {} (0x{:X} to 0x{:X})",
+    println!(
+        "Flash goes from 0x{:X} to 0x{:X}, erasing sectors {} to {} (0x{:X} to 0x{:X})",
         bootloader_definition.app_offset,
         bootloader_definition.app_offset + binary.len() as u32,
         start_sector,
@@ -118,13 +138,21 @@ fn main() {
         print!("Erasing sector {}...", sector);
         io::stdout().flush().expect("Failed to flush stdout");
 
-        let command = BootloaderNetworkCommand::EraseFlash { sector: sector as u16 };
+        let command = BootloaderNetworkCommand::EraseFlash {
+            sector: sector as u16,
+        };
         if let Some(size) = command.serialize(&mut buffer) {
-            udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
+            udp_socket
+                .send_to(&buffer[..size], mcu_blt_address.clone())
+                .unwrap();
         }
 
         if let Some(command) = wait_for_response(&mut udp_socket, &mut buffer) {
-            if let BootloaderNetworkCommand::Response { command: _, success } = command {
+            if let BootloaderNetworkCommand::Response {
+                command: _,
+                success,
+            } = command
+            {
                 if success {
                     println!("Done!");
                 } else {
@@ -159,7 +187,12 @@ fn main() {
 
         let calc_buffer_offset = calc_bootloader_command_size(&command, &mut buffer) + 1;
 
-        if let BootloaderNetworkCommand::ProgramFlash { flash_offset: _, buffer_offset, buffer_length: _ } = &mut command {
+        if let BootloaderNetworkCommand::ProgramFlash {
+            flash_offset: _,
+            buffer_offset,
+            buffer_length: _,
+        } = &mut command
+        {
             *buffer_offset = calc_buffer_offset as u16;
         } else {
             panic!("Command is not ProgramFlash. WTF");
@@ -175,11 +208,20 @@ fn main() {
                 buffer[calc_buffer_offset + index] = 0xFF;
             }
 
-            udp_socket.send_to(&buffer[..(size + 1 + PROGRAM_CHUNK_LENGTH)], mcu_blt_address.clone()).unwrap();
+            udp_socket
+                .send_to(
+                    &buffer[..(size + 1 + PROGRAM_CHUNK_LENGTH)],
+                    mcu_blt_address.clone(),
+                )
+                .unwrap();
         }
 
         if let Some(command) = wait_for_response(&mut udp_socket, &mut buffer) {
-            if let BootloaderNetworkCommand::Response { command: _, success } = command {
+            if let BootloaderNetworkCommand::Response {
+                command: _,
+                success,
+            } = command
+            {
                 if !success {
                     println!("Failed!");
                     return;
@@ -213,13 +255,19 @@ fn main() {
     };
 
     if let Some(size) = command.serialize(&mut buffer) {
-        udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
+        udp_socket
+            .send_to(&buffer[..size], mcu_blt_address.clone())
+            .unwrap();
     } else {
         panic!("Failed to serialize command");
     }
 
     if let Some(command) = wait_for_response(&mut udp_socket, &mut buffer) {
-        if let BootloaderNetworkCommand::Response { command: _, success } = command {
+        if let BootloaderNetworkCommand::Response {
+            command: _,
+            success,
+        } = command
+        {
             if !success {
                 println!("Failed!");
                 return;
@@ -232,7 +280,9 @@ fn main() {
     let command = BootloaderNetworkCommand::BootIntoApplication;
 
     if let Some(size) = command.serialize(&mut buffer) {
-        udp_socket.send_to(&buffer[..size], mcu_blt_address.clone()).unwrap();
+        udp_socket
+            .send_to(&buffer[..size], mcu_blt_address.clone())
+            .unwrap();
     } else {
         panic!("Failed to serialize command");
     }
@@ -240,12 +290,15 @@ fn main() {
 
 fn load_bootloader_definition(bootloader_definition_file: &str) -> BootloaderDefinition {
     // Read file into a string
-    let mut file = File::open(bootloader_definition_file).expect("Unable to open flash definition file");
+    let mut file =
+        File::open(bootloader_definition_file).expect("Unable to open flash definition file");
     let mut contents = String::new();
-    file.read_to_string(&mut contents).expect("Unable to read flash definition file");
+    file.read_to_string(&mut contents)
+        .expect("Unable to read flash definition file");
 
     // Parse the string of data into serde_json::Value.
-    let bootloader_definition: BootloaderDefinition = serde_json::from_str(&contents).expect("Unable to parse flash definition file");
+    let bootloader_definition: BootloaderDefinition =
+        serde_json::from_str(&contents).expect("Unable to parse flash definition file");
 
     bootloader_definition
 }
@@ -253,12 +306,16 @@ fn load_bootloader_definition(bootloader_definition_file: &str) -> BootloaderDef
 fn load_image_binary(image_binary_file: &str) -> Vec<u8> {
     let mut file = File::open(image_binary_file).expect("Unable to open image binary file");
     let mut contents = Vec::new();
-    file.read_to_end(&mut contents).expect("Unable to read image binary file");
+    file.read_to_end(&mut contents)
+        .expect("Unable to read image binary file");
 
     contents
 }
 
-fn check_for_response(udp_socket: &mut UdpSocket, buffer: &mut [u8]) -> Option<BootloaderNetworkCommand> {
+fn check_for_response(
+    udp_socket: &mut UdpSocket,
+    buffer: &mut [u8],
+) -> Option<BootloaderNetworkCommand> {
     if let Ok(size) = udp_socket.recv(buffer) {
         let ret = BootloaderNetworkCommand::deserialize(buffer);
 
@@ -272,7 +329,10 @@ fn check_for_response(udp_socket: &mut UdpSocket, buffer: &mut [u8]) -> Option<B
     None
 }
 
-fn wait_for_response(udp_socket: &mut UdpSocket, buffer: &mut [u8; WORKING_BUFFER_SIZE]) -> Option<BootloaderNetworkCommand> {
+fn wait_for_response(
+    udp_socket: &mut UdpSocket,
+    buffer: &mut [u8; WORKING_BUFFER_SIZE],
+) -> Option<BootloaderNetworkCommand> {
     loop {
         if let Some(command) = check_for_response(udp_socket, buffer) {
             return Some(command);

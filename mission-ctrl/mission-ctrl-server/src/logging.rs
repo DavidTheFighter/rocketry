@@ -1,8 +1,11 @@
-use std::{sync::Arc, time::Duration, io::Write};
+use std::{io::Write, sync::Arc, time::Duration};
 
 use shared::comms_hal::Packet;
 
-use crate::{observer::{ObserverHandler, ObserverEvent}, process_is_running};
+use crate::{
+    observer::{ObserverEvent, ObserverHandler},
+    process_is_running,
+};
 
 const ENABLED: bool = false;
 
@@ -16,7 +19,10 @@ struct LoggingThread {
 
 impl LoggingThread {
     pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
-        let filename = format!("{}-sensor-data.txt", chrono::Local::now().format("%Y-%m-%d-%H-%M-%S"));
+        let filename = format!(
+            "{}-sensor-data.txt",
+            chrono::Local::now().format("%Y-%m-%d-%H-%M-%S")
+        );
         Self {
             observer_handler,
             sensor_data_file: std::fs::File::create(filename).unwrap(),
@@ -37,7 +43,11 @@ impl LoggingThread {
             }
 
             if self.time_since_last_print.elapsed().as_secs() >= 1 {
-                println!("logging_thread: Logged {} bytes ({} MiB)", self.bytes_logged, (self.bytes_logged as f32) / 1024.0 / 1024.0);
+                println!(
+                    "logging_thread: Logged {} bytes ({} MiB)",
+                    self.bytes_logged,
+                    (self.bytes_logged as f32) / 1024.0 / 1024.0
+                );
                 self.time_since_last_print = std::time::Instant::now();
             }
 
@@ -58,7 +68,12 @@ impl LoggingThread {
         let timeout = Duration::from_millis(1);
 
         if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
-            if let ObserverEvent::PacketReceived { address: _, ip: _, packet } = event {
+            if let ObserverEvent::PacketReceived {
+                address: _,
+                ip: _,
+                packet,
+            } = event
+            {
                 return Some(packet);
             }
         }

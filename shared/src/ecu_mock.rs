@@ -8,6 +8,7 @@ use crate::{
 use strum::EnumCount;
 
 pub struct EcuDriverMock {
+    start_timestamp: f64,
     sensor_configs: [SensorConfig; EcuSensor::COUNT],
     sparking: bool,
     solenoid_valves: [bool; EcuSolenoidValve::COUNT],
@@ -15,6 +16,10 @@ pub struct EcuDriverMock {
 }
 
 impl EcuDriver for EcuDriverMock {
+    fn timestamp(&self) -> f32 {
+        (get_timestamp() - self.start_timestamp) as f32
+    }
+
     fn set_solenoid_valve(&mut self, valve: EcuSolenoidValve, state: bool) {
         self.solenoid_valves[valve as usize] = state;
     }
@@ -43,14 +48,6 @@ impl EcuDriver for EcuDriverMock {
         todo!()
     }
 
-    fn collect_daq_sensor_data(&mut self, sensor: EcuSensor) -> (f32, f32, f32) {
-        let data = self.sensors[sensor as usize];
-
-        self.sensors[sensor as usize] = (data.0, data.0, data.0);
-
-        data
-    }
-
     fn configure_sensor(&mut self, sensor: EcuSensor, config: SensorConfig) {
         self.sensor_configs[sensor as usize] = config;
     }
@@ -61,8 +58,9 @@ impl EcuDriver for EcuDriverMock {
 }
 
 impl EcuDriverMock {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
+            start_timestamp: get_timestamp(),
             sensor_configs: [SensorConfig::default(); EcuSensor::COUNT],
             sparking: false,
             solenoid_valves: [false; EcuSolenoidValve::COUNT],
@@ -83,4 +81,16 @@ impl EcuDriverMock {
     pub fn get_daq_sensor_collection(&self, sensor: EcuSensor) -> (f32, f32, f32) {
         self.sensors[sensor as usize]
     }
+}
+
+#[cfg(test)]
+fn get_timestamp() -> f64 {
+    let now = std::time::SystemTime::now();
+    let duration = now.duration_since(std::time::UNIX_EPOCH).unwrap();
+    duration.as_secs_f64()
+}
+
+#[cfg(not(test))]
+fn get_timestamp() -> f64 {
+    panic!("ecu_mock.rs: get_timestamp() should only be called in tests")
 }

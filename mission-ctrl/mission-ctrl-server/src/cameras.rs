@@ -1,12 +1,23 @@
 mod connection;
 mod webrtc;
 
-use std::{sync::{Arc, RwLock}, time::Duration, net::Ipv4Addr};
+use std::{
+    net::Ipv4Addr,
+    sync::{Arc, RwLock},
+    time::Duration,
+};
 
-use shared::comms_hal::{Packet, NetworkAddress};
-use rocket::{State, serde::{json::Json, Serialize, Deserialize}};
+use rocket::{
+    serde::{json::Json, Deserialize, Serialize},
+    State,
+};
+use shared::comms_hal::{NetworkAddress, Packet};
 
-use crate::{observer::{ObserverHandler, ObserverEvent, ObserverResponse}, process_is_running, commands::CommandResponse};
+use crate::{
+    commands::CommandResponse,
+    observer::{ObserverEvent, ObserverHandler, ObserverResponse},
+    process_is_running,
+};
 
 use self::{connection::CameraConnection, webrtc::WebRtcStream};
 
@@ -38,12 +49,19 @@ impl CameraStreaming {
         while process_is_running() {
             if let Some((event_id, event)) = self.get_event() {
                 match event {
-                    ObserverEvent::PacketReceived { address, ip, packet } => {
+                    ObserverEvent::PacketReceived {
+                        address,
+                        ip,
+                        packet,
+                    } => {
                         self.handle_packet(packet, address, ip);
-                    },
-                    ObserverEvent::SetupBrowserStream { camera_address, browser_session } => {
+                    }
+                    ObserverEvent::SetupBrowserStream {
+                        camera_address,
+                        browser_session,
+                    } => {
                         self.setup_browser_stream(event_id, camera_address, browser_session);
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -61,14 +79,17 @@ impl CameraStreaming {
             });
 
             // Drop any browser streams that have timed out
-            self.browser_streams.write().expect("browser_streams write lock").retain_mut(|stream| {
-                if stream.stream_closed() {
-                    println!("Dropping browser stream: {:?}... done", stream.name());
-                    return false;
-                }
+            self.browser_streams
+                .write()
+                .expect("browser_streams write lock")
+                .retain_mut(|stream| {
+                    if stream.stream_closed() {
+                        println!("Dropping browser stream: {:?}... done", stream.name());
+                        return false;
+                    }
 
-                return true;
-            });
+                    return true;
+                });
         }
 
         for connection in &mut self.camera_connections {
@@ -77,7 +98,11 @@ impl CameraStreaming {
             println!(" done");
         }
 
-        for stream in &mut *self.browser_streams.write().expect("browser_streams write lock") {
+        for stream in &mut *self
+            .browser_streams
+            .write()
+            .expect("browser_streams write lock")
+        {
             println!("Dropping browser stream: {:?}... done", stream.name());
         }
     }
@@ -102,7 +127,10 @@ impl CameraStreaming {
         match WebRtcStream::new(camera_address, browser_session) {
             Ok(stream) => {
                 let session_desc = stream.get_session_desc();
-                self.browser_streams.write().expect("browser_streams write lock").push(stream);
+                self.browser_streams
+                    .write()
+                    .expect("browser_streams write lock")
+                    .push(stream);
 
                 self.observer_handler.notify(ObserverEvent::EventResponse(
                     event_id,
@@ -110,7 +138,7 @@ impl CameraStreaming {
                         stream_session: session_desc,
                     }),
                 ));
-            },
+            }
             Err(err) => {
                 self.observer_handler.notify(ObserverEvent::EventResponse(
                     event_id,
@@ -150,18 +178,19 @@ impl CameraStreaming {
         match camera_connection {
             Some(connection) => {
                 self.camera_connections.push(connection);
-            },
+            }
             None => {
-                println!("Failed to start transcoding process for camera: {:?}", address);
+                println!(
+                    "Failed to start transcoding process for camera: {:?}",
+                    address
+                );
                 return;
             }
         }
 
-        println!("New camera connection: {:?} @ {:?}:{}, transcoding on {}",
-            address,
-            connection_ip,
-            connection_port,
-            transcode_port,
+        println!(
+            "New camera connection: {:?} @ {:?}:{}, transcoding on {}",
+            address, connection_ip, connection_port, transcode_port,
         );
 
         self.connection_port_counter += 1;
@@ -203,26 +232,23 @@ pub fn browser_stream(
     let response = observer_handler.get_response(event_id, timeout);
 
     match response {
-        Some(result) => {
-            match result {
-                Ok(response) => {
-                    if let ObserverResponse::BrowserStream { stream_session } = response {
-                        Json(CommandResponse::new(
-                            stream_session,
-                            true,
-                        ))
-                    } else {
-                        Json(CommandResponse::new(
-                            String::from(format!("Failed to start browser stream, got wrong response")),
-                            false,
-                        ))
-                    }
-                },
-                Err(err) => Json(CommandResponse::new(
-                    String::from(format!("Failed to start browser stream, got {:?}", err)),
-                    false,
-                )),
+        Some(result) => match result {
+            Ok(response) => {
+                if let ObserverResponse::BrowserStream { stream_session } = response {
+                    Json(CommandResponse::new(stream_session, true))
+                } else {
+                    Json(CommandResponse::new(
+                        String::from(format!(
+                            "Failed to start browser stream, got wrong response"
+                        )),
+                        false,
+                    ))
+                }
             }
+            Err(err) => Json(CommandResponse::new(
+                String::from(format!("Failed to start browser stream, got {:?}", err)),
+                false,
+            )),
         },
         None => Json(CommandResponse::new(
             String::from(format!("Failed to start browser stream, got timeout")),

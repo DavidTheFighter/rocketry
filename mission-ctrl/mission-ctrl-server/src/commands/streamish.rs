@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use shared::comms_hal::{Packet, NetworkAddress};
-use rocket::{
-    serde::json::Json,
-    State,
+use rocket::{serde::json::Json, State};
+use shared::{
+    comms_hal::{NetworkAddress, Packet},
+    streamish_hal::StreamishCommand,
 };
 
-use crate::{observer::ObserverHandler, commands::CommandResponse};
+use crate::{commands::CommandResponse, observer::ObserverHandler};
 
 use super::send_command;
 
@@ -15,7 +15,7 @@ pub fn start_stream(observer_handler: &State<Arc<ObserverHandler>>) -> Json<Comm
     send_command(
         observer_handler,
         NetworkAddress::Camera(0),
-        Packet::StartCameraStream { port: 25570 },
+        Packet::StreamishCommand(StreamishCommand::StartCameraStream { port: 25570 }),
     )
 }
 
@@ -24,6 +24,6 @@ pub fn stop_stream(observer_handler: &State<Arc<ObserverHandler>>) -> Json<Comma
     send_command(
         observer_handler,
         NetworkAddress::Camera(0),
-        Packet::StopCameraStream,
+        Packet::StreamishCommand(StreamishCommand::StopCameraStream),
     )
 }

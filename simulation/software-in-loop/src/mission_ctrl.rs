@@ -1,10 +1,15 @@
+use std::{cell::RefCell, rc::Rc};
 
-use std::{rc::Rc, cell::RefCell};
-
-use big_brother::{interface::{mock_interface::MockInterface, BigBrotherInterface}, big_brother::MAX_INTERFACE_COUNT};
+use big_brother::{
+    big_brother::MAX_INTERFACE_COUNT,
+    interface::{mock_interface::MockInterface, BigBrotherInterface},
+};
 use flight_controller_rs::FcuBigBrother;
 use pyo3::{prelude::*, types::PyList};
-use shared::{comms_hal::{NetworkAddress, Packet}, fcu_hal};
+use shared::{
+    comms_hal::{NetworkAddress, Packet},
+    fcu_hal,
+};
 
 use crate::network::SilNetworkIface;
 
@@ -21,7 +26,8 @@ impl MissionControl {
     #[new]
     pub fn new(network_ifaces: &PyList) -> Self {
         let mut big_brother_ifaces = [None, None];
-        let mut big_brother_ifaces_ref: [Option<&'static mut dyn BigBrotherInterface>; MAX_INTERFACE_COUNT] = [None, None];
+        let mut big_brother_ifaces_ref: [Option<&'static mut dyn BigBrotherInterface>;
+            MAX_INTERFACE_COUNT] = [None, None];
 
         for (i, sil_iface) in network_ifaces.iter().enumerate().take(2) {
             let mut sil_iface = sil_iface
@@ -77,12 +83,30 @@ impl MissionControl {
     }
 
     pub fn send_arm_vehicle_packet(&mut self) {
-        let packet = Packet::ArmVehicle { magic_number: fcu_hal::ARMING_MAGIC_NUMBER };
-        self._big_brother.borrow_mut().send_packet(&packet, NetworkAddress::FlightController).unwrap();
+        let command = fcu_hal::VehicleCommand::Arm {
+            magic_number: fcu_hal::ARMING_MAGIC_NUMBER,
+        };
+        let packet = Packet::VehicleCommand(command);
+        self.send_packet(&packet, NetworkAddress::FlightController);
     }
 
     pub fn send_ignite_solid_motor_packet(&mut self) {
-        let packet = Packet::IgniteSolidMotor { magic_number: fcu_hal::IGNITION_MAGIC_NUMBER };
-        self._big_brother.borrow_mut().send_packet(&packet, NetworkAddress::FlightController).unwrap();
+        let command = fcu_hal::VehicleCommand::IgniteSolidMotor {
+            magic_number: fcu_hal::IGNITION_MAGIC_NUMBER,
+        };
+        let packet = Packet::VehicleCommand(command);
+        self.send_packet(&packet, NetworkAddress::FlightController);
+    }
+}
+
+impl MissionControl {
+    fn send_packet(&mut self, packet: &Packet, destination: NetworkAddress) {
+        if let Err(e) = self
+            ._big_brother
+            .borrow_mut()
+            .send_packet(&packet, destination)
+        {
+            eprintln!("mission_ctrl.rs: Failed to send packet: {:?}", e);
+        }
     }
 }

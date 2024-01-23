@@ -1,6 +1,9 @@
-use serde::Serialize;
-use shared::{fcu_hal::{FcuConfig, FcuSensorData}, GRAVITY};
 use nalgebra::{UnitQuaternion, Vector3};
+use serde::Serialize;
+use shared::{
+    fcu_hal::{FcuConfig, FcuSensorData},
+    GRAVITY,
+};
 
 use shared::standard_atmosphere::convert_pressure_to_altitude;
 
@@ -87,10 +90,7 @@ impl StateVector {
 
                 let mut acceleration = acceleration.into();
                 acceleration += self.sensor_calibration.accelerometer;
-                acceleration = self
-                    .kalman
-                    .orientation
-                    .transform_vector(&acceleration);
+                acceleration = self.kalman.orientation.transform_vector(&acceleration);
 
                 if self.landed {
                     acceleration.y += GRAVITY;
@@ -132,9 +132,11 @@ impl StateVector {
                 self.sensor_data.barometer_temperature = temperature;
                 self.sensor_data.barometer_raw = raw_data;
 
-                self.sensor_data.barometer_altitude = convert_pressure_to_altitude(pressure, temperature);
+                self.sensor_data.barometer_altitude =
+                    convert_pressure_to_altitude(pressure, temperature);
 
-                let altitude = self.sensor_data.barometer_altitude + self.sensor_calibration.barometeric_altitude;
+                let altitude = self.sensor_data.barometer_altitude
+                    + self.sensor_calibration.barometeric_altitude;
 
                 self.kalman.update_barometric_pressure(altitude);
             }

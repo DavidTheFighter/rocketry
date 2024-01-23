@@ -1,16 +1,20 @@
 use std::sync::{Arc, Mutex};
 
-use big_brother::{BigBrother, big_brother::{Broadcastable, MAX_INTERFACE_COUNT, BigBrotherError}, interface::{mock_topology::{MockPhysicalNet, MockPhysicalInterface}, mock_interface::MockInterface, BigBrotherInterface}};
-use serde::{Serialize, Deserialize};
+use big_brother::{
+    big_brother::{BigBrotherError, Broadcastable, MAX_INTERFACE_COUNT},
+    interface::{
+        mock_interface::MockInterface,
+        mock_topology::{MockPhysicalInterface, MockPhysicalNet},
+        BigBrotherInterface,
+    },
+    BigBrother,
+};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TestPacket {
     Heartbeat,
-    SomeData {
-        a: u32,
-        b: u32,
-        c: bool,
-    }
+    SomeData { a: u32, b: u32, c: bool },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -61,7 +65,9 @@ fn broadcast() {
         };
 
         let bbi = (i as usize) % bbs.len();
-        bbs[bbi].send_packet(&packet, TestNetworkAddress::Broadcast).unwrap();
+        bbs[bbi]
+            .send_packet(&packet, TestNetworkAddress::Broadcast)
+            .unwrap();
 
         for j in 0..bbs.len() {
             let (recv_packet, remote) = bbs[j].recv_packet().unwrap().unwrap();
@@ -105,7 +111,9 @@ fn bb_many_bb_routing() {
             dest_index = (rand_u32() as usize) % bbs.len();
         }
 
-        bbs[sender_index].send_packet(&packet, TEST_ADDRESSES[dest_index]).unwrap();
+        bbs[sender_index]
+            .send_packet(&packet, TEST_ADDRESSES[dest_index])
+            .unwrap();
 
         let (recv_packet, remote) = bbs[dest_index].recv_packet().unwrap().unwrap();
         assert_eq!(recv_packet, packet);
@@ -133,10 +141,22 @@ fn bb_no_recv_incorrect_destination() {
         c: true,
     };
 
-    assert!(matches!(bb0.send_packet(&packet, TestNetworkAddress::C), Err(BigBrotherError::UnknownNetworkAddress)));
-    assert!(matches!(bb1.send_packet(&packet, TestNetworkAddress::C), Err(BigBrotherError::UnknownNetworkAddress)));
-    assert!(matches!(bb1.send_packet(&packet, TestNetworkAddress::D), Err(BigBrotherError::UnknownNetworkAddress)));
-    assert!(matches!(bb1.send_packet(&packet, TestNetworkAddress::D), Err(BigBrotherError::UnknownNetworkAddress)));
+    assert!(matches!(
+        bb0.send_packet(&packet, TestNetworkAddress::C),
+        Err(BigBrotherError::UnknownNetworkAddress)
+    ));
+    assert!(matches!(
+        bb1.send_packet(&packet, TestNetworkAddress::C),
+        Err(BigBrotherError::UnknownNetworkAddress)
+    ));
+    assert!(matches!(
+        bb1.send_packet(&packet, TestNetworkAddress::D),
+        Err(BigBrotherError::UnknownNetworkAddress)
+    ));
+    assert!(matches!(
+        bb1.send_packet(&packet, TestNetworkAddress::D),
+        Err(BigBrotherError::UnknownNetworkAddress)
+    ));
 
     assert_empty_recv(&mut [bb0, bb1]);
 }
@@ -164,7 +184,10 @@ fn bb_multi_network() {
 
     let bb0 = fixture_bb([Some(&mut iface0), None], TestNetworkAddress::A);
     let bb1 = fixture_bb([Some(&mut iface1), None], TestNetworkAddress::B);
-    let bb_bridge = fixture_bb([Some(&mut iface_bridge0), Some(&mut iface_bridge1)], TestNetworkAddress::C);
+    let bb_bridge = fixture_bb(
+        [Some(&mut iface_bridge0), Some(&mut iface_bridge1)],
+        TestNetworkAddress::C,
+    );
     let mut bbs = [bb0, bb1, bb_bridge];
 
     bbs[0].poll_1ms(0);
@@ -239,7 +262,10 @@ fn simple_two_network_forwarding() {
     // A <-> C <-> B
     let bb0 = fixture_bb([Some(&mut iface0), None], TestNetworkAddress::A);
     let bb1 = fixture_bb([Some(&mut iface1), None], TestNetworkAddress::B);
-    let bb_bridge = fixture_bb([Some(&mut iface_bridge0), Some(&mut iface_bridge1)], TestNetworkAddress::C);
+    let bb_bridge = fixture_bb(
+        [Some(&mut iface_bridge0), Some(&mut iface_bridge1)],
+        TestNetworkAddress::C,
+    );
     let mut bbs = [bb0, bb1, bb_bridge];
 
     // println!("Recving bbs");
@@ -273,7 +299,9 @@ fn simple_two_network_forwarding() {
 
     // println!("Testing broadcast forwarding");
 
-    bbs[1].send_packet(&packet, TestNetworkAddress::Broadcast).unwrap();
+    bbs[1]
+        .send_packet(&packet, TestNetworkAddress::Broadcast)
+        .unwrap();
 
     // Test loopback
     let (recv_packet, remote) = bbs[1].recv_packet().unwrap().unwrap();
@@ -338,7 +366,9 @@ fn simple_local_forwarding() {
 
     // Test a packet that should be forwarded down
     // println!("Testing forwarding down");
-    bb_chained.send_packet(&packet, TestNetworkAddress::A).unwrap();
+    bb_chained
+        .send_packet(&packet, TestNetworkAddress::A)
+        .unwrap();
     assert!(bb_host.recv_packet().unwrap().is_none()); // Runs forwarding on the host bb
     let (recv_packet, remote) = bb_sep.recv_packet().unwrap().unwrap();
     assert_eq!(recv_packet, packet);
@@ -355,13 +385,17 @@ fn simple_local_forwarding() {
     assert_empty_recv_slice(&mut [&mut bb_sep, &mut bb_host, &mut bb_chained]);
 }
 
-fn assert_empty_recv<'a, const N: usize>(bbs: &mut [BigBrother<'a, N, TestPacket, TestNetworkAddress>]) {
+fn assert_empty_recv<'a, const N: usize>(
+    bbs: &mut [BigBrother<'a, N, TestPacket, TestNetworkAddress>],
+) {
     for bb in bbs {
         assert!(bb.recv_packet().unwrap().is_none())
     }
 }
 
-fn assert_empty_recv_slice<'a, const N: usize>(bbs: &mut [&mut BigBrother<'a, N, TestPacket, TestNetworkAddress>]) {
+fn assert_empty_recv_slice<'a, const N: usize>(
+    bbs: &mut [&mut BigBrother<'a, N, TestPacket, TestNetworkAddress>],
+) {
     for bb in bbs {
         assert!(bb.recv_packet().unwrap().is_none())
     }

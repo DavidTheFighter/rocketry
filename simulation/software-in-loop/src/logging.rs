@@ -1,10 +1,24 @@
-use big_brother::{big_brother::BigBrotherPacket, interface::{mock_topology::MockPhysicalNet, mock_interface::MockPayload}, serdes::{PacketMetadata, self}};
-use shared::{fcu_hal::{FcuTelemetryFrame, FcuDebugInfo, FcuDevStatsFrame}, comms_hal::{Packet, NetworkAddress}};
-use pyo3::{prelude::*, types::{PyDict, PyList}};
-use serde::{Serialize, Deserialize};
-use std::{io::Write, thread, sync::{Arc, Mutex}};
+use big_brother::{
+    big_brother::BigBrotherPacket,
+    interface::{mock_interface::MockPayload, mock_topology::MockPhysicalNet},
+    serdes::{self, PacketMetadata},
+};
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyList},
+};
+use serde::{Deserialize, Serialize};
+use shared::{
+    comms_hal::{NetworkAddress, Packet},
+    fcu_hal::{FcuDebugInfo, FcuDevStatsFrame, FcuTelemetryFrame},
+};
+use std::{
+    io::Write,
+    sync::{Arc, Mutex},
+    thread,
+};
 
-use crate::{fcu::FcuSil, ser::dict_from_obj, network::SilNetwork, dynamics::SilVehicleDynamics};
+use crate::{dynamics::SilVehicleDynamics, fcu::FcuSil, network::SilNetwork, ser::dict_from_obj};
 
 type Scalar = f64;
 
@@ -78,7 +92,8 @@ impl Logger {
 
             for payload in network_payloads {
                 let metadata = serdes::deserialize_metadata(&payload.data.as_slice()).unwrap();
-                let bb_packet: BigBrotherPacket<Packet> = serdes::deserialize_packet(&payload.data.as_slice()).unwrap();
+                let bb_packet: BigBrotherPacket<Packet> =
+                    serdes::deserialize_packet(&payload.data.as_slice()).unwrap();
 
                 if let BigBrotherPacket::UserPacket(packet) = bb_packet {
                     packets.push((metadata, packet));
@@ -101,17 +116,21 @@ impl Logger {
         let debug_info_callback = |debug_info_variant| {
             debug_infos.push(debug_info_variant);
         };
-        fcu.fcu.generate_debug_info_all_variants(debug_info_callback);
+        fcu.fcu
+            .generate_debug_info_all_variants(debug_info_callback);
         self.fcu_debug_info.push(debug_infos);
     }
 
     pub fn log_dynamics_data(&mut self, dynamics: &mut SilVehicleDynamics) {
         self.position.push(dynamics.get_position().unwrap());
         self.velocity.push(dynamics.get_velocity().unwrap());
-        self.acceleration.push(dynamics.get_acceleration_world_frame().unwrap());
+        self.acceleration
+            .push(dynamics.get_acceleration_world_frame().unwrap());
         self.orientation.push(dynamics.get_orientation().unwrap());
-        self.angular_velocity.push(dynamics.get_angular_velocity().unwrap());
-        self.angular_acceleration.push(dynamics.get_angular_acceleration().unwrap());
+        self.angular_velocity
+            .push(dynamics.get_angular_velocity().unwrap());
+        self.angular_acceleration
+            .push(dynamics.get_angular_acceleration().unwrap());
     }
 
     pub fn grab_timestep_frame(&self, py: Python, i: usize) -> PyResult<PyObject> {

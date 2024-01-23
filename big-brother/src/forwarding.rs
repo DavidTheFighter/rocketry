@@ -1,4 +1,7 @@
-use crate::{BigBrother, big_brother::{Broadcastable, BigBrotherError, BigBrotherEndpoint, UDP_PORT}};
+use crate::{
+    big_brother::{BigBrotherEndpoint, BigBrotherError, Broadcastable, UDP_PORT},
+    BigBrother,
+};
 
 impl<'a, 'b, const NETWORK_MAP_SIZE: usize, P, A> BigBrother<'a, NETWORK_MAP_SIZE, P, A>
 where
@@ -29,8 +32,10 @@ where
                     };
 
                     // println!("BForwarding from i{}@{:?}:{} to i{}@{:?}:{}", source_interface_index, remote.ip, remote.port, interface_index, destination_endpoint.ip, destination_endpoint.port);
-                    interface
-                        .send_udp(destination_endpoint.clone(), &mut self.working_buffer[..buffer_size])?;
+                    interface.send_udp(
+                        destination_endpoint.clone(),
+                        &mut self.working_buffer[..buffer_size],
+                    )?;
                 }
             }
 
@@ -65,7 +70,10 @@ where
                 self.interfaces[network_mapping.interface_index as usize].as_mut()
             {
                 // println!("Forwarding(i{}->i{}) from i{}@{:?}:{} to {:?}:{}", source_interface_index, network_mapping.interface_index, source_interface_index, remote.ip, remote.port, destination_endpoint.ip, destination_endpoint.port);
-                interface.send_udp(destination_endpoint, &mut self.working_buffer[..buffer_size])?;
+                interface.send_udp(
+                    destination_endpoint,
+                    &mut self.working_buffer[..buffer_size],
+                )?;
             } else {
                 return Err(BigBrotherError::SendUnnaddressable);
             }
@@ -76,6 +84,4 @@ where
 }
 
 #[cfg(test)]
-mod tests {
-    
-}
+mod tests {}

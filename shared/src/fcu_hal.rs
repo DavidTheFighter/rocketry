@@ -3,9 +3,9 @@ use core::any::Any;
 use mint::{Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
-use strum_macros::{EnumCount as EnumCountMacro, EnumIter, EnumDiscriminants, EnumString};
+use strum_macros::{EnumCount as EnumCountMacro, EnumDiscriminants, EnumIter, EnumString};
 
-use crate::{comms_hal::{NetworkAddress, Packet}, alerts::AlertBitmaskType};
+use crate::alerts::AlertBitmaskType;
 
 pub const ARMING_MAGIC_NUMBER: u64 = 0x12345678_042069AB;
 pub const IGNITION_MAGIC_NUMBER: u64 = 0x12345678_042069AC;
@@ -23,14 +23,38 @@ pub enum VehicleState {
     Landed,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter, EnumString, EnumDiscriminants)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum VehicleCommand {
+    Configure(FcuConfig),
+    StartCalibration {
+        zero: bool,
+    },
+    Arm {
+        magic_number: u64, // ARMING_MAGIC_NUMBER
+    },
+    IgniteSolidMotor {
+        magic_number: u64, // IGNITION_MAGIC_NUMBER
+    },
+}
+
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    EnumCountMacro,
+    EnumIter,
+    EnumString,
+    EnumDiscriminants,
+)]
 #[strum_discriminants(name(OutputChannelIndex))]
 #[strum_discriminants(derive(EnumIter))]
 pub enum OutputChannel {
     SolidMotorIgniter,
-    Extra {
-        index: u8,
-    },
+    Extra { index: u8 },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]

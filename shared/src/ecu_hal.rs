@@ -1,13 +1,32 @@
 use core::any::Any;
 
 use serde::{Deserialize, Serialize};
-use strum::EnumCount;
-use strum_macros::{EnumCount as EnumCountMacro, EnumIter};
+use strum_macros::{EnumCount as EnumCountMacro, EnumDiscriminants, EnumIter};
 
 use crate::{
     comms_hal::{NetworkAddress, Packet},
     SensorConfig,
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
+pub enum EngineState {
+    Idle,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
+pub enum IgniterState {
+    Idle,
+    Startup,
+    Firing,
+    Shutdown,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
+pub enum TankState {
+    Idle,
+    Depressurized,
+    Pressurized,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
 pub enum EcuSensor {
@@ -19,63 +38,63 @@ pub enum EcuSensor {
     IgniterThroatTemp = 5,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum EcuCommand {
+    SetSolenoidValve {
+        valve: EcuSolenoidValve,
+        state: bool,
+    },
+    SetSparking(bool),
+    FireIgniter,
+    SetFuelTank(TankState),
+    SetOxidizerTank(TankState),
+    ConfigureSensor {
+        sensor: EcuSensor,
+        config: SensorConfig,
+    },
+    ConfigureEcu(EcuConfig),
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
 pub enum EcuSolenoidValve {
-    IgniterFuelMain = 0,
-    IgniterGOxMain = 1,
-    FuelPress = 2,
-    FuelVent = 3,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
-pub enum IgniterState {
-    Idle = 0,
-    Startup = 1,
-    Firing = 2,
-    Shutdown = 3,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
-pub enum FuelTankState {
-    Idle = 0,
-    Depressurized = 1,
-    Pressurized = 2,
+    IgniterFuelMain,
+    IgniterGOxMain,
+    FuelPress,
+    FuelVent,
+    OxidizerPress,
+    OxidizerVent,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EcuTelemetryFrame {
     pub timestamp: u64,
+    pub engine_state: EngineState,
     pub igniter_state: IgniterState,
-    pub fuel_tank_state: FuelTankState,
-    pub sensors: [f32; EcuSensor::COUNT],
-    pub solenoid_valves: [bool; EcuSolenoidValve::COUNT],
-    pub sparking: bool,
-    pub cpu_utilization: u32,
+    pub fuel_tank_state: TankState,
+    pub oxidizer_tank_state: TankState,
 }
 
-impl EcuTelemetryFrame {
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumDiscriminants)]
+#[strum_discriminants(name(FcuDebugInfoVariant))]
+#[strum_discriminants(derive(EnumIter))]
+pub enum EcuDebugInfo {
+    IgniterInfo {
+        timestamp: u64,
+        igniter_state: IgniterState,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EcuConfig {
+    pub igniter_config: IgniterConfig,
+    pub telemetry_rate_s: f32,
+}
+
+impl EcuConfig {
     pub const fn default() -> Self {
         Self {
-            timestamp: 0,
-            igniter_state: IgniterState::Idle,
-            fuel_tank_state: FuelTankState::Idle,
-            sensors: [0_f32; EcuSensor::COUNT],
-            solenoid_valves: [false; EcuSolenoidValve::COUNT],
-            sparking: false,
-            cpu_utilization: 0,
-        }
-    }
-}
-
-#[derive(Debug, Copy, PartialEq, Clone, Serialize, Deserialize)]
-pub struct EcuDAQFrame {
-    pub sensor_values: [u16; EcuSensor::COUNT],
-}
-
-impl EcuDAQFrame {
-    pub const fn default() -> Self {
-        Self {
-            sensor_values: [0_u16; EcuSensor::COUNT],
+            igniter_config: IgniterConfig::default(),
+            telemetry_rate_s: 0.02,
         }
     }
 }
@@ -108,6 +127,8 @@ impl IgniterConfig {
 }
 
 pub trait EcuDriver {
+    fn timestamp(&self) -> f32;
+
     fn set_solenoid_valve(&mut self, valve: EcuSolenoidValve, state: bool);
     fn set_sparking(&mut self, state: bool);
 
@@ -120,14 +141,6 @@ pub trait EcuDriver {
     fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
 
     fn generate_telemetry_frame(&self) -> EcuTelemetryFrame;
-
-    /// Collects the data the DAQ has measured since the last update loop. This is meant
-    /// so that the DAQ can run independently of the ECU loop. Each update resets the stored
-    /// min/max values for this particular sensor so the DAQ can update them until the next ECU loop.
-    ///
-    /// Returns the current sensor value, minimum value since the last call, and the maximum
-    /// value since the last call.
-    fn collect_daq_sensor_data(&mut self, sensor: EcuSensor) -> (f32, f32, f32);
 
     fn configure_sensor(&mut self, sensor: EcuSensor, config: SensorConfig);
 

@@ -1,6 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use big_brother::interface::{mock_topology::{MockPhysicalNet, MockPhysicalInterface}, mock_interface::MockInterface};
+use big_brother::interface::{
+    mock_interface::MockInterface,
+    mock_topology::{MockPhysicalInterface, MockPhysicalNet},
+};
 use pyo3::{prelude::*, types::PyList};
 
 #[pyclass]
@@ -38,11 +41,7 @@ impl SilNetwork {
             subnet_ip[3] | (!subnet_mask[3] as u8),
         ];
 
-        let mut network = MockPhysicalNet::new(
-            subnet_ip,
-            subnet_mask,
-            broadcast_ip,
-        );
+        let mut network = MockPhysicalNet::new(subnet_ip, subnet_mask, broadcast_ip);
         network.enable_payload_logging();
 
         Self {
@@ -56,7 +55,9 @@ impl SilNetworkPhy {
     #[new]
     pub fn new(network: PyRef<'_, SilNetwork>) -> Self {
         Self {
-            phy: Arc::new(Mutex::new(MockPhysicalInterface::new(network.network.clone()))),
+            phy: Arc::new(Mutex::new(MockPhysicalInterface::new(
+                network.network.clone(),
+            ))),
         }
     }
 }

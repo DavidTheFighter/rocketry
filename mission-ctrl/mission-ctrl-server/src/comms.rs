@@ -3,7 +3,10 @@ use std::sync::Arc;
 use big_brother::{interface::std_interface::StdInterface, BigBrother};
 use shared::comms_hal::{NetworkAddress, Packet};
 
-use crate::{observer::{ObserverHandler, ObserverEvent, ObserverResponse}, process_is_running, timestamp};
+use crate::{
+    observer::{ObserverEvent, ObserverHandler, ObserverResponse},
+    process_is_running, timestamp,
+};
 
 const NETWORK_MAP_SIZE: usize = 128;
 
@@ -35,7 +38,10 @@ impl CommsThread {
         while process_is_running() {
             if let Some((event_id, address, packet)) = self.get_send_packet_event() {
                 if let Err(err) = bb.send_packet(&packet, address) {
-                    eprintln!("comms_thread: Failed to send packet: {:?} ({:?})", err, packet);
+                    eprintln!(
+                        "comms_thread: Failed to send packet: {:?} ({:?})",
+                        err, packet
+                    );
                 }
 
                 self.observer_handler.notify(ObserverEvent::EventResponse(
@@ -48,7 +54,6 @@ impl CommsThread {
                 match bb.recv_packet() {
                     Ok(recv) => {
                         if let Some((packet, remote)) = recv {
-
                             if let Some(ip) = bb.get_network_mapping(remote) {
                                 self.observer_handler.notify(ObserverEvent::PacketReceived {
                                     packet,

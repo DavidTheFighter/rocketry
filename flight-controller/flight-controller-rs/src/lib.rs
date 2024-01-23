@@ -10,25 +10,27 @@ macro_rules! silprintln {
 
 #[cfg(not(any(test, feature = "sil")))]
 macro_rules! silprintln {
-    () => { };
-    ($($arg:tt)*) => { };
+    () => {};
+    ($($arg:tt)*) => {};
 }
 
+pub mod debug_info;
 mod dev_stats;
 pub mod state_vector;
 pub mod vehicle_fsm;
-pub mod debug_info;
 
 use big_brother::BigBrother;
 use dev_stats::DevStatsCollector;
+use mint::Vector3;
 use shared::{
+    alerts::AlertManager,
     comms_hal::{NetworkAddress, Packet},
     fcu_hal::{
-        FcuConfig, FcuDriver, FcuSensorData, FcuTelemetryFrame,
-        PwmChannel, VehicleState, FcuAlertCondition, OutputChannel, FcuDebugInfoVariant,
-    }, alerts::AlertManager, DataPointLogger, COMMS_NETWORK_MAP_SIZE,
+        FcuAlertCondition, FcuConfig, FcuDebugInfoVariant, FcuDriver, FcuSensorData,
+        FcuTelemetryFrame, OutputChannel, PwmChannel, VehicleCommand, VehicleState,
+    },
+    DataPointLogger, COMMS_NETWORK_MAP_SIZE,
 };
-use mint::Vector3;
 use state_vector::StateVector;
 use strum::{EnumCount, IntoEnumIterator};
 
@@ -105,7 +107,9 @@ impl<'a> Fcu<'a> {
             apogee: 0.0,
         };
         fcu.init_vehicle_fsm();
-        let _ = fcu.comms.send_packet(&Packet::DeviceBooted, NetworkAddress::Broadcast);
+        let _ = fcu
+            .comms
+            .send_packet(&Packet::DeviceBooted, NetworkAddress::Broadcast);
 
         fcu
     }
@@ -151,32 +155,26 @@ impl<'a> Fcu<'a> {
             self.time_since_last_heartbeat = 0.0;
         }
 
-        if self.time_since_last_alert_update > ALERT_RATE || self.alert_manager.has_pending_update() {
+        if self.time_since_last_alert_update > ALERT_RATE || self.alert_manager.has_pending_update()
+        {
             let alert_packet = self.alert_manager.get_condition_packet();
-            self.send_packet(
-                NetworkAddress::MissionControl,
-                alert_packet,
-            );
+            self.send_packet(NetworkAddress::MissionControl, alert_packet);
             self.time_since_last_alert_update = 0.0;
         }
 
         if self.debug_info_enabled {
             for variant in FcuDebugInfoVariant::iter() {
                 let variant_data = self.generate_debug_info(variant);
-                self.send_packet(NetworkAddress::MissionControl, Packet::FcuDebugInfo(variant_data));
-            };
+                self.send_packet(
+                    NetworkAddress::MissionControl,
+                    Packet::FcuDebugInfo(variant_data),
+                );
+            }
         }
 
         for (source, packet) in packets {
             // defmt::info!("Received packet from {:?}: {:?}", source, defmt::Debug2Format(packet));
             self.handle_packet(*source, packet);
-        }
-
-        if let Some(frame) = self.dev_stats.pop_stats_frame() {
-            self.send_packet(
-                NetworkAddress::MissionControl,
-                Packet::FcuDevStatsFrame(frame),
-            );
         }
 
         self.update_vehicle_fsm(dt, packets);
@@ -193,20 +191,11 @@ impl<'a> Fcu<'a> {
 
     fn handle_packet(&mut self, source: NetworkAddress, packet: &Packet) {
         match packet {
-            Packet::ConfigureFcu(config) => {
-                self.configure_fcu(config.clone());
-            }
-            Packet::EraseDataLogFlash => {
-                self.driver.erase_flash_chip();
+            Packet::VehicleCommand(command) => {
+                self.handle_command(source, command);
             }
             Packet::EnableDataLogging(state) => {
                 self.data_logger.set_logging_enabled(*state);
-            }
-            Packet::RetrieveDataLogPage(addr) => {
-                self.driver.retrieve_log_flash_page(*addr);
-            }
-            Packet::StartDevStatsFrame => {
-                self.dev_stats.start_collection(self.driver.timestamp());
             }
             Packet::EnableDebugInfo(enable) => {
                 self.debug_info_enabled = *enable;
@@ -215,7 +204,16 @@ impl<'a> Fcu<'a> {
                 if *magic_number == shared::RESET_MAGIC_NUMBER {
                     self.driver.reset_mcu();
                 }
-            },
+            }
+            _ => {}
+        }
+    }
+
+    fn handle_command(&mut self, _source: NetworkAddress, command: &VehicleCommand) {
+        match command {
+            VehicleCommand::Configure(config) => {
+                self.configure_fcu(config.clone());
+            }
             _ => {}
         }
     }
@@ -247,7 +245,10 @@ impl<'a> Fcu<'a> {
         self.state_vector.update_sensor_data(&data);
 
         if self.debug_info_enabled {
-            self.send_packet(NetworkAddress::MissionControl, Packet::FcuDebugSensorMeasurement(data));
+            self.send_packet(
+                NetworkAddress::MissionControl,
+                Packet::FcuDebugSensorMeasurement(data),
+            );
         }
     }
 
@@ -263,7 +264,10 @@ impl<'a> Fcu<'a> {
     fn get_output_channels_continuity_bitmask(&self) -> u16 {
         let mut bitmask = 0;
 
-        if self.driver.get_output_channel_continuity(OutputChannel::SolidMotorIgniter) {
+        if self
+            .driver
+            .get_output_channel_continuity(OutputChannel::SolidMotorIgniter)
+        {
             bitmask |= 1 << OutputChannel::SolidMotorIgniter.index();
         }
 

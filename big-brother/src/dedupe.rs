@@ -1,4 +1,4 @@
-use crate::{serdes::PacketMetadata, network_map::NetworkMapEntry, big_brother::Broadcastable};
+use crate::{big_brother::Broadcastable, network_map::NetworkMapEntry, serdes::PacketMetadata};
 
 pub type CounterType = u32;
 
@@ -34,7 +34,6 @@ where
 
         if metadata.to_addr.is_broadcast() {
             mapping.broadcast_counter = metadata.counter.wrapping_add(1);
-
         } else {
             mapping.from_counter = metadata.counter.wrapping_add(1);
         }
@@ -45,7 +44,12 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::{big_brother::{Broadcastable, UDP_PORT}, network_map::NetworkMapEntry, serdes::PacketMetadata, dedupe::{is_duplicate, CounterType}};
+    use crate::{
+        big_brother::{Broadcastable, UDP_PORT},
+        dedupe::{is_duplicate, CounterType},
+        network_map::NetworkMapEntry,
+        serdes::PacketMetadata,
+    };
 
     #[derive(Debug, Clone, Copy, PartialEq, Eq)]
     pub enum TestNetworkAddress {
@@ -131,7 +135,10 @@ mod tests {
         mapping.from_counter = CounterType::MAX;
         // println!("from_counter: {} metadata.counter: {}", mapping.from_counter, metadata.counter);
         assert!(is_duplicate(&metadata, &mut mapping).is_ok());
-        println!("from_counter: {} metadata.counter: {}", mapping.from_counter, metadata.counter);
+        println!(
+            "from_counter: {} metadata.counter: {}",
+            mapping.from_counter, metadata.counter
+        );
         assert_eq!(is_duplicate(&metadata, &mut mapping), Err(()));
     }
 

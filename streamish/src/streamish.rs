@@ -1,7 +1,10 @@
-use std::{net::{UdpSocket, IpAddr, Ipv4Addr}, time::Duration};
+use std::net::Ipv4Addr;
 
-use big_brother::{BigBrother, interface::BigBrotherInterface};
-use shared::comms_hal::{Packet, NetworkAddress};
+use big_brother::{interface::BigBrotherInterface, BigBrother};
+use shared::{
+    comms_hal::{NetworkAddress, Packet},
+    streamish_hal,
+};
 
 use crate::stream::Stream;
 
@@ -34,7 +37,10 @@ impl<'a> Streamish<'a> {
             }
 
             if get_timestamp() - last_broadcast_time > 0.5 {
-                if let Err(e) = self.comms.send_packet(&Packet::Heartbeat, NetworkAddress::Broadcast) {
+                if let Err(e) = self
+                    .comms
+                    .send_packet(&Packet::Heartbeat, NetworkAddress::Broadcast)
+                {
                     eprintln!("Streamish: Failed to send heartbeat packet: {:?}", e);
                 }
                 last_broadcast_time = get_timestamp();
@@ -44,10 +50,20 @@ impl<'a> Streamish<'a> {
 
     fn handle_packet(&mut self, packet: Packet, src_addr: Ipv4Addr) {
         match packet {
-            Packet::StartCameraStream { port } => {
+            Packet::StreamishCommand(command) => self.handle_command(command, src_addr),
+            Packet::Heartbeat => {}
+            _ => eprintln!("Streamish: Received unhandled packet: {:?}", packet),
+        }
+    }
+
+    fn handle_command(&mut self, command: streamish_hal::StreamishCommand, src_addr: Ipv4Addr) {
+        match command {
+            streamish_hal::StreamishCommand::StartCameraStream { port } => {
                 if let Some(stream) = &mut self.stream {
                     if stream.port == port && stream.stream_addr == src_addr {
-                        eprintln!("Streamish: Tried starting a new stream with same settings, ignoring");
+                        eprintln!(
+                            "Streamish: Tried starting a new stream with same settings, ignoring"
+                        );
                         return;
                     }
 
@@ -58,38 +74,36 @@ impl<'a> Streamish<'a> {
 
                 let stream = Stream::new(port, src_addr);
                 self.stream = Some(stream);
-            },
-            Packet::StopCameraStream => {
+            }
+            streamish_hal::StreamishCommand::StopCameraStream => {
                 if let Some(stream) = &mut self.stream {
                     stream.stop();
                     self.stream = None;
                 } else {
                     eprintln!("Streamish: Received stop stream packet, but no stream is running");
                 }
-            },
-            Packet::StopApplication => {
+            }
+            streamish_hal::StreamishCommand::StopApplication => {
                 if let Some(stream) = &mut self.stream {
                     stream.stop();
                     self.stream = None;
                 }
 
                 std::process::exit(0);
-            },
-            Packet::Heartbeat => {},
-            _ => eprintln!("Streamish: Received unhandled packet: {:?}", packet),
+            }
         }
     }
 
-    fn ipv4_from_ip(ip: IpAddr) -> Ipv4Addr {
-        match ip {
-            IpAddr::V4(ipv4) => ipv4,
-            IpAddr::V6(ipv6) => ipv6.to_ipv4().expect("recv_thread: Failed to convert IPv6 address to IPv4"),
-        }
-    }
+    // fn ipv4_from_ip(ip: IpAddr) -> Ipv4Addr {
+    //     match ip {
+    //         IpAddr::V4(ipv4) => ipv4,
+    //         IpAddr::V6(ipv6) => ipv6.to_ipv4().expect("recv_thread: Failed to convert IPv6 address to IPv4"),
+    //     }
+    // }
 
-    fn ip_str_from_octets(ipv4: [u8; 4], port: u16) -> String {
-        format!("{}.{}.{}.{}:{}", ipv4[0], ipv4[1], ipv4[2], ipv4[3], port)
-    }
+    // fn ip_str_from_octets(ipv4: [u8; 4], port: u16) -> String {
+    //     format!("{}.{}.{}.{}:{}", ipv4[0], ipv4[1], ipv4[2], ipv4[3], port)
+    // }
 }
 
 fn get_timestamp() -> f64 {

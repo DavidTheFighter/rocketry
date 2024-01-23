@@ -1,67 +1,66 @@
-use core::borrow::BorrowMut;
-
 use shared::{
-    comms_hal::Packet,
-    ecu_hal::{EcuSensor, EcuSolenoidValve, FuelTankState, IgniterState, EcuDriver},
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuSolenoidValve, TankState},
+    ControllerState,
 };
 
-use crate::{Ecu, FiniteStateMachine};
+use crate::Ecu;
 
-use super::{Firing, FsmStorage};
+use super::{shutdown::Shutdown, IgniterFsm};
 
-impl FiniteStateMachine<IgniterState> for Firing {
-    fn update<D: EcuDriver>(ecu: &mut Ecu<D>, dt: f32, _packet: &Option<Packet>) -> Option<IgniterState> {
-        Firing::update_firing_duration(ecu, dt);
+pub struct Firing {
+    elapsed_time: f32,
+}
 
-        let invalid_fsm_dependencies = Firing::check_fsm_dependencies(ecu);
-        let firing_ended = Firing::firing_ended(ecu);
-        let throat_too_hot = Firing::throat_too_hot(ecu);
+impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Firing {
+    fn update<'a>(
+        &mut self,
+        ecu: &mut Ecu,
+        dt: f32,
+        _packets: &[(NetworkAddress, Packet)],
+    ) -> Option<IgniterFsm> {
+        self.elapsed_time += dt;
 
-        if invalid_fsm_dependencies || firing_ended || throat_too_hot {
-            return Some(IgniterState::Shutdown);
+        if !self.tanks_pressurized(ecu) || self.firing_ended(ecu) || self.throat_too_hot(ecu) {
+            return Some(Shutdown::new());
         }
 
         None
     }
 
-    fn setup_state<D: EcuDriver>(ecu: &mut Ecu<D>) {
-        let driver = ecu.driver.borrow_mut();
+    fn enter_state(&mut self, ecu: &mut Ecu) {
+        ecu.driver
+            .set_solenoid_valve(EcuSolenoidValve::IgniterFuelMain, true);
+        ecu.driver
+            .set_solenoid_valve(EcuSolenoidValve::IgniterGOxMain, true);
+        ecu.driver.set_sparking(false);
+    }
 
-        driver.set_solenoid_valve(EcuSolenoidValve::IgniterFuelMain, true);
-        driver.set_solenoid_valve(EcuSolenoidValve::IgniterGOxMain, true);
-        driver.set_sparking(false);
-
-        super::reset_igniter_daq_collections(ecu.driver);
-
-        ecu.igniter_fsm_storage = FsmStorage::Firing(Firing { elapsed_time: 0.0 });
+    fn exit_state(&mut self, _ecu: &mut Ecu) {
+        // Nothing
     }
 }
 
 impl Firing {
-    fn check_fsm_dependencies<D: EcuDriver>(ecu: &Ecu<D>) -> bool {
-        ecu.fuel_tank_state == FuelTankState::Pressurized
+    pub fn new() -> IgniterFsm {
+        IgniterFsm::Firing(Self { elapsed_time: 0.0 })
     }
 
-    fn update_firing_duration<D: EcuDriver>(ecu: &mut Ecu<D>, dt: f32) {
-        Firing::get_storage(ecu).elapsed_time += dt;
+    fn tanks_pressurized(&self, ecu: &Ecu) -> bool {
+        ecu.fuel_tank_state()
+            .map_or(true, |state| state == TankState::Pressurized)
+            && ecu
+                .oxidizer_tank_state()
+                .map_or(true, |state| state == TankState::Pressurized)
     }
 
-    fn firing_ended<D: EcuDriver>(ecu: &mut Ecu<D>) -> bool {
-        Firing::get_storage(ecu).elapsed_time >= ecu.igniter_config.firing_duration
+    fn firing_ended(&self, ecu: &mut Ecu) -> bool {
+        self.elapsed_time >= ecu.config.igniter_config.firing_duration
     }
 
-    fn throat_too_hot<D: EcuDriver>(ecu: &mut Ecu<D>) -> bool {
-        let (_, _, igniter_throat_temp_max) = ecu
-            .driver
-            .collect_daq_sensor_data(EcuSensor::IgniterThroatTemp);
+    fn throat_too_hot(&self, ecu: &mut Ecu) -> bool {
+        let igniter_throat_temp_max = 0.0; // TODO
 
-        igniter_throat_temp_max >= ecu.igniter_config.max_throat_temp
-    }
-
-    fn get_storage<'a, D: EcuDriver>(ecu: &'a mut Ecu<D>) -> &'a mut Firing {
-        match &mut ecu.igniter_fsm_storage {
-            FsmStorage::Firing(storage) => storage,
-            _ => unreachable!(),
-        }
+        igniter_throat_temp_max >= ecu.config.igniter_config.max_throat_temp
     }
 }

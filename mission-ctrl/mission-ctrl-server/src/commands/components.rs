@@ -1,16 +1,17 @@
 use std::{sync::Arc, thread, time::Duration};
 
+use rocket::{serde::json::Json, State};
 use shared::{
-    comms_hal::{Packet, NetworkAddress}, ecu_hal::EcuSolenoidValve,
-};
-use rocket::{
-    serde::json::Json,
-    State,
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuCommand, EcuSolenoidValve},
 };
 
-use crate::{observer::{ObserverHandler, ObserverEvent}, commands::CommandResponse};
+use crate::{
+    commands::CommandResponse,
+    observer::{ObserverEvent, ObserverHandler},
+};
 
-use super::{send_command, format_response};
+use super::{format_response, send_command};
 
 fn match_valve(valve: &str) -> Option<EcuSolenoidValve> {
     match valve {
@@ -45,7 +46,12 @@ pub fn set_solenoid_valve(
 ) -> Json<CommandResponse> {
     if args.len() != 3 {
         return format_response(
-            format!("{} <name> <state>\n{}\n{}", args[0], valve_name_list(), valve_state_list()),
+            format!(
+                "{} <name> <state>\n{}\n{}",
+                args[0],
+                valve_name_list(),
+                valve_state_list()
+            ),
             false,
         );
     }
@@ -73,7 +79,7 @@ pub fn set_solenoid_valve(
     send_command(
         observer_handler,
         NetworkAddress::EngineController(0),
-        Packet::SetSolenoidValve { valve, state },
+        Packet::EcuCommand(EcuCommand::SetSolenoidValve { valve, state }),
     )
 }
 
@@ -83,10 +89,7 @@ pub fn test_solenoid_valve(
     args: Json<Vec<String>>,
 ) -> Json<CommandResponse> {
     if args.len() != 2 {
-        return format_response(
-            format!("{} <name>\n{}", args[0], valve_name_list()),
-            false,
-        );
+        return format_response(format!("{} <name>\n{}", args[0], valve_name_list()), false);
     }
 
     let valve = match match_valve(args[1].as_str()) {
@@ -102,7 +105,7 @@ pub fn test_solenoid_valve(
     let return_value = send_command(
         observer_handler,
         NetworkAddress::EngineController(0),
-        Packet::SetSolenoidValve { valve, state: true },
+        Packet::EcuCommand(EcuCommand::SetSolenoidValve { valve, state: true }),
     );
 
     if return_value.success {
@@ -111,7 +114,10 @@ pub fn test_solenoid_valve(
             thread::sleep(Duration::from_millis(1000));
             observer_handler_clone.notify(ObserverEvent::SendPacket {
                 address: NetworkAddress::EngineController(0),
-                packet: Packet::SetSolenoidValve { valve, state: false },
+                packet: Packet::EcuCommand(EcuCommand::SetSolenoidValve {
+                    valve,
+                    state: false,
+                }),
             });
         });
     }
@@ -124,7 +130,7 @@ pub fn test_spark(observer_handler: &State<Arc<ObserverHandler>>) -> Json<Comman
     let return_value = send_command(
         observer_handler,
         NetworkAddress::EngineController(0),
-        Packet::SetSparking(true),
+        Packet::EcuCommand(EcuCommand::SetSparking(true)),
     );
 
     if return_value.success {
@@ -133,11 +139,10 @@ pub fn test_spark(observer_handler: &State<Arc<ObserverHandler>>) -> Json<Comman
             thread::sleep(Duration::from_millis(1000));
             observer_handler_clone.notify(ObserverEvent::SendPacket {
                 address: NetworkAddress::EngineController(0),
-                packet: Packet::SetSparking(false),
+                packet: Packet::EcuCommand(EcuCommand::SetSparking(false)),
             });
         });
     }
 
     return_value
 }
-

@@ -22,21 +22,30 @@ impl Stream {
 
         for command in command_set.pre_commands.iter() {
             println!("\t$ {}", command.as_string());
-            command.to_command()
+            command
+                .to_command()
                 .stdout(Stdio::null())
                 .stderr(Stdio::null())
                 .stdin(Stdio::null())
                 .spawn()
-                .expect(&format!("Failed to run pre-command: \"{}\"", command.command));
+                .expect(&format!(
+                    "Failed to run pre-command: \"{}\"",
+                    command.command
+                ));
         }
 
         println!("\t$ {}", command_set.streaming_command.as_string());
-        let streaming_process = command_set.streaming_command.to_command()
+        let streaming_process = command_set
+            .streaming_command
+            .to_command()
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .stdin(Stdio::null())
             .spawn()
-            .expect(&format!("Failed to start streaming process: \"{}\"", command_set.streaming_command.command));
+            .expect(&format!(
+                "Failed to start streaming process: \"{}\"",
+                command_set.streaming_command.command
+            ));
 
         println!("Set up stream to {}:{}", addr, port);
 
@@ -48,7 +57,9 @@ impl Stream {
     }
 
     pub fn stop(&mut self) {
-        self.streaming_process.kill().expect("Failed to kill streaming process");
+        self.streaming_process
+            .kill()
+            .expect("Failed to kill streaming process");
 
         println!("Stopped stream");
     }

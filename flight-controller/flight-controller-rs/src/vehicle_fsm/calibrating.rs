@@ -1,10 +1,10 @@
 use super::{Calibrating, FsmState, Idle};
 use crate::{state_vector::SensorCalibrationData, Fcu};
+use nalgebra::{UnitQuaternion, UnitVector3, Vector3};
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ControllerState, standard_atmosphere::convert_pressure_to_altitude,
+    ControllerState,
 };
-use nalgebra::{Vector3, UnitVector3, UnitQuaternion};
 
 #[allow(unused_imports)]
 use num_traits::Float;
@@ -25,11 +25,11 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Calibrating {
         None
     }
 
-    fn enter_state(&mut self, _fcu: & mut Fcu) {
+    fn enter_state(&mut self, _fcu: &mut Fcu) {
         // Nothing
     }
 
-    fn exit_state(&mut self, fcu: & mut Fcu) {
+    fn exit_state(&mut self, fcu: &mut Fcu) {
         let mut accelerometer_avg = self.accelerometer / (self.data_count as f32);
         let down = accelerometer_avg.normalize();
         let acceleration_by_gravity = down * 9.80665;
@@ -70,7 +70,7 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Calibrating {
 }
 
 impl Calibrating {
-    pub fn new<'a>(fcu: & mut Fcu, zero: bool) -> FsmState {
+    pub fn new<'a>(fcu: &mut Fcu, zero: bool) -> FsmState {
         FsmState::Calibrating(Self {
             start_time: fcu.driver.timestamp(),
             accelerometer: Vector3::zeros(),

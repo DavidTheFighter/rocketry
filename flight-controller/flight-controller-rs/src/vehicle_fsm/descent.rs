@@ -19,11 +19,11 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Descent {
         None
     }
 
-    fn enter_state(&mut self, _fcu: & mut Fcu) {
+    fn enter_state(&mut self, _fcu: &mut Fcu) {
         // Nothing
     }
 
-    fn exit_state(&mut self, _fcu: & mut Fcu) {
+    fn exit_state(&mut self, _fcu: &mut Fcu) {
         // Nothing
     }
 }

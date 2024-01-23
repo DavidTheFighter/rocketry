@@ -1,12 +1,13 @@
 use crate::Fcu;
+use nalgebra::Vector3;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    fcu_hal::VehicleState, ControllerState,
+    fcu_hal::VehicleState,
+    ControllerState,
 };
-use nalgebra::Vector3;
 
-mod ascent;
 mod armed;
+mod ascent;
 mod calibrating;
 mod descent;
 mod idle;
@@ -84,7 +85,9 @@ impl FsmState {
 impl<'a> Fcu<'a> {
     pub fn update_vehicle_fsm(&mut self, dt: f32, packets: &[(NetworkAddress, Packet)]) {
         let mut current_state = self.vehicle_fsm_state.take().unwrap();
-        let new_state = current_state.to_controller_state().update(self, dt, packets);
+        let new_state = current_state
+            .to_controller_state()
+            .update(self, dt, packets);
 
         if let Some(new_state) = new_state {
             self.transition_vehicle_state(Some(current_state), new_state);

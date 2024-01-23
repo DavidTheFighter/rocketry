@@ -2,16 +2,13 @@ use big_brother::big_brother::Broadcastable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ecu_hal::{
-        EcuDAQFrame, EcuSensor, EcuSolenoidValve, EcuTelemetryFrame, FuelTankState, IgniterConfig,
-    },
-    fcu_hal::{FcuConfig, FcuDebugInfo, FcuDevStatsFrame, FcuTelemetryFrame, FcuSensorData},
+    ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensor, EcuTelemetryFrame, TankState},
+    fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand},
+    streamish_hal::StreamishCommand,
     SensorConfig,
 };
 
 use strum_macros::EnumCount as EnumCountMacro;
-
-pub const DAQ_PACKET_FRAMES: usize = 10;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 pub enum NetworkAddress {
@@ -44,66 +41,37 @@ pub enum SerializationError {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumCountMacro)]
 pub enum Packet {
     // -- Direct commands -- //
-    SetSolenoidValve {
-        valve: EcuSolenoidValve,
-        state: bool,
-    },
-    SetSparking(bool),
-    DeviceBooted,
-    ConfigureSensor {
-        sensor: EcuSensor,
-        config: SensorConfig,
-    },
-    ConfigureIgniter(IgniterConfig),
-    ConfigureFcu(FcuConfig),
-    EraseDataLogFlash,
     EnableDataLogging(bool),
-    RetrieveDataLogPage(u32),
     ResetMcu {
         magic_number: u64, // crate::RESET_MAGIC_NUMBER
     },
 
-    // -- Dev Only -- //
-    StartDevStatsFrame,
-
     // -- Commands -- //,
-    TransitionFuelTankState(FuelTankState),
-    FireIgniter,
-    StartCameraStream {
-        port: u16,
-    },
-    StopCameraStream,
-    StartCalibration {
-        zero: bool,
-    },
-    ArmVehicle {
-        magic_number: u64, // fcu_hal::ARMING_MAGIC_NUMBER
-    },
-    IgniteSolidMotor {
-        magic_number: u64, // fcu_hal::IGNITION_MAGIC_NUMBER
-    },
-    EnterBootloader,
+    VehicleCommand(VehicleCommand),
+    EcuCommand(EcuCommand),
+    StreamishCommand(StreamishCommand),
 
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
     EcuTelemetry(EcuTelemetryFrame),
     EnableDebugInfo(bool),
     FcuDebugInfo(FcuDebugInfo),
-    FcuDevStatsFrame(FcuDevStatsFrame),
+    EcuDebugInfo(EcuDebugInfo),
     FcuDebugSensorMeasurement(FcuSensorData),
-    EcuDAQ([EcuDAQFrame; DAQ_PACKET_FRAMES]),
     AlertBitmask(u32),
-    // FcuDataLogPage(DataLogBuffer),
 
     // -- Misc -- //
+    DeviceBooted,
     Heartbeat,
-    StopApplication,
     DoNothing,
 }
 
 pub mod tests_data {
     use super::*;
-    use crate::{SensorCalibration, fcu_hal::{ARMING_MAGIC_NUMBER, IGNITION_MAGIC_NUMBER}, RESET_MAGIC_NUMBER};
+    use crate::{
+        ecu_hal::{EngineState, IgniterState},
+        fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER,
+    };
     use mint::Vector3;
     use strum::EnumCount;
 
@@ -134,46 +102,47 @@ pub mod tests_data {
     ];
 
     pub const PACKET_TEST_DEFAULTS: [Packet; Packet::COUNT] = [
-        Packet::SetSolenoidValve {
-            valve: EcuSolenoidValve::IgniterFuelMain,
-            state: true,
-        },
-        Packet::SetSparking(true),
         Packet::DeviceBooted,
-        Packet::ConfigureSensor {
-            sensor: EcuSensor::IgniterGOxInjectorPressure,
-            config: SENSOR_CONFIG,
-        },
-        Packet::ConfigureIgniter(IgniterConfig::default()),
-        Packet::ConfigureFcu(FcuConfig::default()),
-        Packet::EraseDataLogFlash,
         Packet::EnableDataLogging(true),
-        Packet::RetrieveDataLogPage(42),
         Packet::ResetMcu {
             magic_number: RESET_MAGIC_NUMBER,
         },
-        Packet::StartDevStatsFrame,
-        Packet::TransitionFuelTankState(FuelTankState::Pressurized),
-        Packet::FireIgniter,
-        Packet::StartCameraStream { port: 42 },
-        Packet::StopCameraStream,
-        Packet::StartCalibration { zero: true },
-        Packet::ArmVehicle { magic_number: ARMING_MAGIC_NUMBER },
-        Packet::IgniteSolidMotor { magic_number: IGNITION_MAGIC_NUMBER },
-        Packet::EnterBootloader,
+        Packet::VehicleCommand(VehicleCommand::IgniteSolidMotor {
+            magic_number: fcu_hal::IGNITION_MAGIC_NUMBER,
+        }),
+        Packet::EcuCommand(EcuCommand::ConfigureSensor {
+            sensor: EcuSensor::FuelTankPressure,
+            config: SENSOR_CONFIG,
+        }),
+        Packet::StreamishCommand(StreamishCommand::StartCameraStream { port: 25565 }),
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
-        Packet::EcuTelemetry(EcuTelemetryFrame::default()),
+        Packet::EcuTelemetry(EcuTelemetryFrame {
+            timestamp: 0xABAD_1234_FEDC_DEAD,
+            engine_state: EngineState::Idle,
+            igniter_state: IgniterState::Shutdown,
+            fuel_tank_state: TankState::Idle,
+            oxidizer_tank_state: TankState::Idle,
+        }),
         Packet::AlertBitmask(0xAAAA_AAAA),
         Packet::EnableDebugInfo(true),
         Packet::FcuDebugInfo(FcuDebugInfo::default()),
-        Packet::FcuDevStatsFrame(FcuDevStatsFrame::default()),
-        Packet::FcuDebugSensorMeasurement(FcuSensorData::Accelerometer {
-            acceleration: Vector3 { x: 0.1, y: 0.2, z: 0.3 },
-            raw_data: Vector3 { x: 14, y: -72, z: 19852 },
+        Packet::EcuDebugInfo(EcuDebugInfo::IgniterInfo {
+            timestamp: 0xABAD_1234_FEDC_DEAD,
+            igniter_state: IgniterState::Shutdown,
         }),
-        Packet::EcuDAQ([EcuDAQFrame::default(); DAQ_PACKET_FRAMES]),
+        Packet::FcuDebugSensorMeasurement(FcuSensorData::Accelerometer {
+            acceleration: Vector3 {
+                x: 0.1,
+                y: 0.2,
+                z: 0.3,
+            },
+            raw_data: Vector3 {
+                x: 14,
+                y: -72,
+                z: 19852,
+            },
+        }),
         Packet::Heartbeat,
-        Packet::StopApplication,
         Packet::DoNothing,
     ];
 }
@@ -184,7 +153,10 @@ pub mod tests {
     use super::*;
     use std::io::Write;
 
-    use big_brother::{serdes::{serialize_postcard, deserialize_postcard}, big_brother::WORKING_BUFFER_SIZE};
+    use big_brother::{
+        big_brother::WORKING_BUFFER_SIZE,
+        serdes::{deserialize_postcard, serialize_postcard},
+    };
 
     #[test]
     fn test_packet_sizes() {
@@ -227,7 +199,8 @@ pub mod tests {
 
         for packet in &PACKET_TEST_DEFAULTS {
             let bytes_written = serialize_postcard(packet, &mut buffer).unwrap();
-            let reserialized_packet: Packet = deserialize_postcard(&mut buffer[..bytes_written]).unwrap();
+            let reserialized_packet: Packet =
+                deserialize_postcard(&mut buffer[..bytes_written]).unwrap();
             assert_eq!(*packet, reserialized_packet);
         }
     }
@@ -238,7 +211,8 @@ pub mod tests {
 
         for address in &ADDRESS_TEST_DEFAULTS {
             let bytes_written = serialize_postcard(address, &mut buffer).unwrap();
-            let reserialized_address: NetworkAddress = deserialize_postcard(&mut buffer[..bytes_written]).unwrap();
+            let reserialized_address: NetworkAddress =
+                deserialize_postcard(&mut buffer[..bytes_written]).unwrap();
             assert_eq!(*address, reserialized_address);
         }
     }

@@ -1,6 +1,6 @@
 use std::any::Any;
 
-use shared::fcu_hal::{OutputChannel, PwmChannel, FcuDriver, FcuHardwareData};
+use shared::fcu_hal::{FcuDriver, FcuHardwareData, OutputChannel, PwmChannel};
 use strum::EnumCount;
 
 #[derive(Debug)]

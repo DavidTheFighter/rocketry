@@ -51,7 +51,10 @@ where
                 Some(mapping) => {
                     if mapping.network_address == from_address {
                         if update {
-                            if mapping.ip != ip || mapping.port != port || mapping.interface_index != interface_index {
+                            if mapping.ip != ip
+                                || mapping.port != port
+                                || mapping.interface_index != interface_index
+                            {
                                 // println!("{:?}: Remapped {:?} to {:?}:{} (i{} -> i{})", self.host_addr, from_address, ip, port, mapping.interface_index, interface_index);
 
                                 if from_address == self.host_addr {
@@ -73,7 +76,7 @@ where
 
                         return Ok(mapping);
                     }
-                },
+                }
                 None => {
                     *mapping = Some(NetworkMapEntry {
                         network_address: from_address,
@@ -174,7 +177,8 @@ pub mod tests {
 
     #[test]
     fn test_mapping_iter() {
-        let mut network_map = NetworkMap::<TestNetworkAddress, 32>::new(TestNetworkAddress::FlightController);
+        let mut network_map =
+            NetworkMap::<TestNetworkAddress, 32>::new(TestNetworkAddress::FlightController);
 
         let mut i = 0;
         for address in &NETWORK_ADDRESS_TEST_DEFAULTS {

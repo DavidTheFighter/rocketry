@@ -1,7 +1,7 @@
 use std::process::Command;
 
+use serde::{Deserialize, Serialize};
 use shared::comms_hal::NetworkAddress;
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StreamishCommandSet {

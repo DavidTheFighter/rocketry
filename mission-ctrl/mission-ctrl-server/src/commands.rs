@@ -1,26 +1,23 @@
 pub mod components;
 pub mod logging;
 pub mod sequence;
-pub mod tanks;
 pub mod streamish;
+pub mod tanks;
 
-use std::{
-    sync::Arc,
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
-use shared::comms_hal::{Packet, NetworkAddress};
 use rocket::{
     serde::{json::Json, Serialize},
     State,
 };
+use shared::comms_hal::{NetworkAddress, Packet};
 
-use crate::observer::{ObserverHandler, ObserverEvent};
+use crate::observer::{ObserverEvent, ObserverHandler};
 use components::{set_solenoid_valve, test_solenoid_valve, test_spark};
-use logging::{erase_flash, set_logging, retrieve_logs};
+use logging::{erase_flash, retrieve_logs, set_logging};
 use sequence::test_fire_igniter;
-use tanks::{fuel_pressurize, fuel_idle, fuel_depressurize};
 use streamish::{start_stream, stop_stream};
+use tanks::{fuel_depressurize, fuel_idle, fuel_pressurize};
 
 pub fn get_routes() -> Vec<rocket::Route> {
     routes![
@@ -57,7 +54,7 @@ fn send_command(
     packet: Packet,
 ) -> Json<CommandResponse> {
     observer_handler.register_observer_thread();
-    let event_id = observer_handler.notify(ObserverEvent::SendPacket{
+    let event_id = observer_handler.notify(ObserverEvent::SendPacket {
         address,
         packet: packet.clone(),
     });
@@ -65,23 +62,27 @@ fn send_command(
     let response = observer_handler.get_response(event_id, timeout);
 
     match response {
-        Some(result) => {
-            match result {
-                Ok(_) => Json(CommandResponse {
-                    text_response: String::from(format!("Sent '${:?}' command to {:?}", packet, address)),
-                    success: true,
-                }),
-                Err(err) => Json(CommandResponse {
-                    text_response: String::from(format!(
-                        "Failed to send '${:?}' command, got {:?}",
-                        packet, err
-                    )),
-                    success: false,
-                }),
-            }
+        Some(result) => match result {
+            Ok(_) => Json(CommandResponse {
+                text_response: String::from(format!(
+                    "Sent '${:?}' command to {:?}",
+                    packet, address
+                )),
+                success: true,
+            }),
+            Err(err) => Json(CommandResponse {
+                text_response: String::from(format!(
+                    "Failed to send '${:?}' command, got {:?}",
+                    packet, err
+                )),
+                success: false,
+            }),
         },
         None => Json(CommandResponse {
-            text_response: String::from(format!("Failed to send '${:?}' command, got timeout", packet)),
+            text_response: String::from(format!(
+                "Failed to send '${:?}' command, got timeout",
+                packet
+            )),
             success: false,
         }),
     }

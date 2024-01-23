@@ -1,90 +1,92 @@
 use core::borrow::BorrowMut;
 
 use shared::{
-    comms_hal::Packet,
-    ecu_hal::{EcuSensor, EcuSolenoidValve, FuelTankState, IgniterState, EcuDriver},
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuSolenoidValve, TankState},
+    ControllerState,
 };
 
-use crate::{Ecu, FiniteStateMachine};
+use crate::Ecu;
 
-use super::{FsmStorage, Startup};
+use super::{firing::Firing, shutdown::Shutdown, IgniterFsm};
 
-impl FiniteStateMachine<IgniterState> for Startup {
-    fn update<D: EcuDriver>(ecu: &mut Ecu<D>, dt: f32, _packet: &Option<Packet>) -> Option<IgniterState> {
-        Startup::update_stable_pressure_timer(ecu, dt);
+pub struct Startup {
+    startup_elapsed_time: f32,
+    stable_pressure_time: f32,
+}
 
-        let invalid_fsm_dependencies = Startup::check_fsm_dependencies(ecu);
-        let startup_timed_out = Startup::startup_timed_out(ecu);
-        let achieved_stable_pressure = Startup::achieved_stable_pressure(ecu);
-        let throat_too_hot = Startup::throat_too_hot(ecu);
+impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Startup {
+    fn update<'a>(
+        &mut self,
+        ecu: &mut Ecu,
+        dt: f32,
+        _packets: &[(NetworkAddress, Packet)],
+    ) -> Option<IgniterFsm> {
+        self.update_stable_pressure_timer(ecu, dt);
 
-        if invalid_fsm_dependencies || startup_timed_out || throat_too_hot {
-            return Some(IgniterState::Shutdown);
+        if !self.tanks_pressurized(ecu) || self.startup_timed_out(ecu) || self.throat_too_hot(ecu) {
+            return Some(Shutdown::new());
         }
 
-        if achieved_stable_pressure {
-            return Some(IgniterState::Firing);
+        if self.achieved_stable_pressure(ecu) {
+            return Some(Firing::new());
         }
 
         None
     }
 
-    fn setup_state<D: EcuDriver>(ecu: &mut Ecu<D>) {
+    fn enter_state(&mut self, ecu: &mut Ecu) {
         let driver = ecu.driver.borrow_mut();
 
         driver.set_solenoid_valve(EcuSolenoidValve::IgniterFuelMain, true);
         driver.set_solenoid_valve(EcuSolenoidValve::IgniterGOxMain, true);
         driver.set_sparking(true);
+    }
 
-        super::reset_igniter_daq_collections(ecu.driver);
-
-        ecu.igniter_fsm_storage = FsmStorage::Startup(Startup {
-            startup_elapsed_time: 0.0,
-            stable_pressure_time: 0.0,
-        });
+    fn exit_state(&mut self, _ecu: &mut Ecu) {
+        // Nothing
     }
 }
 
 impl Startup {
-    fn check_fsm_dependencies<D: EcuDriver>(ecu: &Ecu<D>) -> bool {
-        ecu.fuel_tank_state == FuelTankState::Pressurized
+    pub fn new() -> IgniterFsm {
+        IgniterFsm::Startup(Self {
+            startup_elapsed_time: 0.0,
+            stable_pressure_time: 0.0,
+        })
     }
 
-    fn update_stable_pressure_timer<D: EcuDriver>(ecu: &mut Ecu<D>, dt: f32) {
-        let (_, chamber_pressure_min, _) = ecu
-            .driver
-            .collect_daq_sensor_data(EcuSensor::IgniterChamberPressure);
+    fn tanks_pressurized(&self, ecu: &Ecu) -> bool {
+        ecu.fuel_tank_state()
+            .map_or(true, |state| state == TankState::Pressurized)
+            && ecu
+                .oxidizer_tank_state()
+                .map_or(true, |state| state == TankState::Pressurized)
+    }
 
-        let startup_pressure_threshold = ecu.igniter_config.startup_pressure_threshold;
-        let storage = Startup::get_storage(ecu);
+    fn update_stable_pressure_timer(&mut self, ecu: &mut Ecu, dt: f32) {
+        let chamber_pressure_min = 0.0; // TODO
+
+        let startup_pressure_threshold = ecu.config.igniter_config.startup_pressure_threshold;
 
         if chamber_pressure_min >= startup_pressure_threshold {
-            storage.stable_pressure_time += dt;
+            self.stable_pressure_time += dt;
         } else {
-            storage.stable_pressure_time = 0.0;
+            self.stable_pressure_time = 0.0;
         }
     }
 
-    fn startup_timed_out<D: EcuDriver>(ecu: &mut Ecu<D>) -> bool {
-        Startup::get_storage(ecu).startup_elapsed_time >= ecu.igniter_config.startup_timeout
+    fn startup_timed_out(&self, ecu: &mut Ecu) -> bool {
+        self.startup_elapsed_time >= ecu.config.igniter_config.startup_timeout
     }
 
-    fn throat_too_hot<D: EcuDriver>(ecu: &mut Ecu<D>) -> bool {
-        let (_, _, igniter_throat_temp_max) = ecu
-            .driver
-            .collect_daq_sensor_data(EcuSensor::IgniterThroatTemp);
+    fn throat_too_hot(&self, ecu: &mut Ecu) -> bool {
+        let igniter_throat_temp_max = 0.0; // TODO
 
-        igniter_throat_temp_max >= ecu.igniter_config.max_throat_temp
+        igniter_throat_temp_max >= ecu.config.igniter_config.max_throat_temp
     }
 
-    fn achieved_stable_pressure<D: EcuDriver>(ecu: &mut Ecu<D>) -> bool {
-        Startup::get_storage(ecu).stable_pressure_time >= ecu.igniter_config.startup_stable_time
-    }
-
-    fn get_storage<'a, D: EcuDriver>(ecu: &'a mut Ecu<D>) -> &'a mut Startup {
-        match &mut ecu.igniter_fsm_storage {
-            FsmStorage::Startup(storage) => storage,
-            _ => unreachable!(),
-        }
+    fn achieved_stable_pressure(&self, ecu: &mut Ecu) -> bool {
+        self.stable_pressure_time >= ecu.config.igniter_config.startup_stable_time
     }
 }

@@ -1,26 +1,28 @@
+mod cameras;
 mod commands;
 mod comms;
 mod config;
-mod input;
-pub(crate) mod observer;
 mod ecu_telemetry;
 mod fcu_telemetry;
+mod input;
 mod logging;
-mod cameras;
+pub(crate) mod observer;
 
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::thread;
-use std::time::{SystemTime, UNIX_EPOCH, Duration};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use cameras::browser_stream;
+use ecu_telemetry::{ecu_telemetry_endpoint, telemetry_thread};
+use fcu_telemetry::{
+    fcu_debug_data, fcu_telemetry_endpoint, fcu_telemetry_graph, fcu_telemetry_thread,
+};
 use input::input_thread;
 use observer::ObserverHandler;
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
-use rocket::{Request, Response, Rocket, Build};
-use ecu_telemetry::{telemetry_thread, ecu_telemetry_endpoint};
-use fcu_telemetry::{fcu_telemetry_thread, fcu_telemetry_endpoint, fcu_debug_data, fcu_telemetry_graph};
+use rocket::{Build, Request, Response, Rocket};
 
 use crate::cameras::camera_streaming_thread;
 use crate::comms::comms_thread;
@@ -35,14 +37,17 @@ fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
     rocket::build()
         .attach(CORS)
         .manage(observer_handler)
-        .mount("/", routes![
-            all_options,
-            ecu_telemetry_endpoint,
-            fcu_telemetry_endpoint,
-            fcu_telemetry_graph,
-            fcu_debug_data,
-            browser_stream,
-        ])
+        .mount(
+            "/",
+            routes![
+                all_options,
+                ecu_telemetry_endpoint,
+                fcu_telemetry_endpoint,
+                fcu_telemetry_graph,
+                fcu_debug_data,
+                browser_stream,
+            ],
+        )
         .mount("/commands", commands::get_routes())
 }
 
@@ -108,7 +113,9 @@ async fn main() {
     // Add a small delay to ensure all remaining packets are handled
     thread::sleep(Duration::from_millis(250));
 
-    comms_join_handle.join().expect("Error joining comms thread");
+    comms_join_handle
+        .join()
+        .expect("Error joining comms thread");
 
     println!("Shut down gracefully!");
 }

@@ -15,11 +15,11 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Landed {
         None
     }
 
-    fn enter_state(&mut self, fcu: & mut Fcu) {
+    fn enter_state(&mut self, fcu: &mut Fcu) {
         fcu.state_vector.set_landed(true);
     }
 
-    fn exit_state(&mut self, _fcu: & mut Fcu) {
+    fn exit_state(&mut self, _fcu: &mut Fcu) {
         // Nothing
     }
 }

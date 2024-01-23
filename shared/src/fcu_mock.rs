@@ -2,7 +2,7 @@ use core::any::Any;
 
 use crate::{
     comms_hal::{NetworkAddress, Packet},
-    fcu_hal::{FcuDriver, OutputChannel, PwmChannel, FcuHardwareData},
+    fcu_hal::{FcuDriver, FcuHardwareData, OutputChannel, PwmChannel},
 };
 use strum::EnumCount;
 

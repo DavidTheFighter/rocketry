@@ -1,34 +1,66 @@
 use core::borrow::BorrowMut;
 
 use shared::{
-    comms_hal::Packet,
-    ecu_hal::{EcuSolenoidValve, FuelTankState, IgniterState, EcuDriver},
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuCommand, EcuSolenoidValve, TankState},
+    ControllerState,
 };
 
-use crate::{Ecu, FiniteStateMachine};
+use crate::Ecu;
 
-use super::{FsmStorage, Idle};
+use super::{startup::Startup, IgniterFsm};
 
-impl FiniteStateMachine<IgniterState> for Idle {
-    fn update<D: EcuDriver>(ecu: &mut Ecu<D>, _dt: f32, packet: &Option<Packet>) -> Option<IgniterState> {
-        if let Some(Packet::FireIgniter) = packet {
-            if ecu.fuel_tank_state == FuelTankState::Pressurized {
-                return Some(IgniterState::Startup);
-            }
+pub struct Idle;
+
+impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Idle {
+    fn update<'a>(
+        &mut self,
+        ecu: &mut Ecu,
+        _dt: f32,
+        packets: &[(NetworkAddress, Packet)],
+    ) -> Option<IgniterFsm> {
+        if self.received_fire_igniter(packets) && self.tanks_pressurized(ecu) {
+            return Some(Startup::new());
         }
 
         None
     }
 
-    fn setup_state<D: EcuDriver>(ecu: &mut Ecu<D>) {
+    fn enter_state(&mut self, ecu: &mut Ecu) {
         let driver = ecu.driver.borrow_mut();
 
         driver.set_solenoid_valve(EcuSolenoidValve::IgniterFuelMain, false);
         driver.set_solenoid_valve(EcuSolenoidValve::IgniterGOxMain, false);
         driver.set_sparking(false);
+    }
 
-        super::reset_igniter_daq_collections(ecu.driver);
+    fn exit_state(&mut self, _ecu: &mut Ecu) {
+        // Nothing
+    }
+}
 
-        ecu.igniter_fsm_storage = FsmStorage::Idle(Idle {});
+impl Idle {
+    pub fn new() -> IgniterFsm {
+        IgniterFsm::Idle(Self {})
+    }
+
+    fn received_fire_igniter(&self, packets: &[(NetworkAddress, Packet)]) -> bool {
+        for (_address, packet) in packets {
+            if let Packet::EcuCommand(command) = packet {
+                if let EcuCommand::FireIgniter = command {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    fn tanks_pressurized(&self, ecu: &Ecu) -> bool {
+        ecu.fuel_tank_state()
+            .map_or(true, |state| state == TankState::Pressurized)
+            && ecu
+                .oxidizer_tank_state()
+                .map_or(true, |state| state == TankState::Pressurized)
     }
 }

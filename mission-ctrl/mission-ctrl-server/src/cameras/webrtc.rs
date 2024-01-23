@@ -2,10 +2,29 @@ use std::sync::Arc;
 
 use base64::prelude::BASE64_STANDARD;
 use base64::Engine;
-use shared::comms_hal::NetworkAddress;
 use rocket::serde::json::serde_json;
-use tokio::{sync::mpsc::{Sender, Receiver}, runtime::Runtime};
-use webrtc::{peer_connection::{configuration::RTCConfiguration, peer_connection_state::RTCPeerConnectionState, sdp::session_description::RTCSessionDescription}, ice_transport::{ice_server::RTCIceServer, ice_connection_state::RTCIceConnectionState}, api::{media_engine::{MediaEngine, MIME_TYPE_H264}, interceptor_registry::register_default_interceptors, APIBuilder}, interceptor::registry::Registry, track::track_local::{track_local_static_rtp::TrackLocalStaticRTP, TrackLocal, TrackLocalWriter}, rtp_transceiver::rtp_codec::RTCRtpCodecCapability};
+use shared::comms_hal::NetworkAddress;
+use tokio::{
+    runtime::Runtime,
+    sync::mpsc::{Receiver, Sender},
+};
+use webrtc::{
+    api::{
+        interceptor_registry::register_default_interceptors,
+        media_engine::{MediaEngine, MIME_TYPE_H264},
+        APIBuilder,
+    },
+    ice_transport::{ice_connection_state::RTCIceConnectionState, ice_server::RTCIceServer},
+    interceptor::registry::Registry,
+    peer_connection::{
+        configuration::RTCConfiguration, peer_connection_state::RTCPeerConnectionState,
+        sdp::session_description::RTCSessionDescription,
+    },
+    rtp_transceiver::rtp_codec::RTCRtpCodecCapability,
+    track::track_local::{
+        track_local_static_rtp::TrackLocalStaticRTP, TrackLocal, TrackLocalWriter,
+    },
+};
 
 pub struct WebRtcStream {
     pub camera_address: NetworkAddress,
@@ -22,8 +41,7 @@ impl WebRtcStream {
         let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<Result<String, String>>(1);
         let (stream_done_tx, stream_done_rx) = tokio::sync::oneshot::channel::<()>();
 
-        let runtime = tokio::runtime::Runtime::new()
-            .expect("Failed to create tokio runtime");
+        let runtime = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
 
         runtime.spawn(Self::setup_webrtc_stream(
             browser_session,
@@ -37,19 +55,15 @@ impl WebRtcStream {
             .expect("Didn't receive result from WebRTC setup");
 
         match result {
-            Ok(stream_session) => {
-                Ok(Self {
-                    camera_address,
-                    rtp_tx,
-                    stream_done_rx,
-                    stream_closed: false,
-                    stream_session,
-                    runtime,
-                })
-            },
-            Err(err) => {
-                Err(err)
-            }
+            Ok(stream_session) => Ok(Self {
+                camera_address,
+                rtp_tx,
+                stream_done_rx,
+                stream_closed: false,
+                stream_session,
+                runtime,
+            }),
+            Err(err) => Err(err),
         }
     }
 
@@ -57,7 +71,7 @@ impl WebRtcStream {
         browser_session: String,
         result_tx: Sender<Result<String, String>>,
         stream_done_tx: tokio::sync::oneshot::Sender<()>,
-        mut rtp_rx: Receiver<Vec<u8>>
+        mut rtp_rx: Receiver<Vec<u8>>,
     ) {
         let config = RTCConfiguration {
             ice_servers: vec![RTCIceServer {
@@ -68,7 +82,8 @@ impl WebRtcStream {
         };
 
         let mut m = MediaEngine::default();
-        m.register_default_codecs().expect("Failed to register default codecs");
+        m.register_default_codecs()
+            .expect("Failed to register default codecs");
 
         // Create a InterceptorRegistry. This is the user configurable RTP/RTCP Pipeline.
         // This provides NACKs, RTCP Reports and other features. If you use `webrtc.NewPeerConnection`
@@ -88,7 +103,8 @@ impl WebRtcStream {
 
         let peer_connection = api.new_peer_connection(config).await;
         if let Err(err) = peer_connection {
-            result_tx.send(Err(format!("Failed to create peer connection: {}", err)))
+            result_tx
+                .send(Err(format!("Failed to create peer connection: {}", err)))
                 .await
                 .expect("Failed to send result");
             return;
@@ -137,31 +153,48 @@ impl WebRtcStream {
         let done_tx2 = done_tx.clone();
         // Set the handler for Peer connection state
         // This will notify you when the peer has connected/disconnected
-        peer_connection.on_peer_connection_state_change(Box::new(move |s: RTCPeerConnectionState| {
-            if s == RTCPeerConnectionState::Failed {
-                // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
-                // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
-                // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
-                let _ = done_tx2.try_send(());
-            }
+        peer_connection.on_peer_connection_state_change(Box::new(
+            move |s: RTCPeerConnectionState| {
+                if s == RTCPeerConnectionState::Failed {
+                    // Wait until PeerConnection has had no network activity for 30 seconds or another failure. It may be reconnected using an ICE Restart.
+                    // Use webrtc.PeerConnectionStateDisconnected if you are interested in detecting faster timeout.
+                    // Note that the PeerConnection may come back from PeerConnectionStateDisconnected.
+                    let _ = done_tx2.try_send(());
+                }
 
-            Box::pin(async {})
-        }));
+                Box::pin(async {})
+            },
+        ));
 
-        let desc_data = String::from_utf8(BASE64_STANDARD.decode(&browser_session).expect("Failed to decode base64")).expect("Failed to convert to utf8");
-        let offer = serde_json::from_str::<RTCSessionDescription>(&desc_data).expect("Failed to unmarshal base64");
+        let desc_data = String::from_utf8(
+            BASE64_STANDARD
+                .decode(&browser_session)
+                .expect("Failed to decode base64"),
+        )
+        .expect("Failed to convert to utf8");
+        let offer = serde_json::from_str::<RTCSessionDescription>(&desc_data)
+            .expect("Failed to unmarshal base64");
 
         // Set the remote SessionDescription
-        peer_connection.set_remote_description(offer).await.expect("Failed to set remote description");
+        peer_connection
+            .set_remote_description(offer)
+            .await
+            .expect("Failed to set remote description");
 
         // Create an answer
-        let answer = peer_connection.create_answer(None).await.expect("Failed to create answer");
+        let answer = peer_connection
+            .create_answer(None)
+            .await
+            .expect("Failed to create answer");
 
         // Create channel that is blocked until ICE Gathering is complete
         let mut gather_complete = peer_connection.gathering_complete_promise().await;
 
         // Sets the LocalDescription, and starts our UDP listeners
-        peer_connection.set_local_description(answer).await.expect("Failed to set local description");
+        peer_connection
+            .set_local_description(answer)
+            .await
+            .expect("Failed to set local description");
 
         // Block until ICE Gathering is complete, disabling trickle ICE
         // we do this because we only can exchange one signaling message
@@ -170,25 +203,32 @@ impl WebRtcStream {
 
         // Output the answer in base64 so we can paste it in browser
         if let Some(local_desc) = peer_connection.local_description().await {
-            let json_str = serde_json::to_string(&local_desc).expect("Failed to serialize local description");
+            let json_str =
+                serde_json::to_string(&local_desc).expect("Failed to serialize local description");
             let b64 = BASE64_STANDARD.encode(json_str);
 
             if let Err(err) = result_tx.send(Ok(b64)).await {
-                result_tx.send(Err(format!("Failed to send session description: {:?}", err)))
+                result_tx
+                    .send(Err(format!(
+                        "Failed to send session description: {:?}",
+                        err
+                    )))
                     .await
                     .expect("Failed to send result");
                 return;
             }
         } else {
-            result_tx.send(Err("Failed to get local description".to_owned()))
+            result_tx
+                .send(Err("Failed to get local description".to_owned()))
                 .await
                 .expect("Failed to send result");
             return;
         }
 
-        println!("Set up WebRTC stream {}...{}",
+        println!(
+            "Set up WebRTC stream {}...{}",
             desc_data[0..4].to_owned(),
-            desc_data[desc_data.len()-4..].to_owned(),
+            desc_data[desc_data.len() - 4..].to_owned(),
         );
 
         let done_tx3 = done_tx.clone();
@@ -205,11 +245,15 @@ impl WebRtcStream {
 
         done_rx.recv().await;
 
-        peer_connection.close().await.expect("Failed to close peer connection");
+        peer_connection
+            .close()
+            .await
+            .expect("Failed to close peer connection");
 
-        println!("Closing WebRTC stream {}...{}",
+        println!(
+            "Closing WebRTC stream {}...{}",
             desc_data[0..4].to_owned(),
-            desc_data[desc_data.len()-4..].to_owned(),
+            desc_data[desc_data.len() - 4..].to_owned(),
         );
 
         stream_done_tx.send(()).expect("Failed to send stream done");
@@ -235,9 +279,10 @@ impl WebRtcStream {
     }
 
     pub fn name(&self) -> String {
-        format!("{}...{}",
+        format!(
+            "{}...{}",
             self.stream_session[0..4].to_owned(),
-            self.stream_session[self.stream_session.len()-4..].to_owned(),
+            self.stream_session[self.stream_session.len() - 4..].to_owned(),
         )
     }
 

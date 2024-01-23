@@ -1,7 +1,7 @@
-use nalgebra::{SMatrix, SVector, Vector3, UnitQuaternion, Quaternion, Vector4};
-use serde::{Serialize, Deserialize};
-use shared::fcu_hal::FcuConfig;
+use nalgebra::{Quaternion, SMatrix, SVector, UnitQuaternion, Vector3, Vector4};
 use num_traits::Float;
+use serde::{Deserialize, Serialize};
+use shared::fcu_hal::FcuConfig;
 // state_vector = [x, y, z, vx, vy, vz, ax, ay, az, w, i, j, k, avx, avy, avz]
 // measure = [x, y, z, by, ax, ay, az, avx, avy, avz]
 
@@ -248,8 +248,8 @@ impl KalmanFilter {
 
     pub fn update_config(&mut self, config: &FcuConfig) {
         silprintln!("Updating kalman config");
-        self.process_noise_cov = SMatrix::<f32, STATE_LEN, STATE_LEN>::identity()
-            * config.kalman_process_variance;
+        self.process_noise_cov =
+            SMatrix::<f32, STATE_LEN, STATE_LEN>::identity() * config.kalman_process_variance;
         self.measurement_noise_cov[(0, 0)] = config.gps_noise_std_dev.x.powi(2); // x
         self.measurement_noise_cov[(1, 1)] = config.gps_noise_std_dev.y.powi(2); // y
         self.measurement_noise_cov[(2, 2)] = config.gps_noise_std_dev.z.powi(2); // z
@@ -259,7 +259,8 @@ impl KalmanFilter {
         self.measurement_noise_cov[(6, 6)] = config.accelerometer_noise_std_dev.z.powi(2); // az
         self.measurement_noise_cov[(7, 7)] = config.gps_noise_std_dev.x.powi(2); // avx
         self.measurement_noise_cov[(8, 8)] = config.gps_noise_std_dev.y.powi(2); // avy
-        self.measurement_noise_cov[(9, 9)] = config.gps_noise_std_dev.z.powi(2); // avz
+        self.measurement_noise_cov[(9, 9)] = config.gps_noise_std_dev.z.powi(2);
+        // avz
     }
 
     pub fn update_acceleration(&mut self, acceleration: Vector3<f32>) {
@@ -329,10 +330,7 @@ impl KalmanFilter {
         // Update orientation from angular velocity
         let ang_vel = Vector3::new(state[13], state[14], state[15]);
         let orientation = UnitQuaternion::from_quaternion(Quaternion::new(
-            state[9],
-            state[10],
-            state[11],
-            state[12],
+            state[9], state[10], state[11], state[12],
         ));
         let new_orientation = integrate_angular_velocity_rk4(orientation, ang_vel, dt);
 
@@ -344,7 +342,11 @@ impl KalmanFilter {
         new_state
     }
 
-    fn calc_sp(&self, state: &SVector<f32, STATE_LEN>, state_cov: &SMatrix<f32, STATE_LEN, STATE_LEN>) -> [SVector<f32, STATE_LEN>; SIGMA_LEN] {
+    fn calc_sp(
+        &self,
+        state: &SVector<f32, STATE_LEN>,
+        state_cov: &SMatrix<f32, STATE_LEN, STATE_LEN>,
+    ) -> [SVector<f32, STATE_LEN>; SIGMA_LEN] {
         let mut sp = [SVector::<f32, STATE_LEN>::zeros(); SIGMA_LEN];
         let deltas = self.calc_sp_deltas(state_cov);
         sp[0] = *state;
@@ -356,11 +358,17 @@ impl KalmanFilter {
         sp
     }
 
-    fn calc_sp_deltas(&self, state_cov: &SMatrix<f32, STATE_LEN, STATE_LEN>) -> [SVector<f32, STATE_LEN>; SIGMA_LEN_MINUS_1] {
+    fn calc_sp_deltas(
+        &self,
+        state_cov: &SMatrix<f32, STATE_LEN, STATE_LEN>,
+    ) -> [SVector<f32, STATE_LEN>; SIGMA_LEN_MINUS_1] {
         let mut deltas = [SVector::<f32, STATE_LEN>::zeros(); SIGMA_LEN_MINUS_1];
 
         // println!("sigma_scaling = {}, state_cov = {}", self.sigma_scaling, state_cov.diagonal());
-        let lower = (self.sigma_scaling * state_cov).cholesky().expect("Failed to compute cholesky").l();
+        let lower = (self.sigma_scaling * state_cov)
+            .cholesky()
+            .expect("Failed to compute cholesky")
+            .l();
 
         for i in 0..STATE_LEN {
             deltas[i].set_column(0, &lower.column(i));

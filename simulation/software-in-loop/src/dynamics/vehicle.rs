@@ -1,5 +1,5 @@
-use nalgebra::{Vector3, UnitQuaternion, Quaternion};
-use pyo3::{prelude::*, types::PyList, exceptions::PyIndexError};
+use nalgebra::{Quaternion, UnitQuaternion, Vector3};
+use pyo3::{exceptions::PyIndexError, prelude::*, types::PyList};
 
 type Scalar = f64;
 
@@ -7,14 +7,14 @@ const G: Scalar = -9.806;
 
 #[pyclass]
 pub struct SilVehicleDynamics {
-    pub position: Vector3<Scalar>,     // World frame
-    pub velocity: Vector3<Scalar>,     // World frame
+    pub position: Vector3<Scalar>, // World frame
+    pub velocity: Vector3<Scalar>, // World frame
     pub acceleration_world_frame: Vector3<Scalar>,
     pub acceleration_body_frame: Vector3<Scalar>,
     pub orientation: UnitQuaternion<Scalar>,
     pub angular_velocity: Vector3<Scalar>,
     pub angular_acceleration: Vector3<Scalar>,
-    pub motor_thrust: Vector3<Scalar>,  // Body frame
+    pub motor_thrust: Vector3<Scalar>,   // Body frame
     pub angular_forces: Vector3<Scalar>, // Body frame
     #[pyo3(get, set)]
     pub landed: bool,
@@ -33,7 +33,8 @@ impl SilVehicleDynamics {
         self.acceleration_body_frame += gravity_accel_body_frame;
 
         self.acceleration_world_frame = self.orientation * self.acceleration_body_frame;
-        let acceleration_world_frame_minus_gravity = self.orientation * acceleration_body_frame_minus_gravity;
+        let acceleration_world_frame_minus_gravity =
+            self.orientation * acceleration_body_frame_minus_gravity;
 
         // Time step
         if self.landed {
@@ -44,7 +45,8 @@ impl SilVehicleDynamics {
         self.position += self.velocity * dt + 0.5 * self.acceleration_world_frame * dt * dt;
 
         self.angular_velocity += (self.angular_acceleration + self.angular_forces) * dt;
-        self.orientation = integrate_angular_velocity_rk4(self.orientation, self.angular_velocity, dt);
+        self.orientation =
+            integrate_angular_velocity_rk4(self.orientation, self.angular_velocity, dt);
     }
 
     #[new]
@@ -116,14 +118,28 @@ impl SilVehicleDynamics {
     #[setter(orientation)]
     pub fn set_orientation(&mut self, list: &PyList) -> PyResult<()> {
         if list.len() != 4 {
-            return Err(PyIndexError::new_err("List length must be 4 for quaternion"));
+            return Err(PyIndexError::new_err(
+                "List length must be 4 for quaternion",
+            ));
         }
 
         self.orientation = UnitQuaternion::from_quaternion(Quaternion::new(
-            list.get_item(0).unwrap().extract::<f64>().expect(".w wasn't a float"),
-            list.get_item(1).unwrap().extract::<f64>().expect(".i wasn't a float"),
-            list.get_item(2).unwrap().extract::<f64>().expect(".j wasn't a float"),
-            list.get_item(3).unwrap().extract::<f64>().expect(".k wasn't a float"),
+            list.get_item(0)
+                .unwrap()
+                .extract::<f64>()
+                .expect(".w wasn't a float"),
+            list.get_item(1)
+                .unwrap()
+                .extract::<f64>()
+                .expect(".i wasn't a float"),
+            list.get_item(2)
+                .unwrap()
+                .extract::<f64>()
+                .expect(".j wasn't a float"),
+            list.get_item(3)
+                .unwrap()
+                .extract::<f64>()
+                .expect(".k wasn't a float"),
         ));
 
         Ok(())
@@ -196,10 +212,19 @@ fn set_vec3(vec: &mut Vector3<Scalar>, list: &PyList) -> PyResult<()> {
         return Err(PyIndexError::new_err("List length must be 3 for vec3"));
     }
 
-   *vec = Vector3::new(
-        list.get_item(0).unwrap().extract::<f64>().expect(".x wasn't a float"),
-        list.get_item(1).unwrap().extract::<f64>().expect(".y wasn't a float"),
-        list.get_item(2).unwrap().extract::<f64>().expect(".z wasn't a float"),
+    *vec = Vector3::new(
+        list.get_item(0)
+            .unwrap()
+            .extract::<f64>()
+            .expect(".x wasn't a float"),
+        list.get_item(1)
+            .unwrap()
+            .extract::<f64>()
+            .expect(".y wasn't a float"),
+        list.get_item(2)
+            .unwrap()
+            .extract::<f64>()
+            .expect(".z wasn't a float"),
     );
 
     Ok(())

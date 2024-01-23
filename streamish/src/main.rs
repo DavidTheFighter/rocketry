@@ -1,6 +1,6 @@
 use big_brother::interface::std_interface::StdInterface;
 use streamish::Streamish;
-use sysinfo::{SystemExt, ProcessExt};
+use sysinfo::{ProcessExt, SystemExt};
 
 pub(crate) mod config;
 mod stream;
@@ -17,7 +17,8 @@ fn main() {
         }
     }
 
-    let mut interface = StdInterface::new([255, 255, 255, 255]).expect("Failed to create interface");
+    let mut interface =
+        StdInterface::new([255, 255, 255, 255]).expect("Failed to create interface");
 
     let mut streamish = Streamish::new(&mut interface);
     streamish.run();

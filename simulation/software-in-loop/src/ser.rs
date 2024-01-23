@@ -1,4 +1,7 @@
-use pyo3::{types::{PyList, PyDict}, Python};
+use pyo3::{
+    types::{PyDict, PyList},
+    Python,
+};
 use serde::Serialize;
 
 pub fn list_from_array<T: Serialize>(py: Python, list: T) -> &PyList {
@@ -28,11 +31,8 @@ pub fn list_from_array<T: Serialize>(py: Python, list: T) -> &PyList {
 }
 
 pub fn dict_from_obj<T: Serialize>(py: Python, obj: T) -> &PyDict {
-    let binding = serde_json::to_value(&obj)
-        .expect("Failed to serialize object");
-    let values = binding
-        .as_object()
-        .unwrap();
+    let binding = serde_json::to_value(&obj).expect("Failed to serialize object");
+    let values = binding.as_object().unwrap();
 
     let dict = PyDict::new(py);
     for (key, value) in values {
@@ -49,7 +49,10 @@ pub fn dict_from_obj<T: Serialize>(py: Python, obj: T) -> &PyDict {
         } else if value.is_boolean() {
             dict.set_item(key, value.as_bool().unwrap()).unwrap();
         } else {
-            panic!("Unsupported type {:?} for key {:?} ({:?})", value, key, dict);
+            panic!(
+                "Unsupported type {:?} for key {:?} ({:?})",
+                value, key, dict
+            );
         }
     }
 

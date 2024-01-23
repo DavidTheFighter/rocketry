@@ -149,7 +149,9 @@ pub struct DataPointLoggerMock;
 
 impl<T> DataPointLogger<T> for DataPointLoggerMock {
     fn log_data_point(&mut self, _data_point: &T) {}
-    fn get_bytes_logged(&self) -> u32 { 0 }
+    fn get_bytes_logged(&self) -> u32 {
+        0
+    }
     fn set_logging_enabled(&mut self, _enabled: bool) {}
 }
 

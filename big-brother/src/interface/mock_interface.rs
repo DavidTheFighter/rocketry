@@ -1,17 +1,22 @@
-use std::sync::{Mutex, Arc};
 use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use crate::dedupe;
-use crate::{big_brother::{BigBrotherEndpoint, BigBrotherError, WORKING_BUFFER_SIZE, BigBrotherPacket, UDP_PORT}, serdes};
+use crate::{
+    big_brother::{
+        BigBrotherEndpoint, BigBrotherError, BigBrotherPacket, UDP_PORT, WORKING_BUFFER_SIZE,
+    },
+    serdes,
+};
 
-use super::{BigBrotherInterface, mock_topology::MockPhysicalInterface};
+use super::{mock_topology::MockPhysicalInterface, BigBrotherInterface};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MockPayload {
-    pub host: BigBrotherEndpoint,       // To
-    pub remote: BigBrotherEndpoint,     // From
+    pub host: BigBrotherEndpoint,   // To
+    pub remote: BigBrotherEndpoint, // From
     pub data: Vec<u8>,
 }
 
@@ -152,8 +157,7 @@ impl BigBrotherInterface for MockInterface {
 
     fn broadcast_ip(&self) -> [u8; 4] {
         if let Some(phy) = &self.physical_interface {
-            phy
-                .lock()
+            phy.lock()
                 .expect("Failed to lock physical interface for virtual interface")
                 .broadcast_ip()
         } else {

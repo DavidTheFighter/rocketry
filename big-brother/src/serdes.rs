@@ -66,9 +66,7 @@ where
     Ok(buf_ptr)
 }
 
-pub fn deserialize_metadata<'a, A>(
-    buffer: &'a [u8],
-) -> Result<PacketMetadata<A>, BigBrotherError>
+pub fn deserialize_metadata<'a, A>(buffer: &'a [u8]) -> Result<PacketMetadata<A>, BigBrotherError>
 where
     A: Deserialize<'a>,
 {
