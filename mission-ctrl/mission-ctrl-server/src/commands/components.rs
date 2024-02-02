@@ -3,7 +3,7 @@ use std::{sync::Arc, thread, time::Duration};
 use rocket::{serde::json::Json, State};
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, EcuSolenoidValve},
+    ecu_hal::{EcuCommand, EcuBinaryValve},
 };
 
 use crate::{
@@ -13,12 +13,12 @@ use crate::{
 
 use super::{format_response, send_command};
 
-fn match_valve(valve: &str) -> Option<EcuSolenoidValve> {
+fn match_valve(valve: &str) -> Option<EcuBinaryValve> {
     match valve {
-        "ig_fuel" => Some(EcuSolenoidValve::IgniterFuelMain),
-        "ig_gox" => Some(EcuSolenoidValve::IgniterGOxMain),
-        "press" => Some(EcuSolenoidValve::FuelPress),
-        "vent" => Some(EcuSolenoidValve::FuelVent),
+        "ig_fuel" => Some(EcuBinaryValve::IgniterFuelMain),
+        "ig_gox" => Some(EcuBinaryValve::IgniterGOxMain),
+        "press" => Some(EcuBinaryValve::FuelPress),
+        "vent" => Some(EcuBinaryValve::FuelVent),
         _ => None,
     }
 }
@@ -79,7 +79,7 @@ pub fn set_solenoid_valve(
     send_command(
         observer_handler,
         NetworkAddress::EngineController(0),
-        Packet::EcuCommand(EcuCommand::SetSolenoidValve { valve, state }),
+        Packet::EcuCommand(EcuCommand::SetBinaryValve { valve, state }),
     )
 }
 
@@ -105,7 +105,7 @@ pub fn test_solenoid_valve(
     let return_value = send_command(
         observer_handler,
         NetworkAddress::EngineController(0),
-        Packet::EcuCommand(EcuCommand::SetSolenoidValve { valve, state: true }),
+        Packet::EcuCommand(EcuCommand::SetBinaryValve { valve, state: true }),
     );
 
     if return_value.success {
@@ -114,7 +114,7 @@ pub fn test_solenoid_valve(
             thread::sleep(Duration::from_millis(1000));
             observer_handler_clone.notify(ObserverEvent::SendPacket {
                 address: NetworkAddress::EngineController(0),
-                packet: Packet::EcuCommand(EcuCommand::SetSolenoidValve {
+                packet: Packet::EcuCommand(EcuCommand::SetBinaryValve {
                     valve,
                     state: false,
                 }),

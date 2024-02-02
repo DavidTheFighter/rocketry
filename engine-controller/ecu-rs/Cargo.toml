@@ -14,3 +14,7 @@ path = "../../big-brother"
 
 [dependencies.shared]
 path = "../../shared"
+
+[features]
+default = []
+sil = []

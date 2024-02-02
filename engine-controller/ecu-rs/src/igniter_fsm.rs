@@ -2,10 +2,10 @@ use shared::{ecu_hal::IgniterState, ControllerFsm, ControllerState};
 
 use crate::Ecu;
 
-mod firing;
-mod idle;
-mod shutdown;
-mod startup;
+pub mod firing;
+pub mod idle;
+pub mod shutdown;
+pub mod startup;
 
 pub enum IgniterFsm {
     Idle(idle::Idle),

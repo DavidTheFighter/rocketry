@@ -22,6 +22,10 @@ serde = "1.0"
 serde_json = "1.0"
 rand = "0.8.5"
 
+[dependencies.ecu-rs]
+path = "../../engine-controller/ecu-rs/"
+features = ["sil"]
+
 [dependencies.flight-controller-rs]
 path = "../../flight-controller/flight-controller-rs/"
 features = ["sil"]

@@ -1,6 +1,44 @@
 
 export const RAD_TO_DEG = 180.0 / Math.PI;
 
+export class DataFetcher {
+    constructor(timeout) {
+        this.timeout = timeout;
+        this.active_fetching = {};
+        this.fetched_data = {};
+    }
+
+    // async fetch(url) {
+    //     if (!(url in this.active_fetching)) {
+    //         this.active_fetching[url] = 0;
+    //     }
+
+    //     if (this.active_fetching[url] > 4) {
+    //         throw new Error("Too many fetches for " + url);
+    //     }
+
+    //     this.active_fetching[url] += 1;
+
+    //     const controller = new AbortController();
+    //     const timeoutId = setTimeout(() => {
+    //         controller.abort()
+    //     }, this.timeout);
+
+    //     const response = await fetch(url);
+
+    //     clearTimeout(timeoutId);
+    //     const data = await response.json();
+
+    //     this.fetched_data[url] = data;
+    //     this.active_fetching[url] -= 1;
+    //     return data;
+    // }
+
+    async fetch (url) {
+        return await timeoutFetch(url, this.timeout);
+    }
+}
+
 export async function timeoutFetch(url, timeout) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {

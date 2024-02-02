@@ -1,4 +1,5 @@
 pub mod dynamics;
+pub mod ecu;
 pub mod fcu;
 pub mod logging;
 pub mod mission_ctrl;
@@ -9,11 +10,19 @@ use pyo3::prelude::*;
 
 #[pymodule]
 fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
+    m.add_class::<ecu::EcuSil>()?;
     m.add_class::<fcu::FcuSil>()?;
     m.add_class::<mission_ctrl::MissionControl>()?;
 
+    m.add_class::<dynamics::SilTankDynamics>()?;
+    m.add_class::<dynamics::SilTankFeedConfig>()?;
     m.add_class::<dynamics::SilVehicleDynamics>()?;
+    m.add_class::<dynamics::combustion::CombustionData>()?;
+    m.add_class::<dynamics::igniter::SilIgniterDynamics>()?;
+    m.add_class::<dynamics::igniter::InjectorConfig>()?;
     m.add_class::<logging::Logger>()?;
+    m.add_class::<dynamics::fluid::GasDefinition>()?;
+    m.add_class::<dynamics::fluid::LiquidDefinition>()?;
 
     m.add_class::<network::SilNetwork>()?;
     m.add_class::<network::SilNetworkPhy>()?;

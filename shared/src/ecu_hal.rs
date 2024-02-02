@@ -28,20 +28,34 @@ pub enum TankState {
     Pressurized,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
-pub enum EcuSensor {
-    IgniterFuelInjectorPressure = 0,
-    IgniterGOxInjectorPressure = 1,
-    IgniterChamberPressure = 2,
-    FuelTankPressure = 3,
-    ECUBoardTemp = 4,
-    IgniterThroatTemp = 5,
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumIter, EnumCountMacro, EnumDiscriminants)]
+#[strum_discriminants(name(EcuSensorDataVariant))]
+#[strum_discriminants(derive(Serialize, Deserialize))]
+pub enum EcuSensorData {
+    // IgniterFuelInjectorPressure = 0,
+    // IgniterGOxInjectorPressure = 1,
+    // IgniterChamberPressure = 2,
+    // FuelTankPressure = 3,
+    // ECUBoardTemp = 4,
+    // IgniterThroatTemp = 5,
+    FuelTankPressure {
+        pressure_pa: f32,
+        raw_data: u16,
+    },
+    OxidizerTankPressure {
+        pressure_pa: f32,
+        raw_data: u16,
+    },
+    IgniterChamberPressure {
+        pressure_pa: f32,
+        raw_data: u16,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum EcuCommand {
-    SetSolenoidValve {
-        valve: EcuSolenoidValve,
+    SetBinaryValve {
+        valve: EcuBinaryValve,
         state: bool,
     },
     SetSparking(bool),
@@ -49,14 +63,14 @@ pub enum EcuCommand {
     SetFuelTank(TankState),
     SetOxidizerTank(TankState),
     ConfigureSensor {
-        sensor: EcuSensor,
+        sensor: EcuSensorDataVariant,
         config: SensorConfig,
     },
     ConfigureEcu(EcuConfig),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
-pub enum EcuSolenoidValve {
+pub enum EcuBinaryValve {
     IgniterFuelMain,
     IgniterGOxMain,
     FuelPress,
@@ -65,22 +79,37 @@ pub enum EcuSolenoidValve {
     OxidizerVent,
 }
 
+impl EcuBinaryValve {
+    pub fn index(&self) -> usize {
+        *self as usize
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EcuTelemetryFrame {
     pub timestamp: u64,
     pub engine_state: EngineState,
     pub igniter_state: IgniterState,
-    pub fuel_tank_state: TankState,
-    pub oxidizer_tank_state: TankState,
+    pub fuel_tank_state: Option<TankState>,
+    pub oxidizer_tank_state: Option<TankState>,
+    pub fuel_tank_pressure_pa: f32,
+    pub oxidizer_tank_pressure_pa: f32,
+    pub igniter_chamber_pressure_pa: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumDiscriminants)]
-#[strum_discriminants(name(FcuDebugInfoVariant))]
+#[strum_discriminants(name(EcuDebugInfoVariant))]
 #[strum_discriminants(derive(EnumIter))]
 pub enum EcuDebugInfo {
     IgniterInfo {
         timestamp: u64,
         igniter_state: IgniterState,
+    },
+    SensorData {
+        timestamp: u64,
+        fuel_tank_pressure_pa: f32,
+        oxidizer_tank_pressure_pa: f32,
+        igniter_chamber_pressure_pa: f32,
     },
 }
 
@@ -91,7 +120,7 @@ pub struct EcuConfig {
 }
 
 impl EcuConfig {
-    pub const fn default() -> Self {
+    pub fn default() -> Self {
         Self {
             igniter_config: IgniterConfig::default(),
             telemetry_rate_s: 0.02,
@@ -112,14 +141,14 @@ pub struct IgniterConfig {
 }
 
 impl IgniterConfig {
-    pub const fn default() -> Self {
+    pub fn default() -> Self {
         Self {
             gox_lead: false,
             gox_lead_duration: 0.25,
             startup_timeout: 1.0,
-            startup_pressure_threshold: 30.0,
+            startup_pressure_threshold: 30.0 * 6894.76, // 30 PSI to Pascals
             startup_stable_time: 0.25,
-            firing_duration: 0.75,
+            firing_duration: 2.0,
             shutdown_duration: 0.5,
             max_throat_temp: 500.0,
         }
@@ -129,20 +158,12 @@ impl IgniterConfig {
 pub trait EcuDriver {
     fn timestamp(&self) -> f32;
 
-    fn set_solenoid_valve(&mut self, valve: EcuSolenoidValve, state: bool);
     fn set_sparking(&mut self, state: bool);
 
-    fn get_solenoid_valve(&self, valve: EcuSolenoidValve) -> bool;
+    fn set_binary_valve(&mut self, valve: EcuBinaryValve, state: bool);
+    fn get_binary_valve(&self, valve: EcuBinaryValve) -> bool;
 
-    // TODO - Make this an option, because sensors will not always be available (configurable!)
-    fn get_sensor(&self, sensor: EcuSensor) -> f32;
     fn get_sparking(&self) -> bool;
-
-    fn send_packet(&mut self, packet: Packet, destination: NetworkAddress);
-
-    fn generate_telemetry_frame(&self) -> EcuTelemetryFrame;
-
-    fn configure_sensor(&mut self, sensor: EcuSensor, config: SensorConfig);
 
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }

@@ -1,7 +1,9 @@
 #![cfg_attr(not(any(test, feature = "sil")), no_std)]
 #![deny(unsafe_code)]
 
+pub mod debug_info;
 pub mod ecu;
+pub mod engine_fsm;
 pub mod igniter_fsm;
 pub mod tank_fsm;
 

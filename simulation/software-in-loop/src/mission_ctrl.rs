@@ -1,14 +1,13 @@
 use std::{cell::RefCell, rc::Rc};
 
 use big_brother::{
-    big_brother::MAX_INTERFACE_COUNT,
+    big_brother::{BigBrotherError, MAX_INTERFACE_COUNT},
     interface::{mock_interface::MockInterface, BigBrotherInterface},
 };
 use flight_controller_rs::FcuBigBrother;
 use pyo3::{prelude::*, types::PyList};
 use shared::{
-    comms_hal::{NetworkAddress, Packet},
-    fcu_hal,
+    comms_hal::{NetworkAddress, Packet}, ecu_hal, fcu_hal
 };
 
 use crate::network::SilNetworkIface;
@@ -97,6 +96,32 @@ impl MissionControl {
         let packet = Packet::VehicleCommand(command);
         self.send_packet(&packet, NetworkAddress::FlightController);
     }
+
+    pub fn send_set_fuel_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
+        let command = match pressurized {
+            true => ecu_hal::EcuCommand::SetFuelTank(ecu_hal::TankState::Pressurized),
+            false => ecu_hal::EcuCommand::SetFuelTank(ecu_hal::TankState::Depressurized),
+        };
+
+        let packet = Packet::EcuCommand(command);
+        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
+    }
+
+    pub fn send_set_oxidizer_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
+        let command = match pressurized {
+            true => ecu_hal::EcuCommand::SetOxidizerTank(ecu_hal::TankState::Pressurized),
+            false => ecu_hal::EcuCommand::SetOxidizerTank(ecu_hal::TankState::Depressurized),
+        };
+
+        let packet = Packet::EcuCommand(command);
+        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
+    }
+
+    pub fn send_fire_igniter_packet(&mut self, ecu_index: u8) {
+        let command = ecu_hal::EcuCommand::FireIgniter;
+        let packet = Packet::EcuCommand(command);
+        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
+    }
 }
 
 impl MissionControl {
@@ -106,7 +131,11 @@ impl MissionControl {
             .borrow_mut()
             .send_packet(&packet, destination)
         {
-            eprintln!("mission_ctrl.rs: Failed to send packet: {:?}", e);
+            if let BigBrotherError::UnknownNetworkAddress = e {
+                eprintln!("mission_ctrl.rs: Unknown network address");
+            } else {
+                eprintln!("mission_ctrl.rs: Failed to send packet: {:?}", e);
+            }
         }
     }
 }

@@ -2,11 +2,10 @@ mod cameras;
 mod commands;
 mod comms;
 mod config;
-mod ecu_telemetry;
-mod fcu_telemetry;
 mod input;
 mod logging;
 pub(crate) mod observer;
+mod telemetry;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -14,8 +13,8 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use cameras::browser_stream;
-use ecu_telemetry::{ecu_telemetry_endpoint, telemetry_thread};
-use fcu_telemetry::{
+use telemetry::ecu_telemetry::{ecu_telemetry_endpoint, ecu_telemetry_graph, ecu_debug_data, telemetry_thread};
+use telemetry::fcu_telemetry::{
     fcu_debug_data, fcu_telemetry_endpoint, fcu_telemetry_graph, fcu_telemetry_thread,
 };
 use input::input_thread;
@@ -42,6 +41,8 @@ fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
             routes![
                 all_options,
                 ecu_telemetry_endpoint,
+                ecu_telemetry_graph,
+                ecu_debug_data,
                 fcu_telemetry_endpoint,
                 fcu_telemetry_graph,
                 fcu_debug_data,

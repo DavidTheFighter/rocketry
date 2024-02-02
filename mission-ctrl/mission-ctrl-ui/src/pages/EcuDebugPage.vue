@@ -16,7 +16,7 @@ import DatasetDisplay from '../components/DatasetDisplay.vue';
 import * as util from '../util/data.js';
 
 export default {
-  name: 'FcuDebugPage',
+  name: 'EcuDebugPage',
   components: {
     EmptyComponent,
     DatasetDisplay,
@@ -95,13 +95,13 @@ export default {
       let debug_data = undefined;
 
       try {
-        debug_data = await util.timeoutFetch('http://localhost:8000/fcu-telemetry/debug-data', this.refreshTimeMillis - 1);
+        debug_data = await util.timeoutFetch('http://localhost:8000/ecu-telemetry/debug-data', this.refreshTimeMillis - 1);
       } catch (error) {
         console.log(error);
       }
 
       try {
-        let dataset = await util.timeoutFetch('http://localhost:8000/fcu-telemetry', this.refreshTimeMillis - 1);
+        let dataset = await util.timeoutFetch('http://localhost:8000/ecu-telemetry', this.refreshTimeMillis - 1);
         dataset.debug_data = debug_data;
 
         this.dataset = dataset;
@@ -110,7 +110,7 @@ export default {
       }
 
       try {
-        this.graph_data = await util.timeoutFetch('http://localhost:8000/fcu-telemetry/graph', this.refreshTimeMillis - 1);
+        this.graph_data = await util.timeoutFetch('http://localhost:8000/ecu-telemetry/graph', this.refreshTimeMillis - 1);
       } catch (error) {
         console.log(error);
       }

@@ -1,16 +1,17 @@
 use core::any::Any;
 
-use crate::ecu_hal::{EcuDriver, EcuSensorData, EcuBinaryValve};
+use shared::ecu_hal::{EcuDriver, EcuBinaryValve};
 use strum::EnumCount;
 
-pub struct EcuDriverMock {
+pub struct EcuDriverSil {
     start_timestamp: f64,
     sparking: bool,
     binary_valves: [bool; EcuBinaryValve::COUNT],
-    sensors: [(f32, f32, f32); EcuSensorData::COUNT],
+    current_sim_timestamp: f32,
+    last_sim_timestamp_update_timestamp: f64,
 }
 
-impl EcuDriver for EcuDriverMock {
+impl EcuDriver for EcuDriverSil {
     fn timestamp(&self) -> f32 {
         (get_timestamp() - self.start_timestamp) as f32
     }
@@ -36,25 +37,25 @@ impl EcuDriver for EcuDriverMock {
     }
 }
 
-impl EcuDriverMock {
+impl EcuDriverSil {
     pub fn new() -> Self {
         Self {
             start_timestamp: get_timestamp(),
             sparking: false,
             binary_valves: [false; EcuBinaryValve::COUNT],
-            sensors: [(0_f32, 0_f32, 0_f32); EcuSensorData::COUNT],
+            current_sim_timestamp: 0.0,
+            last_sim_timestamp_update_timestamp: get_timestamp(),
         }
+    }
+
+    pub fn update_timestamp(&mut self, sim_time: f32) {
+        self.current_sim_timestamp = sim_time;
+        self.last_sim_timestamp_update_timestamp = get_timestamp();
     }
 }
 
-#[cfg(test)]
 fn get_timestamp() -> f64 {
     let now = std::time::SystemTime::now();
     let duration = now.duration_since(std::time::UNIX_EPOCH).unwrap();
     duration.as_secs_f64()
-}
-
-#[cfg(not(test))]
-fn get_timestamp() -> f64 {
-    panic!("ecu_mock.rs: get_timestamp() should only be called in tests")
 }

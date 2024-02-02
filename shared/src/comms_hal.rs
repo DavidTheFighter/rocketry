@@ -2,7 +2,7 @@ use big_brother::big_brother::Broadcastable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensor, EcuTelemetryFrame, TankState},
+    ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensorData, EcuTelemetryFrame, TankState},
     fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand},
     streamish_hal::StreamishCommand,
     SensorConfig,
@@ -58,6 +58,7 @@ pub enum Packet {
     FcuDebugInfo(FcuDebugInfo),
     EcuDebugInfo(EcuDebugInfo),
     FcuDebugSensorMeasurement(FcuSensorData),
+    EcuDebugSensorMeasurement(EcuSensorData),
     AlertBitmask(u32),
 
     // -- Misc -- //
@@ -110,18 +111,18 @@ pub mod tests_data {
         Packet::VehicleCommand(VehicleCommand::IgniteSolidMotor {
             magic_number: fcu_hal::IGNITION_MAGIC_NUMBER,
         }),
-        Packet::EcuCommand(EcuCommand::ConfigureSensor {
-            sensor: EcuSensor::FuelTankPressure,
-            config: SENSOR_CONFIG,
-        }),
+        Packet::EcuCommand(EcuCommand::SetSparking(true)),
         Packet::StreamishCommand(StreamishCommand::StartCameraStream { port: 25565 }),
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
         Packet::EcuTelemetry(EcuTelemetryFrame {
             timestamp: 0xABAD_1234_FEDC_DEAD,
             engine_state: EngineState::Idle,
             igniter_state: IgniterState::Shutdown,
-            fuel_tank_state: TankState::Idle,
-            oxidizer_tank_state: TankState::Idle,
+            fuel_tank_state: Some(TankState::Idle),
+            oxidizer_tank_state: Some(TankState::Idle),
+            fuel_tank_pressure_pa: 19522.4,
+            oxidizer_tank_pressure_pa: 96420.425,
+            igniter_chamber_pressure_pa: 1234.567,
         }),
         Packet::AlertBitmask(0xAAAA_AAAA),
         Packet::EnableDebugInfo(true),
@@ -141,6 +142,10 @@ pub mod tests_data {
                 y: -72,
                 z: 19852,
             },
+        }),
+        Packet::EcuDebugSensorMeasurement(EcuSensorData::FuelTankPressure {
+            pressure_pa: 1937234.15,
+            raw_data: 5120,
         }),
         Packet::Heartbeat,
         Packet::DoNothing,

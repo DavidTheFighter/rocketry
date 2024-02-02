@@ -210,9 +210,9 @@ export default {
       async handler() {
         this.generateData();
 
-        setTimeout(() => {
-          this.timer += 1;
-        }, this.refreshTimeMillis);
+        // setTimeout(() => {
+        //   this.timer += 1;
+        // }, this.refreshTimeMillis);
       },
       immediate: true,
     }
@@ -222,13 +222,13 @@ export default {
       let debug_data = undefined;
 
       try {
-        debug_data = await util.timeoutFetch('http://localhost:8000/fcu-telemetry/debug-data', this.refreshTimeMillis - 1);
+        debug_data = await this.fetcher.fetch('http://localhost:8000/fcu-telemetry/debug-data');
       } catch (error) {
         console.log(error);
       }
 
       try {
-        let dataset = await util.timeoutFetch('http://localhost:8000/fcu-telemetry', this.refreshTimeMillis - 1);
+        let dataset = await this.fetcher.fetch('http://localhost:8000/fcu-telemetry');
         dataset.debug_data = debug_data;
 
         this.dataset = dataset;
@@ -237,16 +237,21 @@ export default {
       }
 
       try {
-        this.graph_data = await util.timeoutFetch('http://localhost:8000/fcu-telemetry/graph', this.refreshTimeMillis - 1);
+        this.graph_data = await this.fetcher.fetch('http://localhost:8000/fcu-telemetry/graph');
       } catch (error) {
         console.log(error);
       }
+
+      this.timer += 1;
     },
+  },
+  created() {
+    this.fetcher = new util.DataFetcher(this.refreshTimeMillis / 2);
   },
   data() {
     return {
       timer: 0,
-      dataset: [],
+      dataset: {},
       graph_data: {},
     }
   }

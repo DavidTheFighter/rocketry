@@ -3,8 +3,8 @@ from dataclasses import dataclass, field
 @dataclass
 class SimConfig:
     fcu_update_rate: float = 0.02 # Seconds
-    sim_update_rate: float = 0.001 # Seconds
-    dev_stats_rate: float = 2.0 # Seconds
+    ecu_update_rate: float = 0.001 # Seconds
+    sim_update_rate: float = 0.0005 # Seconds
 
     vehicle_mass: float = 1 # Kilograms
     thrust: float = 25 # Newtons
@@ -15,6 +15,8 @@ class SimConfig:
     gps_data_rate: float = 1.0 # Seconds
     baro_data_rate: float = 0.1 # Seconds
     angular_data_rate: float = 0.01 # Seconds
+
+    ecu_pressure_sensor_rate: float = 0.001 # Seconds
 
     # Make sure to update the noises in fcu_config
     accel_noise: float = 0.01 # Meters per second squared

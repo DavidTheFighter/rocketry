@@ -12,6 +12,8 @@ use shared::fcu_hal::{FcuDebugInfo, FcuTelemetryFrame};
 use crate::observer::{ObserverEvent, ObserverHandler};
 use crate::{process_is_running, timestamp};
 
+use super::{populate_graph_data, VISUAL_UPDATES_PER_S};
+
 #[derive(Debug, Serialize, Default, Clone)]
 #[serde(crate = "rocket::serde")]
 pub struct DatasetEntry<'a> {
@@ -25,10 +27,6 @@ pub struct FcuGraphData {
     altitude: VecDeque<f32>,
     y_velocity: VecDeque<f32>,
 }
-
-const GRAPH_DISPLAY_TIME_S: f32 = 20.0;
-const VISUAL_UPDATES_PER_S: f32 = 5.0;
-pub const GRAPH_MAX_DATA_POINTS: usize = (GRAPH_DISPLAY_TIME_S * VISUAL_UPDATES_PER_S) as usize;
 
 static TELEMETRY_ENDPOINT_DATA: Mutex<Option<Value>> = Mutex::new(None);
 static DEBUG_INFO_ENDPOINT_DATA: Mutex<Option<Value>> = Mutex::new(None);
@@ -98,43 +96,7 @@ impl FcuTelemetryHandler {
                     .expect("Failed to lock telemetry state")
                     .replace(self.populate_telemetry_endpoint());
 
-                let mut graph_data = GRAPH_ENDPOINT_DATA
-                    .lock()
-                    .expect("Failed to lock FCU telemetry graph data")
-                    .clone()
-                    .unwrap_or(Value::Object(rocket::serde::json::serde_json::Map::new()));
-
-                let graph_data_map = graph_data
-                    .as_object_mut()
-                    .expect("Failed to convert serde value to serde object");
-
-                let graph_data_insert = self.populate_graph_frame();
-
-                for (key, value) in graph_data_insert.iter() {
-                    if !graph_data_map.contains_key(key) {
-                        graph_data_map.insert(
-                            key.clone(),
-                            Value::Array(vec![value.clone(); GRAPH_MAX_DATA_POINTS - 1]),
-                        );
-                    }
-
-                    let graph_data_vec = graph_data_map
-                        .get_mut(key)
-                        .expect("Failed to get graph data vec")
-                        .as_array_mut()
-                        .expect("Failed to convert graph data vec to array");
-
-                    graph_data_vec.push(value.clone());
-
-                    while graph_data_vec.len() >= GRAPH_MAX_DATA_POINTS {
-                        graph_data_vec.remove(0);
-                    }
-                }
-
-                GRAPH_ENDPOINT_DATA
-                    .lock()
-                    .expect("Failed to lock FCU telemetry graph data")
-                    .replace(graph_data);
+                populate_graph_data(&GRAPH_ENDPOINT_DATA, self.populate_graph_frame());
             }
 
             if now - last_rate_record_time >= self.telemetry_rate_record_time {

@@ -37,6 +37,7 @@ impl CommsThread {
 
         while process_is_running() {
             if let Some((event_id, address, packet)) = self.get_send_packet_event() {
+
                 if let Err(err) = bb.send_packet(&packet, address) {
                     eprintln!(
                         "comms_thread: Failed to send packet: {:?} ({:?})",

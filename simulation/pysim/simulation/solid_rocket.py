@@ -121,13 +121,9 @@ class SolidRocketSimulation:
 
             self.fcu.update(self.config.fcu_update_rate)
 
-        if math.fmod(self.t, self.config.dev_stats_rate) <= self.dt:
-            self.fcu.start_dev_stats_frame()
-
         self.logger.log_common_data()
         self.logger.log_fcu_data(self.fcu)
         self.logger.log_dynamics_data(self.dynamics)
-        # self.logger.log_dev_stats(self.fcu)
 
         if self.dynamics.position[1] < -1.0:
             print("Vehicle landed at {:.6f} s".format(self.t))

@@ -1,7 +1,7 @@
 use nalgebra::{Quaternion, UnitQuaternion, Vector3};
 use pyo3::{exceptions::PyIndexError, prelude::*, types::PyList};
 
-type Scalar = f64;
+use super::Scalar;
 
 const G: Scalar = -9.806;
 

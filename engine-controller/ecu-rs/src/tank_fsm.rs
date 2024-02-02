@@ -1,5 +1,5 @@
 use shared::{
-    ecu_hal::{EcuSolenoidValve, TankState},
+    ecu_hal::{EcuBinaryValve, TankState},
     ControllerFsm, ControllerState,
 };
 
@@ -43,12 +43,12 @@ impl<'a> ControllerFsm<TankFsm, Ecu<'a>, TankState> for TankFsm {
 fn new_state_from_command(
     state: TankState,
     tank_type: TankType,
-    press_valve: EcuSolenoidValve,
-    vent_valve: EcuSolenoidValve,
+    press_valve: EcuBinaryValve,
+    vent_valve: EcuBinaryValve,
 ) -> TankFsm {
     match state {
         TankState::Idle => idle::Idle::new(tank_type, press_valve, vent_valve),
-        TankState::Depressurized => idle::Idle::new(tank_type, press_valve, vent_valve),
-        TankState::Pressurized => idle::Idle::new(tank_type, press_valve, vent_valve),
+        TankState::Depressurized => depressurized::Depressurized::new(tank_type, press_valve, vent_valve),
+        TankState::Pressurized => pressurized::Pressurized::new(tank_type, press_valve, vent_valve),
     }
 }

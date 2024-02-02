@@ -2,11 +2,11 @@ use core::borrow::BorrowMut;
 
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuSolenoidValve, TankState},
+    ecu_hal::{EcuBinaryValve, TankState},
     ControllerState,
 };
 
-use crate::Ecu;
+use crate::{silprintln, Ecu};
 
 use super::{firing::Firing, shutdown::Shutdown, IgniterFsm};
 
@@ -23,6 +23,7 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Startup {
         _packets: &[(NetworkAddress, Packet)],
     ) -> Option<IgniterFsm> {
         self.update_stable_pressure_timer(ecu, dt);
+        self.startup_elapsed_time += dt;
 
         if !self.tanks_pressurized(ecu) || self.startup_timed_out(ecu) || self.throat_too_hot(ecu) {
             return Some(Shutdown::new());
@@ -38,8 +39,8 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Startup {
     fn enter_state(&mut self, ecu: &mut Ecu) {
         let driver = ecu.driver.borrow_mut();
 
-        driver.set_solenoid_valve(EcuSolenoidValve::IgniterFuelMain, true);
-        driver.set_solenoid_valve(EcuSolenoidValve::IgniterGOxMain, true);
+        driver.set_binary_valve(EcuBinaryValve::IgniterFuelMain, true);
+        driver.set_binary_valve(EcuBinaryValve::IgniterGOxMain, true);
         driver.set_sparking(true);
     }
 
@@ -65,11 +66,9 @@ impl Startup {
     }
 
     fn update_stable_pressure_timer(&mut self, ecu: &mut Ecu, dt: f32) {
-        let chamber_pressure_min = 0.0; // TODO
-
         let startup_pressure_threshold = ecu.config.igniter_config.startup_pressure_threshold;
 
-        if chamber_pressure_min >= startup_pressure_threshold {
+        if ecu.igniter_chamber_pressure_pa >= startup_pressure_threshold {
             self.stable_pressure_time += dt;
         } else {
             self.stable_pressure_time = 0.0;

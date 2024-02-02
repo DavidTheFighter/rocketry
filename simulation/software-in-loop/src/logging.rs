@@ -9,8 +9,7 @@ use pyo3::{
 };
 use serde::{Deserialize, Serialize};
 use shared::{
-    comms_hal::{NetworkAddress, Packet},
-    fcu_hal::{FcuDebugInfo, FcuDevStatsFrame, FcuTelemetryFrame},
+    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuDebugInfo, EcuTelemetryFrame}, fcu_hal::{FcuDebugInfo, FcuDevStatsFrame, FcuTelemetryFrame}
 };
 use std::{
     io::Write,
@@ -18,7 +17,7 @@ use std::{
     thread,
 };
 
-use crate::{dynamics::SilVehicleDynamics, fcu::FcuSil, network::SilNetwork, ser::dict_from_obj};
+use crate::{dynamics::SilVehicleDynamics, ecu::EcuSil, fcu::FcuSil, network::SilNetwork, ser::dict_from_obj};
 
 type Scalar = f64;
 
@@ -33,6 +32,8 @@ pub struct Logger {
     // Per timestep data
     pub fcu_telemetry: Vec<FcuTelemetryFrame>,
     pub fcu_debug_info: Vec<Vec<FcuDebugInfo>>,
+    pub ecu_telemetry: Vec<EcuTelemetryFrame>,
+    pub ecu_debug_info: Vec<Vec<EcuDebugInfo>>,
     pub dev_stats: Vec<FcuDevStatsFrame>,
     pub network_packets: Vec<Vec<(PacketMetadata<NetworkAddress>, Packet)>>,
     pub network_payloads: Vec<Vec<MockPayload>>,
@@ -70,6 +71,8 @@ impl Logger {
             num_timesteps: 0,
             fcu_telemetry: Vec::new(),
             fcu_debug_info: Vec::new(),
+            ecu_telemetry: Vec::new(),
+            ecu_debug_info: Vec::new(),
             dev_stats: Vec::new(),
             network_packets: Vec::new(),
             network_payloads: Vec::new(),
@@ -121,6 +124,20 @@ impl Logger {
         self.fcu_debug_info.push(debug_infos);
     }
 
+    pub fn log_ecu_data(&mut self, ecu: &mut EcuSil) {
+        if let Some(frame) = &ecu.ecu.last_telemetry_frame {
+            self.ecu_telemetry.push(frame.clone());
+        }
+
+        let mut debug_infos = Vec::new();
+        let debug_info_callback = |debug_info_variant| {
+            debug_infos.push(debug_info_variant);
+        };
+        ecu.ecu
+            .generate_debug_info_all_variants(debug_info_callback);
+        self.ecu_debug_info.push(debug_infos);
+    }
+
     pub fn log_dynamics_data(&mut self, dynamics: &mut SilVehicleDynamics) {
         self.position.push(dynamics.get_position().unwrap());
         self.velocity.push(dynamics.get_velocity().unwrap());
@@ -136,7 +153,7 @@ impl Logger {
     pub fn grab_timestep_frame(&self, py: Python, i: usize) -> PyResult<PyObject> {
         let dict = PyDict::new(py);
 
-        if self.position.len() > 0 {
+        if self.has_vehicle_dynamics_logs() {
             dict.set_item("position", self.position[i].clone())?;
             dict.set_item("velocity", self.velocity[i].clone())?;
             dict.set_item("acceleration", self.acceleration[i].clone())?;
@@ -145,7 +162,7 @@ impl Logger {
             dict.set_item("angular_acceleration", self.angular_acceleration[i].clone())?;
         }
 
-        if self.fcu_telemetry.len() > 0 {
+        if self.has_fcu_logs() {
             dict.set_item("fcu_telemetry", dict_from_obj(py, &self.fcu_telemetry[i]))?;
 
             let debug_info_dict = PyDict::new(py);
@@ -159,7 +176,33 @@ impl Logger {
             dict.set_item("fcu_debug_info", debug_info_dict)?;
         }
 
+        if self.has_ecu_logs() {
+            dict.set_item("ecu_telemetry", dict_from_obj(py, &self.ecu_telemetry[i]))?;
+
+            let debug_info_dict = PyDict::new(py);
+            for variant in &self.ecu_debug_info[i] {
+                for value in dict_from_obj(py, variant).values() {
+                    for (key, value) in value.downcast::<PyDict>().unwrap().iter() {
+                        debug_info_dict.set_item(key, value)?;
+                    }
+                }
+            }
+            dict.set_item("ecu_debug_info", debug_info_dict)?;
+        }
+
         Ok(dict.into())
+    }
+
+    pub fn has_vehicle_dynamics_logs(&self) -> bool {
+        self.position.len() > 0
+    }
+
+    pub fn has_fcu_logs(&self) -> bool {
+        self.fcu_telemetry.len() > 0
+    }
+
+    pub fn has_ecu_logs(&self) -> bool {
+        self.ecu_telemetry.len() > 0
     }
 
     pub fn get_network_packet_bytes(&mut self, py: Python, i: usize) -> PyResult<PyObject> {

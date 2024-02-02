@@ -2,55 +2,62 @@
   <div>
     <div class="row">
       <RealtimeLineGraphChartjs
-      :datasets="igniterDataset"
-      :dataset="dataset"
-      :yrange="[0, 250]"
-      :xTitle="'Time (sec)'"
-      :yTitle="'Pressure (PSI)'"
-      :paddingFigs="3"
-      class="columnLeft"
+        :data-description="igniterDataset"
+        :dataset="graph_data"
+        :yrange="[0, 250]"
+        :xTitle="'Time (sec)'"
+        :yTitle="'Pressure (PSI)'"
+        :displayTimeSeconds="20.0"
+        :displayTickInterval="2.0"
+        :paddingFigs="3"
+        class="columnLeft"
       />
-      <RealtimeLineGraph
-      :datasets="tankDataset"
-      :yrange="[0, 300]"
-      :xTitle="'Time (sec)'"
-      :yTitle="'Pressure (PSI)'"
-      :paddingFigs="3"
-      :justifyLegend="'left'"
-      class="columnMiddle"
+      <RealtimeLineGraphChartjs
+        :data-description="tankDataset"
+        :dataset="graph_data"
+        :yrange="[0, 300]"
+        :xTitle="'Time (sec)'"
+        :yTitle="'Pressure (PSI)'"
+        :displayTimeSeconds="20.0"
+        :displayTickInterval="2.0"
+        :paddingFigs="3"
+        :justifyLegend="'left'"
+        class="columnMiddle"
       />
-      <RealtimeLineGraph
-      :datasets="tempDataset"
-      :xTitle="'Time (sec)'"
-      :yTitle="'Temperature (°C)'"
-      :paddingFigs="3"
-      :justifyLegend="'left'"
-      class="columnLeft"
+      <RealtimeLineGraphChartjs
+        :data-description="tempDataset"
+        :dataset="graph_data"
+        :xTitle="'Time (sec)'"
+        :yTitle="'Temperature (°C)'"
+        :displayTimeSeconds="20.0"
+        :displayTickInterval="2.0"
+        :paddingFigs="3"
+        :justifyLegend="'left'"
+        class="columnLeft"
       />
     </div>
     <div class="row">
       <HardwareDisplay class="columnLeft" :valves="valveDataset"/>
       <RocketTerminal class="columnMiddle" id="terminal"/>
-      <SoftwareDisplay class="columnRight" :states="softwareDataset"/>
+      <DatasetDisplay class="columnRight" :states="softwareDataset"/>
     </div>
   </div>
 </template>
 
 <script>
-import RealtimeLineGraph from '../components/RealtimeLineGraph.vue';
 import RealtimeLineGraphChartjs from '../components/RealtimeLineGraphChartjs.vue';
 import RocketTerminal from '../components/RocketTerminal.vue';
 import HardwareDisplay from '../components/HardwareDisplay.vue';
-import SoftwareDisplay from '../components/SoftwareDisplay.vue';
+import DatasetDisplay from '../components/DatasetDisplay.vue';
+import * as util from '../util/data.js';
 
 export default {
   name: 'IgniterPage',
   components: {
-    RealtimeLineGraph,
     RealtimeLineGraphChartjs,
     RocketTerminal,
     HardwareDisplay,
-    SoftwareDisplay
+    DatasetDisplay,
   },
   props: {
     refreshTimeMillis: {
@@ -76,7 +83,7 @@ export default {
         {
           name: 'IG Chamber',
           color: 'red',
-          dataName: 'igniter_chamber_pressure',
+          dataName: 'igniter_chamber_pressure_psi',
           units: "PSI",
         },
       ];
@@ -85,8 +92,14 @@ export default {
       return [
         {
           name: 'Fuel Tank',
-          color: 'green',
-          data: this.dataset.fuel_tank_pressure,
+          color: 'orange',
+          dataName: "fuel_tank_pressure_psi",
+          units: "PSI",
+        },
+        {
+          name: 'Oxidizer Tank',
+          color: 'cyan',
+          dataName: "oxidizer_tank_pressure_psi",
           units: "PSI",
         },
       ];
@@ -173,24 +186,40 @@ export default {
   },
   methods: {
     async generateData() {
-      try {
-        const response = await fetch('http://localhost:8000/ecu-telemetry');
-        const data = await response.json();
+      let debug_data = undefined;
 
-        this.dataset = data;
+      try {
+        debug_data = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/debug-data');
       } catch (error) {
         console.log(error);
+      }
 
-        this.dataset = [];
+      try {
+        let dataset = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry');
+        dataset.debug_data = debug_data;
+
+        this.dataset = dataset;
+      } catch (error) {
+        console.log(error);
+      }
+
+      try {
+        this.graph_data = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/graph');
+      } catch (error) {
+        console.log(error);
       }
     },
+  },
+  created() {
+    this.fetcher = new util.DataFetcher(this.refreshTimeMillis - 1);
   },
   data() {
     return {
       timer: 0,
       dataset: {},
+      graph_data: {},
     }
-  }
+  },
 }
 </script>
 
@@ -221,6 +250,8 @@ export default {
 
 .columnRight {
   flex: 33%;
+  max-height: 100%;
+  padding-left: 20px;
 }
 
 .columnRightTwoThirds {

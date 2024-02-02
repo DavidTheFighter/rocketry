@@ -4,7 +4,7 @@ use super::{idle::Idle, IgniterFsm};
 use crate::Ecu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::EcuSolenoidValve,
+    ecu_hal::EcuBinaryValve,
     ControllerState,
 };
 
@@ -31,8 +31,8 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Shutdown {
     fn enter_state(&mut self, ecu: &mut Ecu) {
         let driver = ecu.driver.borrow_mut();
 
-        driver.set_solenoid_valve(EcuSolenoidValve::IgniterFuelMain, false);
-        driver.set_solenoid_valve(EcuSolenoidValve::IgniterGOxMain, true);
+        driver.set_binary_valve(EcuBinaryValve::IgniterFuelMain, false);
+        driver.set_binary_valve(EcuBinaryValve::IgniterGOxMain, true);
         driver.set_sparking(false);
     }
 

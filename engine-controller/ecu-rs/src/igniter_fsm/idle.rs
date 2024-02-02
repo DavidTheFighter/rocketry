@@ -1,12 +1,10 @@
-use core::borrow::BorrowMut;
-
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, EcuSolenoidValve, TankState},
+    ecu_hal::{EcuCommand, EcuBinaryValve, TankState},
     ControllerState,
 };
 
-use crate::Ecu;
+use crate::{silprintln, Ecu};
 
 use super::{startup::Startup, IgniterFsm};
 
@@ -27,11 +25,9 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Idle {
     }
 
     fn enter_state(&mut self, ecu: &mut Ecu) {
-        let driver = ecu.driver.borrow_mut();
-
-        driver.set_solenoid_valve(EcuSolenoidValve::IgniterFuelMain, false);
-        driver.set_solenoid_valve(EcuSolenoidValve::IgniterGOxMain, false);
-        driver.set_sparking(false);
+        ecu.driver.set_binary_valve(EcuBinaryValve::IgniterFuelMain, false);
+        ecu.driver.set_binary_valve(EcuBinaryValve::IgniterGOxMain, false);
+        ecu.driver.set_sparking(false);
     }
 
     fn exit_state(&mut self, _ecu: &mut Ecu) {
@@ -57,10 +53,14 @@ impl Idle {
     }
 
     fn tanks_pressurized(&self, ecu: &Ecu) -> bool {
-        ecu.fuel_tank_state()
-            .map_or(true, |state| state == TankState::Pressurized)
-            && ecu
-                .oxidizer_tank_state()
-                .map_or(true, |state| state == TankState::Pressurized)
+        let fuel_tank_pressurized = ecu
+            .fuel_tank_state()
+            .map_or(true, |state| state == TankState::Pressurized);
+
+        let oxidizer_tank_pressurized = ecu
+            .oxidizer_tank_state()
+            .map_or(true, |state| state == TankState::Pressurized);
+
+        fuel_tank_pressurized && oxidizer_tank_pressurized
     }
 }
