@@ -55,12 +55,12 @@ impl Firing {
     }
 
     fn firing_ended(&self, ecu: &mut Ecu) -> bool {
-        self.elapsed_time >= ecu.config.igniter_config.firing_duration
+        self.elapsed_time >= ecu.config.igniter_config.test_firing_duration_s
     }
 
     fn throat_too_hot(&self, ecu: &mut Ecu) -> bool {
         let igniter_throat_temp_max = 0.0; // TODO
 
-        igniter_throat_temp_max >= ecu.config.igniter_config.max_throat_temp
+        igniter_throat_temp_max >= ecu.config.igniter_config.max_throat_temp_k
     }
 }

@@ -12,7 +12,7 @@ use shared::fcu_hal::{FcuDebugInfo, FcuTelemetryFrame};
 use crate::observer::{ObserverEvent, ObserverHandler};
 use crate::{process_is_running, timestamp};
 
-use super::{populate_graph_data, VISUAL_UPDATES_PER_S};
+use super::{populate_graph_data_mutex, VISUAL_UPDATES_PER_S};
 
 #[derive(Debug, Serialize, Default, Clone)]
 #[serde(crate = "rocket::serde")]
@@ -96,7 +96,7 @@ impl FcuTelemetryHandler {
                     .expect("Failed to lock telemetry state")
                     .replace(self.populate_telemetry_endpoint());
 
-                populate_graph_data(&GRAPH_ENDPOINT_DATA, self.populate_graph_frame());
+                    populate_graph_data_mutex(&GRAPH_ENDPOINT_DATA, self.populate_graph_frame());
             }
 
             if now - last_rate_record_time >= self.telemetry_rate_record_time {

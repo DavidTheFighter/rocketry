@@ -43,6 +43,18 @@ class SimConfig:
         "gyro_noise_std_dev": [0.1]*3, # Radians per second
     })
 
+    ecu_config: dict = field(default_factory=lambda: {
+        'igniter_config': {
+            'startup_timeout_s': 1.0,
+            'startup_pressure_threshold_pa': 30 * 6894.75729, # PSI to pascals
+            'startup_stable_time_s': 0.25,
+            'test_firing_duration_s': 2.0,
+            'shutdown_duration_s': 0.5,
+            'max_throat_temp_k': 500 + 273.15, # Celsius to Kelvin
+        },
+        'telemetry_rate_s': 0.02,
+    })
+
     def is_time_before_thrust(self, t):
         return t < self.thrust_wait
 

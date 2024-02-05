@@ -47,6 +47,6 @@ impl Shutdown {
     }
 
     fn shutdown_time_elapsed(&self, ecu: &mut Ecu) -> bool {
-        self.elapsed_time >= ecu.config.igniter_config.shutdown_duration
+        self.elapsed_time >= ecu.config.igniter_config.shutdown_duration_s
     }
 }

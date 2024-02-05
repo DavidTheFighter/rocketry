@@ -21,7 +21,7 @@ pub struct EcuSil {
 #[pymethods]
 impl EcuSil {
     #[new]
-    pub fn new(network_ifaces: &PyList) -> Self {
+    pub fn new(network_ifaces: &PyList, ecu_index: u8) -> Self {
         let driver = Rc::new(RefCell::new(EcuDriverSil::new()));
         let driver_ref: &'static mut EcuDriverSil =
             unsafe { std::mem::transmute(&mut *driver.borrow_mut()) };
@@ -47,7 +47,7 @@ impl EcuSil {
         }
 
         let big_brother = Rc::new(RefCell::new(EcuBigBrother::new(
-            NetworkAddress::EngineController(0),
+            NetworkAddress::EngineController(ecu_index),
             rand::random(),
             NetworkAddress::Broadcast,
             big_brother_ifaces_ref,

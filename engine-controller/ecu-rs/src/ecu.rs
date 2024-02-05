@@ -2,7 +2,7 @@ use big_brother::BigBrother;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
     ecu_hal::{
-        EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuSensorData, EcuBinaryValve, EcuTelemetryFrame, EngineState, IgniterState, TankState
+        EcuBinaryValve, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuSensorData, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, TankState
     },
     ControllerEntity, COMMS_NETWORK_MAP_SIZE,
 };
@@ -120,6 +120,14 @@ impl<'a> Ecu<'a> {
                 &Packet::EcuTelemetry(telemetry_frame),
                 NetworkAddress::MissionControl,
             );
+
+            if self.fuel_tank.is_some() {
+                let tank_telemetry_frame = self.generate_tank_telemetry_frame();
+                self.send_packet(
+                    &Packet::EcuTankTelemetry(tank_telemetry_frame),
+                    NetworkAddress::MissionControl,
+                );
+            }
         }
 
         if self.debug_info_enabled {
@@ -138,11 +146,19 @@ impl<'a> Ecu<'a> {
             timestamp: (self.driver.timestamp() * 1e3) as u64,
             engine_state: EngineState::Idle,
             igniter_state: self.igniter_state(),
-            fuel_tank_state: self.fuel_tank_state(),
-            oxidizer_tank_state: self.oxidizer_tank_state(),
+            igniter_chamber_pressure_pa: self.igniter_chamber_pressure_pa,
+        }
+    }
+
+    pub fn generate_tank_telemetry_frame(&self) -> EcuTankTelemetryFrame {
+        let fuel_tank_state = self.fuel_tank_state().unwrap_or(TankState::Idle);
+        let oxidizer_tank_state = self.oxidizer_tank_state().unwrap_or(TankState::Idle);
+        EcuTankTelemetryFrame {
+            timestamp: (self.driver.timestamp() * 1e3) as u64,
+            fuel_tank_state,
+            oxidizer_tank_state,
             fuel_tank_pressure_pa: self.fuel_tank_pressure_pa,
             oxidizer_tank_pressure_pa: self.oxidizer_tank_pressure_pa,
-            igniter_chamber_pressure_pa: self.igniter_chamber_pressure_pa,
         }
     }
 

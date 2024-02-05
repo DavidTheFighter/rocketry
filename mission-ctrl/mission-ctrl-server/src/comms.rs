@@ -80,6 +80,8 @@ impl CommsThread {
                 bb.poll_1ms(((timestamp() - self.start_timestamp) * 1e3) as u32);
 
                 self.update_bitrates(bb.get_recv_bitrate() as u32);
+
+                last_poll_time = timestamp();
             }
         }
     }

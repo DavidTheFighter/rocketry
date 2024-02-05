@@ -189,13 +189,13 @@ export default {
       let debug_data = undefined;
 
       try {
-        debug_data = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/debug-data');
+        debug_data = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/0/debug-data');
       } catch (error) {
         console.log(error);
       }
 
       try {
-        let dataset = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry');
+        let dataset = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/0');
         dataset.debug_data = debug_data;
 
         this.dataset = dataset;
@@ -204,7 +204,7 @@ export default {
       }
 
       try {
-        this.graph_data = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/graph');
+        this.graph_data = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/0/graph');
       } catch (error) {
         console.log(error);
       }

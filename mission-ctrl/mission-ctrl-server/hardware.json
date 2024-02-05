@@ -2,12 +2,12 @@
     "igniter_config": {
         "gox_lead": false,
         "gox_lead_duration": 0.25,
-        "startup_timeout": 1.0,
-        "startup_pressure_threshold": 30.0,
-        "startup_stable_time": 0.25,
-        "firing_duration": 0.75,
-        "shutdown_duration": 0.5,
-        "max_throat_temp": 500.0
+        "startup_timeout_s": 1.0,
+        "startup_pressure_threshold_pa": 30.0,
+        "startup_stable_time_s": 0.25,
+        "test_firing_duration_s": 0.75,
+        "shutdown_duration_s": 0.5,
+        "max_throat_temp_k": 500.0
     },
     "sensor_mappings": [
         {

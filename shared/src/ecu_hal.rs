@@ -32,12 +32,6 @@ pub enum TankState {
 #[strum_discriminants(name(EcuSensorDataVariant))]
 #[strum_discriminants(derive(Serialize, Deserialize))]
 pub enum EcuSensorData {
-    // IgniterFuelInjectorPressure = 0,
-    // IgniterGOxInjectorPressure = 1,
-    // IgniterChamberPressure = 2,
-    // FuelTankPressure = 3,
-    // ECUBoardTemp = 4,
-    // IgniterThroatTemp = 5,
     FuelTankPressure {
         pressure_pa: f32,
         raw_data: u16,
@@ -90,11 +84,16 @@ pub struct EcuTelemetryFrame {
     pub timestamp: u64,
     pub engine_state: EngineState,
     pub igniter_state: IgniterState,
-    pub fuel_tank_state: Option<TankState>,
-    pub oxidizer_tank_state: Option<TankState>,
+    pub igniter_chamber_pressure_pa: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EcuTankTelemetryFrame {
+    pub timestamp: u64,
+    pub fuel_tank_state: TankState,
+    pub oxidizer_tank_state: TankState,
     pub fuel_tank_pressure_pa: f32,
     pub oxidizer_tank_pressure_pa: f32,
-    pub igniter_chamber_pressure_pa: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumDiscriminants)]
@@ -104,6 +103,7 @@ pub enum EcuDebugInfo {
     IgniterInfo {
         timestamp: u64,
         igniter_state: IgniterState,
+        sparking: bool,
     },
     SensorData {
         timestamp: u64,
@@ -130,27 +130,23 @@ impl EcuConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IgniterConfig {
-    pub gox_lead: bool,
-    pub gox_lead_duration: f32,
-    pub startup_timeout: f32,
-    pub startup_pressure_threshold: f32, // TODO: This is in PSI, it should be in Pascals
-    pub startup_stable_time: f32,
-    pub firing_duration: f32,
-    pub shutdown_duration: f32,
-    pub max_throat_temp: f32, // In Celsius
+    pub startup_timeout_s: f32,
+    pub startup_pressure_threshold_pa: f32, // TODO: This is in PSI, it should be in Pascals
+    pub startup_stable_time_s: f32,
+    pub test_firing_duration_s: f32,
+    pub shutdown_duration_s: f32,
+    pub max_throat_temp_k: f32, // In Celsius
 }
 
 impl IgniterConfig {
     pub fn default() -> Self {
         Self {
-            gox_lead: false,
-            gox_lead_duration: 0.25,
-            startup_timeout: 1.0,
-            startup_pressure_threshold: 30.0 * 6894.76, // 30 PSI to Pascals
-            startup_stable_time: 0.25,
-            firing_duration: 2.0,
-            shutdown_duration: 0.5,
-            max_throat_temp: 500.0,
+            startup_timeout_s: 1.0,
+            startup_pressure_threshold_pa: 30.0 * 6894.76, // 30 PSI to Pascals
+            startup_stable_time_s: 0.25,
+            test_firing_duration_s: 0.75,
+            shutdown_duration_s: 0.5,
+            max_throat_temp_k: 500.0,
         }
     }
 }
@@ -159,11 +155,10 @@ pub trait EcuDriver {
     fn timestamp(&self) -> f32;
 
     fn set_sparking(&mut self, state: bool);
+    fn get_sparking(&self) -> bool;
 
     fn set_binary_valve(&mut self, valve: EcuBinaryValve, state: bool);
     fn get_binary_valve(&self, valve: EcuBinaryValve) -> bool;
-
-    fn get_sparking(&self) -> bool;
 
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }

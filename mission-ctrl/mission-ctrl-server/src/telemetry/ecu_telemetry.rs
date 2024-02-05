@@ -1,11 +1,13 @@
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use rocket::serde::json::Value;
 use rocket::serde::{json::{json, Json, serde_json::Map}, Serialize};
-use shared::comms_hal::Packet;
-use shared::ecu_hal::{EcuDebugInfo, EcuTelemetryFrame};
+use shared::comms_hal::{NetworkAddress, Packet};
+use shared::ecu_hal::{EcuDebugInfo, EcuTankTelemetryFrame, EcuTelemetryFrame};
+
+use once_cell::sync::Lazy;
 
 use crate::observer::{ObserverEvent, ObserverHandler};
 use crate::{process_is_running, timestamp};
@@ -34,14 +36,21 @@ pub struct EcuGraphData {
     igniter_chamber_pressure: VecDeque<f32>,
 }
 
-static TELEMETRY_ENDPOINT_DATA: Mutex<Option<Value>> = Mutex::new(None);
-static DEBUG_INFO_ENDPOINT_DATA: Mutex<Option<Value>> = Mutex::new(None);
-static GRAPH_ENDPOINT_DATA: Mutex<Option<Value>> = Mutex::new(None);
+static TELEMETRY_ENDPOINT_DATA: Lazy<Mutex<HashMap<u8, Value>>> = Lazy::new(|| {
+    Mutex::new(HashMap::new())
+});
+static DEBUG_INFO_ENDPOINT_DATA: Lazy<Mutex<HashMap<u8, Value>>> = Lazy::new(|| {
+    Mutex::new(HashMap::new())
+});
+static GRAPH_ENDPOINT_DATA: Lazy<Mutex<HashMap<u8, Value>>> = Lazy::new(|| {
+    Mutex::new(HashMap::new())
+});
 
 struct TelemetryHandler {
     observer_handler: Arc<ObserverHandler>,
-    last_ecu_telemetry: Option<EcuTelemetryFrame>,
-    last_debug_info: Option<EcuDebugInfo>,
+    last_ecu_telemetry: HashMap<u8, EcuTelemetryFrame>,
+    last_tank_telemetry: HashMap<u8, EcuTankTelemetryFrame>,
+    last_debug_info: HashMap<u8, EcuDebugInfo>,
     telemetry_rate_record_time: f64,
     current_telemetry_rate_hz: u32,
 }
@@ -50,8 +59,9 @@ impl TelemetryHandler {
     pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
         Self {
             observer_handler,
-            last_ecu_telemetry: None,
-            last_debug_info: None,
+            last_ecu_telemetry: HashMap::new(),
+            last_tank_telemetry: HashMap::new(),
+            last_debug_info: HashMap::new(),
             telemetry_rate_record_time: 0.25,
             current_telemetry_rate_hz: 0,
         }
@@ -63,26 +73,35 @@ impl TelemetryHandler {
         let mut last_rate_record_time = timestamp();
 
         while process_is_running() {
-            if let Some(packet) = self.get_packet() {
+            if let Some((remote, packet)) = self.get_packet() {
+                let ecu_index = if let NetworkAddress::EngineController(index) = remote {
+                    index
+                } else {
+                    continue;
+                };
+
                 match packet {
                     Packet::EcuTelemetry(frame) => {
                         telemetry_counter += 1;
-                        self.last_ecu_telemetry = Some(frame);
+                        self.last_ecu_telemetry.insert(ecu_index, frame);
+                    },
+                    Packet::EcuTankTelemetry(frame) => {
+                        self.last_tank_telemetry.insert(ecu_index, frame);
                     },
                     Packet::EcuDebugInfo(debug_info) => {
-                        self.last_debug_info = Some(debug_info);
+                        self.last_debug_info.insert(ecu_index, debug_info);
 
                         let mut endpoint_data = DEBUG_INFO_ENDPOINT_DATA
                             .lock()
                             .expect("Failed to lock debug info");
 
-                        if endpoint_data.is_none() {
-                            endpoint_data.replace(Value::Object(
+                        if !endpoint_data.contains_key(&ecu_index) {
+                            endpoint_data.insert(ecu_index, Value::Object(
                                 rocket::serde::json::serde_json::Map::new(),
                             ));
                         }
 
-                        self.populate_debug_info(endpoint_data.as_mut().unwrap());
+                        self.populate_debug_info(endpoint_data.get_mut(&ecu_index).unwrap(), ecu_index);
                     },
                     _ => {}
                 }
@@ -92,12 +111,25 @@ impl TelemetryHandler {
             if now - last_graph_update_time >= (1.0 / VISUAL_UPDATES_PER_S) as f64 {
                 last_graph_update_time = now;
 
-                TELEMETRY_ENDPOINT_DATA
-                    .lock()
-                    .expect("Failed to lock telemetry state")
-                    .replace(self.populate_telemetry_endpoint());
+                for ecu_index in self.last_ecu_telemetry.keys()
+                {
+                    TELEMETRY_ENDPOINT_DATA
+                        .lock()
+                        .expect("Failed to lock ECU telemetry data")
+                        .insert(*ecu_index, self.populate_telemetry_endpoint(*ecu_index));
 
-                populate_graph_data(&GRAPH_ENDPOINT_DATA, self.populate_graph_frame());
+                    let mut graph_data = GRAPH_ENDPOINT_DATA
+                        .lock()
+                        .expect("Failed to lock ECU telemetry graph data");
+
+                    if !graph_data.contains_key(&ecu_index) {
+                        graph_data.insert(*ecu_index, Value::Object(
+                            rocket::serde::json::serde_json::Map::new(),
+                        ));
+                    }
+
+                    populate_graph_data(graph_data.get_mut(&ecu_index).unwrap(), self.populate_graph_frame(*ecu_index));
+                }
             }
 
             if now - last_rate_record_time >= self.telemetry_rate_record_time {
@@ -111,8 +143,8 @@ impl TelemetryHandler {
         }
     }
 
-    fn populate_telemetry_endpoint(&self) -> Value {
-        if let Some(last_ecu_telemetry) = &self.last_ecu_telemetry {
+    fn populate_telemetry_endpoint(&self, ecu_index: u8) -> Value {
+        if let Some(last_ecu_telemetry) = &self.last_ecu_telemetry.get(&ecu_index) {
             let mut telemetry_frame = rocket::serde::json::to_value(last_ecu_telemetry)
                 .expect("Failed to convert telemetry frame to serde value");
 
@@ -131,8 +163,8 @@ impl TelemetryHandler {
         }
     }
 
-    fn populate_debug_info(&self, existing_data: &mut Value) {
-        if let Some(last_debug_info) = &self.last_debug_info {
+    fn populate_debug_info(&self, existing_data: &mut Value, ecu_index: u8) {
+        if let Some(last_debug_info) = &self.last_debug_info.get(&ecu_index) {
             let debug_info = rocket::serde::json::to_value(last_debug_info)
                 .expect("Failed to convert debug info to serde value");
 
@@ -148,38 +180,41 @@ impl TelemetryHandler {
         }
     }
 
-    fn populate_graph_frame(&self) -> Map<String, Value> {
+    fn populate_graph_frame(&self, ecu_index: u8) -> Map<String, Value> {
         let mut graph_data = rocket::serde::json::serde_json::Map::new();
 
-        if let Some(last_ecu_telemetry) = &self.last_ecu_telemetry {
-            graph_data.insert(
-                String::from("fuel_tank_pressure_psi"),
-                json!(last_ecu_telemetry.fuel_tank_pressure_pa / 6894.75729),
-            );
-            graph_data.insert(
-                String::from("oxidizer_tank_pressure_psi"),
-                json!(last_ecu_telemetry.oxidizer_tank_pressure_pa / 6894.75729),
-            );
+        if let Some(last_ecu_telemetry) = &self.last_ecu_telemetry.get(&ecu_index) {
             graph_data.insert(
                 String::from("igniter_chamber_pressure_psi"),
                 json!(last_ecu_telemetry.igniter_chamber_pressure_pa / 6894.75729),
             );
         }
 
+        if let Some(last_tank_telemetry) = &self.last_tank_telemetry.get(&ecu_index) {
+            graph_data.insert(
+                String::from("fuel_tank_pressure_psi"),
+                json!(last_tank_telemetry.fuel_tank_pressure_pa / 6894.75729),
+            );
+            graph_data.insert(
+                String::from("oxidizer_tank_pressure_psi"),
+                json!(last_tank_telemetry.oxidizer_tank_pressure_pa / 6894.75729),
+            );
+        }
+
         graph_data
     }
 
-    fn get_packet(&self) -> Option<Packet> {
+    fn get_packet(&self) -> Option<(NetworkAddress, Packet)> {
         let timeout = Duration::from_millis(1);
 
         if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
             if let ObserverEvent::PacketReceived {
-                address: _,
+                address,
                 ip: _,
                 packet,
             } = event
             {
-                return Some(packet);
+                return Some((address, packet));
             }
         }
 
@@ -193,42 +228,40 @@ pub fn telemetry_thread(observer_handler: Arc<ObserverHandler>) {
     TelemetryHandler::new(observer_handler).run();
 }
 
-#[get("/ecu-telemetry")]
-pub fn ecu_telemetry_endpoint() -> Json<Value> {
+#[get("/ecu-telemetry/<ecu_id>")]
+pub fn ecu_telemetry_endpoint(ecu_id: u8) -> Json<Value> {
     let telemetry = TELEMETRY_ENDPOINT_DATA
         .lock()
         .expect("Failed to lock telemetry state");
 
-    if let Some(telemetry) = telemetry.as_ref() {
-        Json(telemetry.clone())
+    if let Some(telemetry) = telemetry.get(&ecu_id).as_ref() {
+        Json((*telemetry).clone())
     } else {
         Json(Value::String(String::from("No telemetry data")))
     }
 }
 
-#[get("/ecu-telemetry/graph")]
-pub fn ecu_telemetry_graph() -> Json<Value> {
+#[get("/ecu-telemetry/<ecu_id>/graph")]
+pub fn ecu_telemetry_graph(ecu_id: u8) -> Json<Value> {
     let latest_graph = GRAPH_ENDPOINT_DATA
         .lock()
         .expect("Failed to lock FCU telemetry graph data");
 
-    if let Some(latest_graph) = latest_graph.as_ref() {
-        let graph_data = latest_graph.clone();
-        Json(graph_data.clone())
+    if let Some(latest_graph) = latest_graph.get(&ecu_id).as_ref() {
+        Json((*latest_graph).clone())
     } else {
         Json(Value::Null)
     }
 }
 
-#[get("/ecu-telemetry/debug-data")]
-pub fn ecu_debug_data() -> Json<Value> {
+#[get("/ecu-telemetry/<ecu_id>/debug-data")]
+pub fn ecu_debug_data(ecu_id: u8) -> Json<Value> {
     let latest_debug_info = DEBUG_INFO_ENDPOINT_DATA
         .lock()
         .expect("Failed to lock debug info");
 
-    if let Some(debug_info) = latest_debug_info.as_ref() {
-        let debug_info = debug_info.clone();
-        Json(debug_info.clone())
+    if let Some(debug_info) = latest_debug_info.get(&ecu_id).as_ref() {
+        Json((*debug_info).clone())
     } else {
         Json(Value::Null)
     }

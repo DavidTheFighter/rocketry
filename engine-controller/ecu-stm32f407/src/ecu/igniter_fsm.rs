@@ -87,21 +87,21 @@ impl IgniterFSM<Startup> {
             // Do an abort
         }
 
-        if state.sensor_maxs[EcuSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp {
+        if state.sensor_maxs[EcuSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp_k {
             return Some(IgniterState::Shutdown);
         }
 
-        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.startup_timeout {
+        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.startup_timeout_s {
             return Some(IgniterState::Shutdown);
         }
 
-        if state.sensor_mins[EcuSensor::IgniterChamberPressure as usize] >= state.igniter_config.startup_pressure_threshold {
+        if state.sensor_mins[EcuSensor::IgniterChamberPressure as usize] >= state.igniter_config.startup_pressure_threshold_pa {
             state.igniter_state_storage.stable_pressure_counter += delta_time;
         } else {
             state.igniter_state_storage.stable_pressure_counter = 0.0;
         }
 
-        if state.igniter_state_storage.stable_pressure_counter > state.igniter_config.startup_stable_time {
+        if state.igniter_state_storage.stable_pressure_counter > state.igniter_config.startup_stable_time_s {
             return Some(IgniterState::Firing);
         }
 
@@ -132,11 +132,11 @@ impl IgniterFSM<Firing> {
             // Do an abort
         }
 
-        if state.sensor_maxs[EcuSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp {
+        if state.sensor_maxs[EcuSensor::IgniterThroatTemp as usize] >= state.igniter_config.max_throat_temp_k {
             return Some(IgniterState::Shutdown);
         }
 
-        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.firing_duration {
+        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.test_firing_duration_s {
             return Some(IgniterState::Shutdown);
         }
 
@@ -161,7 +161,7 @@ impl IgniterFSM<Firing> {
 
 impl IgniterFSM<Shutdown> {
     fn update(state: &mut ECUState, _pins: &mut ECUControlPins) -> Option<IgniterState> {
-        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.shutdown_duration {
+        if state.igniter_state_storage.elapsed_since_state_transition > state.igniter_config.shutdown_duration_s {
             return Some(IgniterState::Idle);
         }
 

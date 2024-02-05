@@ -18,14 +18,14 @@ class IgniterSimulation:
         self.mission_ctrl_eth_phy = sil.SilNetworkPhy(self.eth_network)
         self.mission_ctrl_eth_iface = sil.SilNetworkIface(self.mission_ctrl_eth_phy)
 
-        self.glue.ecu = self.ecu = sil.EcuSil([self.ecu_eth_iface])
+        self.glue.ecu = self.ecu = sil.EcuSil([self.ecu_eth_iface], 0)
         self.glue.mission_ctrl = self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface])
 
         self.feed_config = sil.SilTankFeedConfig(
             2000 * 6894.76, # Feed pressure in Pa
             200 * 6894.76, # Setpoint pressure in Pa
             sil.GasDefinition('GN2', 28.02, 1.039),
-            0.002, # Feed orifice diameter in m
+            0.004, # Feed orifice diameter in m
             0.6, # Feed orifice coefficient of discharge
             293.15, # Feed temperature in K
         )
@@ -78,6 +78,8 @@ class IgniterSimulation:
         self.pressurized = False
         self.ignited = False
 
+        self.ecu.update_ecu_config(self.config.ecu_config)
+
     def simulate_until_done(self):
         start_time = time.time()
 
@@ -113,14 +115,19 @@ class IgniterSimulation:
 
         self.t += self.dt
 
-        if not self.pressurized and self.t > 0.5:
+        if not self.ignited and not self.pressurized and self.t > 0.5:
             self.pressurized = True
             self.mission_ctrl.send_set_fuel_tank_packet(0, True)
             self.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
 
-        if not self.ignited and self.t > 3.0:
+        if not self.ignited and self.t > 2.0:
             self.ignited = True
             self.mission_ctrl.send_fire_igniter_packet(0)
+
+        if self.pressurized and self.t > 6.0:
+            self.pressurized = False
+            self.mission_ctrl.send_set_fuel_tank_packet(0, False)
+            self.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
 
         if self.ignited and self.t > 10.0:
             return False

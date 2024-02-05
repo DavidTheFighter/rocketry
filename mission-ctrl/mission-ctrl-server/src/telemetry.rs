@@ -5,13 +5,13 @@ use rocket::serde::json::Value;
 pub mod ecu_telemetry;
 pub mod fcu_telemetry;
 
-use rocket::serde::{json::{json, Json, serde_json::Map}, Serialize};
+use rocket::serde::json::serde_json::Map;
 
 const GRAPH_DISPLAY_TIME_S: f32 = 20.0;
 const VISUAL_UPDATES_PER_S: f32 = 10.0;
 const GRAPH_MAX_DATA_POINTS: usize = (GRAPH_DISPLAY_TIME_S * VISUAL_UPDATES_PER_S) as usize;
 
-fn populate_graph_data(
+fn populate_graph_data_mutex(
     endpoint_data_mutex: &Mutex<Option<Value>>,
     graph_data: Map<String, Value>,
 ) {
@@ -21,6 +21,18 @@ fn populate_graph_data(
         .clone()
         .unwrap_or(Value::Object(rocket::serde::json::serde_json::Map::new()));
 
+    populate_graph_data(&mut endpoint_data, graph_data);
+
+    endpoint_data_mutex
+        .lock()
+        .expect("Failed to lock ECU telemetry graph data")
+        .replace(endpoint_data);
+}
+
+fn populate_graph_data(
+    endpoint_data: &mut Value,
+    graph_data: Map<String, Value>,
+) {
     let endpoint_data_map = endpoint_data
         .as_object_mut()
         .expect("Failed to convert serde value to serde object");
@@ -45,9 +57,4 @@ fn populate_graph_data(
             graph_data_vec.remove(0);
         }
     }
-
-    endpoint_data_mutex
-        .lock()
-        .expect("Failed to lock ECU telemetry graph data")
-        .replace(endpoint_data);
 }

@@ -11,6 +11,7 @@ impl<'a> Ecu<'a> {
             EcuDebugInfoVariant::IgniterInfo => EcuDebugInfo::IgniterInfo {
                 timestamp,
                 igniter_state: self.igniter_state(),
+                sparking: self.driver.get_sparking(),
             },
             EcuDebugInfoVariant::SensorData => EcuDebugInfo::SensorData {
                 timestamp,

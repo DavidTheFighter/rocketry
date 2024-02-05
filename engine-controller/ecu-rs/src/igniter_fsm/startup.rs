@@ -66,9 +66,9 @@ impl Startup {
     }
 
     fn update_stable_pressure_timer(&mut self, ecu: &mut Ecu, dt: f32) {
-        let startup_pressure_threshold = ecu.config.igniter_config.startup_pressure_threshold;
+        let startup_pressure_threshold_pa = ecu.config.igniter_config.startup_pressure_threshold_pa;
 
-        if ecu.igniter_chamber_pressure_pa >= startup_pressure_threshold {
+        if ecu.igniter_chamber_pressure_pa >= startup_pressure_threshold_pa {
             self.stable_pressure_time += dt;
         } else {
             self.stable_pressure_time = 0.0;
@@ -76,16 +76,16 @@ impl Startup {
     }
 
     fn startup_timed_out(&self, ecu: &mut Ecu) -> bool {
-        self.startup_elapsed_time >= ecu.config.igniter_config.startup_timeout
+        self.startup_elapsed_time >= ecu.config.igniter_config.startup_timeout_s
     }
 
     fn throat_too_hot(&self, ecu: &mut Ecu) -> bool {
         let igniter_throat_temp_max = 0.0; // TODO
 
-        igniter_throat_temp_max >= ecu.config.igniter_config.max_throat_temp
+        igniter_throat_temp_max >= ecu.config.igniter_config.max_throat_temp_k
     }
 
     fn achieved_stable_pressure(&self, ecu: &mut Ecu) -> bool {
-        self.stable_pressure_time >= ecu.config.igniter_config.startup_stable_time
+        self.stable_pressure_time >= ecu.config.igniter_config.startup_stable_time_s
     }
 }

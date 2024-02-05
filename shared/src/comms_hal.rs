@@ -2,7 +2,7 @@ use big_brother::big_brother::Broadcastable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensorData, EcuTelemetryFrame, TankState},
+    ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensorData, EcuTankTelemetryFrame, EcuTelemetryFrame, TankState},
     fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand},
     streamish_hal::StreamishCommand,
     SensorConfig,
@@ -54,6 +54,7 @@ pub enum Packet {
     // -- Data -- //
     FcuTelemetry(FcuTelemetryFrame),
     EcuTelemetry(EcuTelemetryFrame),
+    EcuTankTelemetry(EcuTankTelemetryFrame),
     EnableDebugInfo(bool),
     FcuDebugInfo(FcuDebugInfo),
     EcuDebugInfo(EcuDebugInfo),
@@ -118,11 +119,14 @@ pub mod tests_data {
             timestamp: 0xABAD_1234_FEDC_DEAD,
             engine_state: EngineState::Idle,
             igniter_state: IgniterState::Shutdown,
-            fuel_tank_state: Some(TankState::Idle),
-            oxidizer_tank_state: Some(TankState::Idle),
+            igniter_chamber_pressure_pa: 1234.567,
+        }),
+        Packet::EcuTankTelemetry(EcuTankTelemetryFrame {
+            timestamp: 0xABAD_1234_FEDC_DEAD,
+            fuel_tank_state: TankState::Pressurized,
+            oxidizer_tank_state: TankState::Depressurized,
             fuel_tank_pressure_pa: 19522.4,
             oxidizer_tank_pressure_pa: 96420.425,
-            igniter_chamber_pressure_pa: 1234.567,
         }),
         Packet::AlertBitmask(0xAAAA_AAAA),
         Packet::EnableDebugInfo(true),
@@ -130,6 +134,7 @@ pub mod tests_data {
         Packet::EcuDebugInfo(EcuDebugInfo::IgniterInfo {
             timestamp: 0xABAD_1234_FEDC_DEAD,
             igniter_state: IgniterState::Shutdown,
+            sparking: true,
         }),
         Packet::FcuDebugSensorMeasurement(FcuSensorData::Accelerometer {
             acceleration: Vector3 {

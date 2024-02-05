@@ -2,6 +2,8 @@ use pyo3::prelude::*;
 
 use super::{combustion::{calc_chamber_pressure, CombustionData}, fluid::LiquidDefinition, Scalar};
 
+pub const MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA: Scalar = 206843.0; // 30 PSI
+
 #[pyclass]
 #[derive(Debug, Clone)]
 pub struct InjectorConfig {
@@ -23,6 +25,8 @@ pub struct SilIgniterDynamics {
     pub fuel_valve_open: bool,
     #[pyo3(get, set)]
     pub oxidizer_valve_open: bool,
+    #[pyo3(get, set)]
+    pub has_ignition_source: bool,
 
     pub fuel_injector: InjectorConfig,
     pub oxidizer_injector: InjectorConfig,
@@ -47,6 +51,7 @@ impl SilIgniterDynamics {
             oxidizer_pressure_pa: 0.0,
             fuel_valve_open: false,
             oxidizer_valve_open: false,
+            has_ignition_source: false,
             fuel_injector: fuel_injector.clone(),
             oxidizer_injector: oxidizer_injector.clone(),
             chamber_pressure_pa: 0.0,
@@ -62,21 +67,13 @@ impl SilIgniterDynamics {
         let oxidizer_mass_flow_kg = self.calc_oxidizer_mass_flow_kg(dt);
 
         let total_mass_flow_kg = fuel_mass_flow_kg + oxidizer_mass_flow_kg;
-        let mixture_ratio = if fuel_mass_flow_kg == 0.0 {
-            Scalar::INFINITY
-        } else {
-            oxidizer_mass_flow_kg / fuel_mass_flow_kg
-        };
 
-        let target_combustion_pressure_pa = if total_mass_flow_kg / dt > 1e-4 && mixture_ratio > 0.2 && mixture_ratio < 3.0 {
+        let target_combustion_pressure_pa = if self.can_support_combustion(fuel_mass_flow_kg, oxidizer_mass_flow_kg) {
              calc_chamber_pressure(
                 total_mass_flow_kg / dt,
                 self.throat_area_m2,
                 &self.combustion_data,
             )
-
-            // println!("{} = {} / {}", (oxidizer_mass_flow_kg / fuel_mass_flow_kg) / dt, oxidizer_mass_flow_kg / dt, fuel_mass_flow_kg / dt);
-            // println!("{:.2} Pa {} kg/s", self.chamber_pressure_pa, total_mass_flow_kg / dt);
         } else {
             0.0
         };
@@ -87,6 +84,37 @@ impl SilIgniterDynamics {
 }
 
 impl SilIgniterDynamics {
+    fn can_support_combustion(
+        &self,
+        fuel_mass_flow_kg: Scalar,
+        oxidizer_mass_flow_kg: Scalar,
+    ) -> bool {
+        let mixture_ratio = if fuel_mass_flow_kg == 0.0 {
+            Scalar::INFINITY
+        } else {
+            oxidizer_mass_flow_kg / fuel_mass_flow_kg
+        };
+
+        // There needs to be mass flow within reasonable mixture ratio
+        if !(fuel_mass_flow_kg > 0.0
+            && oxidizer_mass_flow_kg > 0.0
+            && mixture_ratio > 0.2
+            && mixture_ratio < 3.0)
+        {
+            return false;
+        }
+
+        if self.chamber_pressure_pa > MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA { // 30 PSI
+            return true;
+        }
+
+        if self.has_ignition_source {
+            return true;
+        }
+
+        false
+    }
+
     fn calc_fuel_mass_flow_kg(&self, dt: Scalar) -> Scalar {
         if !self.fuel_valve_open || self.fuel_pressure_pa <= self.chamber_pressure_pa{
             return 0.0;
