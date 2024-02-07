@@ -1,4 +1,4 @@
-use shared::ecu_hal::{EcuDebugInfo, EcuDebugInfoVariant};
+use shared::ecu_hal::{EcuDebugInfo, EcuDebugInfoVariant, TankState};
 use strum::IntoEnumIterator;
 
 use crate::Ecu;
@@ -12,6 +12,11 @@ impl<'a> Ecu<'a> {
                 timestamp,
                 igniter_state: self.igniter_state(),
                 sparking: self.driver.get_sparking(),
+            },
+            EcuDebugInfoVariant::TankInfo => EcuDebugInfo::TankInfo {
+                timestamp,
+                fuel_tank_state: self.fuel_tank_state().unwrap_or(TankState::Idle),
+                oxidizer_tank_state: self.oxidizer_tank_state().unwrap_or(TankState::Idle),
             },
             EcuDebugInfoVariant::SensorData => EcuDebugInfo::SensorData {
                 timestamp,

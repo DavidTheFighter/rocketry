@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 class SimConfig:
     fcu_update_rate: float = 0.02 # Seconds
     ecu_update_rate: float = 0.001 # Seconds
-    sim_update_rate: float = 0.0005 # Seconds
+    sim_update_rate: float = 0.001 # Seconds
 
     vehicle_mass: float = 1 # Kilograms
     thrust: float = 25 # Newtons
@@ -17,6 +17,9 @@ class SimConfig:
     angular_data_rate: float = 0.01 # Seconds
 
     ecu_pressure_sensor_rate: float = 0.001 # Seconds
+
+    ecu_tank_vent_diamter_m: float = 0.002 # Meters
+    ecu_tank_pressure_set_point_pa: float = 200 * 6894.75729 # PSI to pascals
 
     # Make sure to update the noises in fcu_config
     accel_noise: float = 0.01 # Meters per second squared

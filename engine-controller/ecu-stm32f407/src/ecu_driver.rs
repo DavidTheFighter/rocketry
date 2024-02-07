@@ -82,7 +82,7 @@ impl EcuDriver for Stm32F407EcuDriver {
 
         match valve {
             EcuSolenoidValve::IgniterFuelMain => self.pins.sv1_ctrl.set_state(pin_state),
-            EcuSolenoidValve::IgniterGOxMain => self.pins.sv2_ctrl.set_state(pin_state),
+            EcuSolenoidValve::IgniterOxidizerMain => self.pins.sv2_ctrl.set_state(pin_state),
             EcuSolenoidValve::FuelPress => self.pins.sv3_ctrl.set_state(pin_state),
             EcuSolenoidValve::FuelVent => self.pins.sv4_ctrl.set_state(pin_state),
         }

@@ -83,7 +83,7 @@ pub fn ecu_update(mut ctx: app::ecu_update::Context) {
 
                     match valve {
                         EcuSolenoidValve::IgniterFuelMain => ecu_pins.sv1_ctrl.set_state(pin_state),
-                        EcuSolenoidValve::IgniterGOxMain => ecu_pins.sv2_ctrl.set_state(pin_state),
+                        EcuSolenoidValve::IgniterOxidizerMain => ecu_pins.sv2_ctrl.set_state(pin_state),
                         EcuSolenoidValve::FuelPress => ecu_pins.sv3_ctrl.set_state(pin_state),
                         EcuSolenoidValve::FuelVent => ecu_pins.sv4_ctrl.set_state(pin_state),
                     }

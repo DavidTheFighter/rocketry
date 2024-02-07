@@ -12,7 +12,7 @@ class SilGlue:
     igniter_dynamics: sil.SilIgniterDynamics = None
 
     def __init__(self):
-        pass
+        self.test_allow_igniter_ignition = True
 
     def update(self, dt: float):
         if self.ecu != None:
@@ -26,8 +26,8 @@ class SilGlue:
 
             if self.igniter_dynamics != None:
                 self.igniter_dynamics.fuel_valve_open = self.ecu['binary_valves']['IgniterFuelMain']
-                self.igniter_dynamics.oxidizer_valve_open = self.ecu['binary_valves']['IgniterGOxMain']
-                self.igniter_dynamics.has_ignition_source = self.ecu['sparking']
+                self.igniter_dynamics.oxidizer_valve_open = self.ecu['binary_valves']['IgniterOxidizerMain']
+                self.igniter_dynamics.has_ignition_source = self.ecu['sparking'] and self.test_allow_igniter_ignition
 
         if self.igniter_dynamics != None:
             if self.fuel_tank_dynamics != None:

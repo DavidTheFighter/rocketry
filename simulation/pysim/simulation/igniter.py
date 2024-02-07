@@ -3,12 +3,12 @@ import time, math
 import software_in_loop as sil
 from pysim.config import SimConfig
 from pysim.replay import SimReplay
-from pysim.glue import SilGlue
+from pysim.simulation.simulation import SimulationBase
 
-class IgniterSimulation:
+class IgniterSimulation(SimulationBase):
     def __init__(self, config: SimConfig, loggingQueue=None, log_to_file=False):
-        self.config = config
-        self.glue = SilGlue()
+        super().__init__(config, loggingQueue, log_to_file)
+        self.glue = sil.SilGlue()
 
         self.eth_network = sil.SilNetwork([10, 0, 0, 0])
 
@@ -18,29 +18,29 @@ class IgniterSimulation:
         self.mission_ctrl_eth_phy = sil.SilNetworkPhy(self.eth_network)
         self.mission_ctrl_eth_iface = sil.SilNetworkIface(self.mission_ctrl_eth_phy)
 
-        self.glue.ecu = self.ecu = sil.EcuSil([self.ecu_eth_iface], 0)
-        self.glue.mission_ctrl = self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface])
+        self.ecu = sil.EcuSil([self.ecu_eth_iface], 0)
+        self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface])
 
         self.feed_config = sil.SilTankFeedConfig(
             2000 * 6894.76, # Feed pressure in Pa
-            200 * 6894.76, # Setpoint pressure in Pa
+            self.config.ecu_tank_pressure_set_point_pa, # Setpoint pressure in Pa
             sil.GasDefinition('GN2', 28.02, 1.039),
             0.004, # Feed orifice diameter in m
             0.6, # Feed orifice coefficient of discharge
             293.15, # Feed temperature in K
         )
-        self.glue.fuel_tank_dynamics = self.fuel_tank_dynamics = sil.SilTankDynamics(
+        self.fuel_tank_dynamics = sil.SilTankDynamics(
             self.feed_config,
-            0.001, # Vent orifice diameter in m
+            self.config.ecu_tank_vent_diamter_m, # Vent orifice diameter in m
             0.65, # Vent orifice coefficient of discharge
-            14.7 * 6894.76, # Initial tank pressure in Pa
+            sil.ATMOSPHERIC_PRESSURE_PA, # Initial tank pressure in Pa
             0.005, # Tank volume in m^3
         )
-        self.glue.oxidizer_tank_dynamics = self.oxidizer_tank_dynamics = sil.SilTankDynamics(
+        self.oxidizer_tank_dynamics = sil.SilTankDynamics(
             self.feed_config,
-            0.001, # Vent orifice diameter in m
+            self.config.ecu_tank_vent_diamter_m, # Vent orifice diameter in m
             0.65, # Vent orifice coefficient of discharge
-            14.7 * 6894.76, # Initial tank pressure in Pa
+            sil.ATMOSPHERIC_PRESSURE_PA, # Initial tank pressure in Pa
             0.01, # Tank volume in m^3
         )
 
@@ -61,86 +61,84 @@ class IgniterSimulation:
             2000, # Chamber temperature in K
         )
 
-        self.glue.igniter_dynamics = self.igniter_dynamics = sil.SilIgniterDynamics(
+        self.igniter_dynamics = sil.SilIgniterDynamics(
             self.igniter_fuel_injector,
             self.igniter_oxidizer_injector,
             self.combustion_data_tmp,
             0.004, # Throat diameter in m
         )
 
+        self.glue.set_from_self(self)
+
         self.logger = sil.Logger([self.eth_network])
         self.logger.dt = self.config.sim_update_rate
-        self.logging = loggingQueue
-        self.log_to_file = log_to_file
-
-        self.dt = self.config.sim_update_rate
-        self.t = 0.0
-        self.pressurized = False
-        self.ignited = False
 
         self.ecu.update_ecu_config(self.config.ecu_config)
-
-    def simulate_until_done(self):
-        start_time = time.time()
-
-        while self.advance_timestep():
-            pass
-
-        print("Simulation took {:.2f} s".format(time.time() - start_time))
-
-        if self.log_to_file:
-            self.logger.dump_to_file()
+        self.test_t = 0.0
 
     def advance_timestep(self):
         self.mission_ctrl.update_timestep(self.dt)
         self.ecu.update_timestamp(self.t)
 
-        if math.fmod(self.t, config.ecu_pressure_sensor_rate) <= self.dt + config.sim_update_rate * 0.1:
+        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update_fuel_tank_pressure(self.fuel_tank_dynamics.tank_pressure_pa)
 
-        if math.fmod(self.t, config.ecu_pressure_sensor_rate) <= self.dt + config.sim_update_rate * 0.1:
+        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update_oxidizer_tank_pressure(self.oxidizer_tank_dynamics.tank_pressure_pa)
 
-        if math.fmod(self.t, config.ecu_pressure_sensor_rate) <= self.dt + config.sim_update_rate * 0.1:
+        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update_igniter_chamber_pressure(self.igniter_dynamics.chamber_pressure_pa)
 
         self.glue.update(self.dt)
+
         self.fuel_tank_dynamics.update(self.dt)
         self.oxidizer_tank_dynamics.update(self.dt)
         self.igniter_dynamics.update(self.dt)
-        self.ecu.update(self.dt)
+
+        if math.fmod(self.t, self.config.ecu_update_rate) <= self.dt + self.config.sim_update_rate * 0.1:
+            self.ecu.update(self.config.ecu_update_rate)
+            print(self.t - self.test_t)
+            self.test_t = self.t
 
         self.logger.log_common_data()
         self.logger.log_ecu_data(self.ecu)
 
         self.t += self.dt
 
-        if not self.ignited and not self.pressurized and self.t > 0.5:
-            self.pressurized = True
-            self.mission_ctrl.send_set_fuel_tank_packet(0, True)
-            self.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
-
-        if not self.ignited and self.t > 2.0:
-            self.ignited = True
-            self.mission_ctrl.send_fire_igniter_packet(0)
-
-        if self.pressurized and self.t > 6.0:
-            self.pressurized = False
-            self.mission_ctrl.send_set_fuel_tank_packet(0, False)
-            self.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
-
-        if self.ignited and self.t > 10.0:
-            return False
-
         return True
-
-    def replay(self):
-        replay = SimReplay(self.config, self.logger)
-        replay.replay(self.logging)
 
 if __name__ == "__main__":
     from pysim.app import simulate_app
 
-    config = SimConfig()
+    def igniter_app():
+        config = SimConfig()
+        config.sim_update_rate = 0.0005 # Seconds
 
-    simulate_app(config, IgniterSimulation)
+        ignited = False
+        pressurized = False
+
+        def tick_callback(sim: IgniterSimulation):
+            nonlocal ignited, pressurized
+
+            if not ignited and not pressurized and sim.t > 0.5:
+                pressurized = True
+                sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
+                sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
+
+            if not ignited and sim.t > 2.0:
+                ignited = True
+                sim.mission_ctrl.send_fire_igniter_packet(0)
+
+            if pressurized and sim.t > 6.0:
+                pressurized = False
+                sim.mission_ctrl.send_set_fuel_tank_packet(0, False)
+                sim.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
+
+            if ignited and sim.t > 10.0:
+                return False
+
+            return True
+
+        simulate_app(config, IgniterSimulation, tick_callback)
+
+    igniter_app()

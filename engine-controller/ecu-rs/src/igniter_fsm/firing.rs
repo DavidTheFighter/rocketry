@@ -32,7 +32,7 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Firing {
         ecu.driver
             .set_binary_valve(EcuBinaryValve::IgniterFuelMain, true);
         ecu.driver
-            .set_binary_valve(EcuBinaryValve::IgniterGOxMain, true);
+            .set_binary_valve(EcuBinaryValve::IgniterOxidizerMain, true);
         ecu.driver.set_sparking(false);
     }
 

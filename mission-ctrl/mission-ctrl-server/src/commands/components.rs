@@ -16,7 +16,7 @@ use super::{format_response, send_command};
 fn match_valve(valve: &str) -> Option<EcuBinaryValve> {
     match valve {
         "ig_fuel" => Some(EcuBinaryValve::IgniterFuelMain),
-        "ig_gox" => Some(EcuBinaryValve::IgniterGOxMain),
+        "ig_gox" => Some(EcuBinaryValve::IgniterOxidizerMain),
         "press" => Some(EcuBinaryValve::FuelPress),
         "vent" => Some(EcuBinaryValve::FuelVent),
         _ => None,

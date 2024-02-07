@@ -26,16 +26,18 @@ pub struct SilTankFeedConfig {
 pub struct SilTankDynamics {
     feed_config: SilTankFeedConfig,
     #[pyo3(get, set)]
-    feed_valve_open: bool,
+    pub feed_valve_open: bool,
 
     vent_orifice_diameter_area_m2: Scalar,
     vent_orifice_cd: Scalar,
     #[pyo3(get, set)]
-    vent_valve_open: bool,
+    pub vent_valve_open: bool,
 
     #[pyo3(get)]
-    tank_pressure_pa: Scalar,
+    pub tank_pressure_pa: Scalar,
     tank_volume_m3: Scalar,
+
+    test_t: Scalar,
 }
 
 #[pymethods]
@@ -57,11 +59,14 @@ impl SilTankDynamics {
             vent_valve_open: false,
             tank_pressure_pa: initial_tank_pressure_pa,
             tank_volume_m3,
+            test_t: 0.0,
         }
     }
 
     pub fn update(&mut self, dt: f64) {
         let dt = dt as Scalar;
+
+        self.test_t += dt;
 
         let feed_mass_flow_kg = self.calc_feed_mass_flow_kg(dt);
         let vent_mass_flow_kg = self.calc_vent_mass_flow_kg(dt);
@@ -71,6 +76,10 @@ impl SilTankDynamics {
         // Pressure difference is proportional to the mass flow
         let tank_mass_kg = self.calc_tank_mass_kg();
         self.tank_pressure_pa *= (tank_mass_kg + mass_flow_kg) / tank_mass_kg;
+
+        // if self.test_t % 1.0 < dt {
+        //     println!("Tank pressure: {} {} Pa", feed_mass_flow_kg, vent_mass_flow_kg);
+        // }
     }
 
     #[getter]

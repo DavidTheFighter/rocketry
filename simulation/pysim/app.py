@@ -13,7 +13,7 @@ from pysim.simulation.solid_rocket import SolidRocketSimulation
 from pysim.replay import SimReplay
 from pysim.config import SimConfig
 
-def simulate_app(config: SimConfig, simulation_class_name: str):
+def simulate_app(config: SimConfig, simulation_class_name: str, tick_callback=None):
     data_queue = multiprocessing.Queue()
     process = multiprocessing.Process(target=pysim.server.process_func, args=(data_queue,))
     process.daemon = True
@@ -23,7 +23,16 @@ def simulate_app(config: SimConfig, simulation_class_name: str):
 
     sim = simulation_class_name(config, data_queue, log_to_file=True)
     print("Simulating...")
-    sim.simulate_until_done()
+
+    start_time = time.time()
+    while sim.advance_timestep():
+        if tick_callback is not None:
+            should_continue = tick_callback(sim)
+            if not should_continue:
+                break
+
+    print("Simulation took {:.2f} s ({})".format(time.time() - start_time, sim.test_t))
+
     print("Done! Replaying")
     sim.replay()
     print("Done! Exiting...")

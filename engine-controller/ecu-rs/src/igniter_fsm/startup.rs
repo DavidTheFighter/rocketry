@@ -40,7 +40,7 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Startup {
         let driver = ecu.driver.borrow_mut();
 
         driver.set_binary_valve(EcuBinaryValve::IgniterFuelMain, true);
-        driver.set_binary_valve(EcuBinaryValve::IgniterGOxMain, true);
+        driver.set_binary_valve(EcuBinaryValve::IgniterOxidizerMain, true);
         driver.set_sparking(true);
     }
 

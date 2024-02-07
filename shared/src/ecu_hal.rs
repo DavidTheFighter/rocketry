@@ -66,14 +66,28 @@ pub enum EcuCommand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
 pub enum EcuBinaryValve {
     IgniterFuelMain,
-    IgniterGOxMain,
+    IgniterOxidizerMain,
     FuelPress,
     FuelVent,
     OxidizerPress,
     OxidizerVent,
+    EngineFuelMain,
+    EngineOxidizerMain,
 }
 
 impl EcuBinaryValve {
+    pub fn index(&self) -> usize {
+        *self as usize
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
+pub enum EcuLinearOutput {
+    FuelPump,
+    OxidizerPump,
+}
+
+impl EcuLinearOutput {
     pub fn index(&self) -> usize {
         *self as usize
     }
@@ -105,6 +119,11 @@ pub enum EcuDebugInfo {
         igniter_state: IgniterState,
         sparking: bool,
     },
+    TankInfo {
+        timestamp: u64,
+        fuel_tank_state: TankState,
+        oxidizer_tank_state: TankState,
+    },
     SensorData {
         timestamp: u64,
         fuel_tank_pressure_pa: f32,
@@ -131,11 +150,11 @@ impl EcuConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct IgniterConfig {
     pub startup_timeout_s: f32,
-    pub startup_pressure_threshold_pa: f32, // TODO: This is in PSI, it should be in Pascals
+    pub startup_pressure_threshold_pa: f32,
     pub startup_stable_time_s: f32,
     pub test_firing_duration_s: f32,
     pub shutdown_duration_s: f32,
-    pub max_throat_temp_k: f32, // In Celsius
+    pub max_throat_temp_k: f32,
 }
 
 impl IgniterConfig {

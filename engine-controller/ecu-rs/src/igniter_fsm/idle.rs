@@ -26,7 +26,7 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Idle {
 
     fn enter_state(&mut self, ecu: &mut Ecu) {
         ecu.driver.set_binary_valve(EcuBinaryValve::IgniterFuelMain, false);
-        ecu.driver.set_binary_valve(EcuBinaryValve::IgniterGOxMain, false);
+        ecu.driver.set_binary_valve(EcuBinaryValve::IgniterOxidizerMain, false);
         ecu.driver.set_sparking(false);
     }
 
