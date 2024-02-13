@@ -55,6 +55,10 @@ class SimConfig:
             'shutdown_duration_s': 0.5,
             'max_throat_temp_k': 500 + 273.15, # Celsius to Kelvin
         },
+        'tanks_config': {
+            'target_fuel_pressure_pa': 200 * 6894.75729, # PSI to pascals
+            'target_oxidizer_pressure_pa': 200 * 6894.75729, # PSI to pascals
+        },
         'telemetry_rate_s': 0.02,
     })
 

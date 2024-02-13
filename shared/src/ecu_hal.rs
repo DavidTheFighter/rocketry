@@ -3,10 +3,7 @@ use core::any::Any;
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumCount as EnumCountMacro, EnumDiscriminants, EnumIter};
 
-use crate::{
-    comms_hal::{NetworkAddress, Packet},
-    SensorConfig,
-};
+use crate::SensorConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum EngineState {
@@ -28,28 +25,19 @@ pub enum TankState {
     Pressurized,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumIter, EnumCountMacro, EnumDiscriminants)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumCountMacro, EnumDiscriminants)]
 #[strum_discriminants(name(EcuSensorDataVariant))]
-#[strum_discriminants(derive(Serialize, Deserialize))]
-pub enum EcuSensorData {
-    FuelTankPressure {
-        pressure_pa: f32,
-        raw_data: u16,
-    },
-    OxidizerTankPressure {
-        pressure_pa: f32,
-        raw_data: u16,
-    },
-    IgniterChamberPressure {
-        pressure_pa: f32,
-        raw_data: u16,
-    },
+#[strum_discriminants(derive(EnumIter, Serialize, Deserialize))]
+pub enum EcuSensor {
+    FuelTankPressure(super::PressureData),
+    OxidizerTankPressure(super::PressureData),
+    IgniterChamberPressure(super::PressureData),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum EcuCommand {
     SetBinaryValve {
-        valve: EcuBinaryValve,
+        valve: EcuBinaryOutput,
         state: bool,
     },
     SetSparking(bool),
@@ -64,18 +52,18 @@ pub enum EcuCommand {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]
-pub enum EcuBinaryValve {
-    IgniterFuelMain,
-    IgniterOxidizerMain,
-    FuelPress,
-    FuelVent,
-    OxidizerPress,
-    OxidizerVent,
-    EngineFuelMain,
-    EngineOxidizerMain,
+pub enum EcuBinaryOutput {
+    IgniterFuelValve,
+    IgniterOxidizerValve,
+    FuelPressValve,
+    FuelVentValve,
+    OxidizerPressValve,
+    OxidizerVentValve,
+    EngineFuelValve,
+    EngineOxidizerValve,
 }
 
-impl EcuBinaryValve {
+impl EcuBinaryOutput {
     pub fn index(&self) -> usize {
         *self as usize
     }
@@ -135,16 +123,8 @@ pub enum EcuDebugInfo {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EcuConfig {
     pub igniter_config: IgniterConfig,
+    pub tanks_config: Option<TanksConfig>,
     pub telemetry_rate_s: f32,
-}
-
-impl EcuConfig {
-    pub fn default() -> Self {
-        Self {
-            igniter_config: IgniterConfig::default(),
-            telemetry_rate_s: 0.02,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -155,6 +135,22 @@ pub struct IgniterConfig {
     pub test_firing_duration_s: f32,
     pub shutdown_duration_s: f32,
     pub max_throat_temp_k: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct TanksConfig {
+    pub target_fuel_pressure_pa: f32,
+    pub target_oxidizer_pressure_pa: f32,
+}
+
+impl EcuConfig {
+    pub fn default() -> Self {
+        Self {
+            igniter_config: IgniterConfig::default(),
+            tanks_config: None,
+            telemetry_rate_s: 0.02,
+        }
+    }
 }
 
 impl IgniterConfig {
@@ -176,8 +172,8 @@ pub trait EcuDriver {
     fn set_sparking(&mut self, state: bool);
     fn get_sparking(&self) -> bool;
 
-    fn set_binary_valve(&mut self, valve: EcuBinaryValve, state: bool);
-    fn get_binary_valve(&self, valve: EcuBinaryValve) -> bool;
+    fn set_binary_valve(&mut self, valve: EcuBinaryOutput, state: bool);
+    fn get_binary_valve(&self, valve: EcuBinaryOutput) -> bool;
 
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }

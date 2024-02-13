@@ -16,6 +16,7 @@ pub struct InjectorConfig {
 }
 
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct SilIgniterDynamics {
     #[pyo3(get, set)]
     pub fuel_pressure_pa: Scalar,

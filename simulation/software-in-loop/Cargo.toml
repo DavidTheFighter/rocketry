@@ -21,6 +21,7 @@ strum_macros = "0.24"
 serde = "1.0"
 serde_json = "1.0"
 rand = "0.8.5"
+uom = "0.35.0"
 
 [dependencies.ecu-rs]
 path = "../../engine-controller/ecu-rs/"

@@ -139,3 +139,9 @@ impl SensorConfig {
         value
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct PressureData {
+    pub pressure_pa: f32,
+    pub raw_data: u16,
+}

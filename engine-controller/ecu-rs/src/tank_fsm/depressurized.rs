@@ -1,7 +1,7 @@
 use crate::Ecu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, EcuBinaryValve},
+    ecu_hal::{EcuCommand, EcuBinaryOutput},
     ControllerState,
 };
 
@@ -10,8 +10,8 @@ use super::{new_state_from_command, TankFsm, TankType};
 #[derive(Debug)]
 pub struct Depressurized {
     tank_type: TankType,
-    press_valve: EcuBinaryValve,
-    vent_valve: EcuBinaryValve,
+    press_valve: EcuBinaryOutput,
+    vent_valve: EcuBinaryOutput,
 }
 
 impl<'f> ControllerState<TankFsm, Ecu<'f>> for Depressurized {
@@ -41,8 +41,8 @@ impl<'f> ControllerState<TankFsm, Ecu<'f>> for Depressurized {
 impl Depressurized {
     pub fn new(
         tank_type: TankType,
-        press_valve: EcuBinaryValve,
-        vent_valve: EcuBinaryValve,
+        press_valve: EcuBinaryOutput,
+        vent_valve: EcuBinaryOutput,
     ) -> TankFsm {
         TankFsm::Depressurized(Self {
             tank_type,

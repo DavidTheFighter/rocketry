@@ -3,7 +3,7 @@ use std::{rc::Rc, cell::RefCell};
 use big_brother::{interface::{mock_interface::MockInterface, BigBrotherInterface}, big_brother::MAX_INTERFACE_COUNT};
 use ecu_rs::{Ecu, ecu::EcuBigBrother};
 use pyo3::{prelude::*, types::{PyList, PyDict}};
-use shared::{comms_hal::NetworkAddress, ecu_hal::{EcuBinaryValve, EcuSensorData}};
+use shared::{comms_hal::NetworkAddress, ecu_hal::{EcuBinaryOutput, EcuSensor}, PressureData};
 use strum::IntoEnumIterator;
 
 use crate::{network::SilNetworkIface, ser::{obj_from_dict, dict_from_obj}};
@@ -87,24 +87,24 @@ impl EcuSil {
     }
 
     pub fn update_fuel_tank_pressure(&mut self, pressure_pa: f32) {
-        self.ecu.update_sensor_data(&EcuSensorData::FuelTankPressure {
+        self.ecu.update_sensor_data(&EcuSensor::FuelTankPressure(PressureData {
             pressure_pa,
             raw_data: 0,
-        });
+        }));
     }
 
     pub fn update_oxidizer_tank_pressure(&mut self, pressure_pa: f32) {
-        self.ecu.update_sensor_data(&EcuSensorData::OxidizerTankPressure {
+        self.ecu.update_sensor_data(&EcuSensor::OxidizerTankPressure(PressureData {
             pressure_pa,
             raw_data: 0,
-        });
+        }));
     }
 
     pub fn update_igniter_chamber_pressure(&mut self, pressure_pa: f32) {
-        self.ecu.update_sensor_data(&EcuSensorData::IgniterChamberPressure {
+        self.ecu.update_sensor_data(&EcuSensor::IgniterChamberPressure(PressureData {
             pressure_pa,
             raw_data: 0,
-        });
+        }));
     }
 
     // Returns general and widely needed fields from the FCU
@@ -125,7 +125,7 @@ impl EcuSil {
             .generate_debug_info_all_variants(debug_info_callback);
 
         let binary_valves = PyDict::new(py);
-        for valve in EcuBinaryValve::iter() {
+        for valve in EcuBinaryOutput::iter() {
             binary_valves.set_item(
                 format!("{:?}", valve),
                 self.ecu.driver.get_binary_valve(valve),

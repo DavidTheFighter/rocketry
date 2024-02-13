@@ -2,7 +2,7 @@ use core::borrow::BorrowMut;
 
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuBinaryValve, TankState},
+    ecu_hal::{EcuBinaryOutput, TankState},
     ControllerState,
 };
 
@@ -39,8 +39,8 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Startup {
     fn enter_state(&mut self, ecu: &mut Ecu) {
         let driver = ecu.driver.borrow_mut();
 
-        driver.set_binary_valve(EcuBinaryValve::IgniterFuelMain, true);
-        driver.set_binary_valve(EcuBinaryValve::IgniterOxidizerMain, true);
+        driver.set_binary_valve(EcuBinaryOutput::IgniterFuelValve, true);
+        driver.set_binary_valve(EcuBinaryOutput::IgniterOxidizerValve, true);
         driver.set_sparking(true);
     }
 

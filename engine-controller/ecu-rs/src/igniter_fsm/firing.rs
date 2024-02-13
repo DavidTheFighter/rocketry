@@ -1,6 +1,6 @@
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuBinaryValve, TankState},
+    ecu_hal::{EcuBinaryOutput, TankState},
     ControllerState,
 };
 
@@ -30,9 +30,9 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Firing {
 
     fn enter_state(&mut self, ecu: &mut Ecu) {
         ecu.driver
-            .set_binary_valve(EcuBinaryValve::IgniterFuelMain, true);
+            .set_binary_valve(EcuBinaryOutput::IgniterFuelValve, true);
         ecu.driver
-            .set_binary_valve(EcuBinaryValve::IgniterOxidizerMain, true);
+            .set_binary_valve(EcuBinaryOutput::IgniterOxidizerValve, true);
         ecu.driver.set_sparking(false);
     }
 

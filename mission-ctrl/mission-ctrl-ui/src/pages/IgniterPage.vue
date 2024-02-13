@@ -176,10 +176,6 @@ export default {
     timer: {
       async handler() {
         this.generateData();
-
-        setTimeout(() => {
-          this.timer += 1;
-        }, this.refreshTimeMillis);
       },
       immediate: true,
     }
@@ -208,6 +204,8 @@ export default {
       } catch (error) {
         console.log(error);
       }
+
+      this.timer += 1;
     },
   },
   created() {

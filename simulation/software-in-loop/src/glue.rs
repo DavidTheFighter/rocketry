@@ -1,5 +1,5 @@
 use pyo3::{prelude::*, PyClass, pyclass::boolean_struct::False};
-use shared::ecu_hal::{EcuBinaryValve, EcuDriver};
+use shared::ecu_hal::{EcuBinaryOutput, EcuDriver};
 
 use crate::{dynamics, ecu::EcuSil, mission_ctrl::MissionControl};
 
@@ -32,18 +32,18 @@ impl SilGlue {
     pub fn update(&self, py: Python, _dt: f64) {
         if let Some(ecu) = borrow_py(py, &self.ecu) {
             if let Some(mut fuel_tank) = borrow_py(py, &self.fuel_tank) {
-                fuel_tank.feed_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryValve::FuelPress);
-                fuel_tank.vent_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryValve::FuelVent);
+                fuel_tank.feed_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::FuelPressValve);
+                fuel_tank.vent_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::FuelVentValve);
             }
 
             if let Some(mut oxidizer_tank) = borrow_py(py, &self.oxidizer_tank) {
-                oxidizer_tank.feed_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryValve::OxidizerPress);
-                oxidizer_tank.vent_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryValve::OxidizerVent);
+                oxidizer_tank.feed_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::OxidizerPressValve);
+                oxidizer_tank.vent_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::OxidizerVentValve);
             }
 
             if let Some(mut igniter) = borrow_py(py, &self.igniter) {
-                igniter.fuel_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryValve::IgniterFuelMain);
-                igniter.oxidizer_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryValve::IgniterOxidizerMain);
+                igniter.fuel_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::IgniterFuelValve);
+                igniter.oxidizer_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::IgniterOxidizerValve);
                 igniter.has_ignition_source = self.test_allow_igniter_ignition && ecu._driver.borrow_mut().get_sparking();
             }
         }

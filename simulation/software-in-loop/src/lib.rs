@@ -9,6 +9,8 @@ pub mod ser;
 
 use pyo3::prelude::*;
 
+extern crate uom;
+
 #[pymodule]
 fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<glue::SilGlue>()?;

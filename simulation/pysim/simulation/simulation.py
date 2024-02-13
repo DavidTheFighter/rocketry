@@ -35,6 +35,15 @@ class SimulationBase:
 
         return condition(self)
 
+    def simulate_assert(self, assert_fn, duration_s):
+        start_time = self.t
+
+        while self.t - start_time < duration_s:
+            if not self.advance_timestep():
+                break
+
+            assert_fn(self)
+
     def replay(self):
         replay = SimReplay(self.config, self.logger)
         replay.replay(self.logging)

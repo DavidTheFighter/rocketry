@@ -2,7 +2,7 @@ use big_brother::BigBrother;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
     ecu_hal::{
-        EcuBinaryValve, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuSensorData, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, TankState
+        EcuBinaryOutput, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, TankState
     },
     ControllerEntity, COMMS_NETWORK_MAP_SIZE,
 };
@@ -64,23 +64,6 @@ impl<'a> Ecu<'a> {
             igniter_fsm::idle::Idle::new(),
         ));
 
-        ecu.fuel_tank = Some(ControllerEntity::new(
-            &mut ecu,
-            tank_fsm::idle::Idle::new(
-                TankType::Fuel,
-                EcuBinaryValve::FuelPress,
-                EcuBinaryValve::FuelVent,
-            ),
-        ));
-        ecu.oxidizer_tank = Some(ControllerEntity::new(
-            &mut ecu,
-            tank_fsm::idle::Idle::new(
-                TankType::Oxidizer,
-                EcuBinaryValve::OxidizerPress,
-                EcuBinaryValve::OxidizerVent,
-            ),
-        ));
-
         ecu
     }
 
@@ -121,8 +104,7 @@ impl<'a> Ecu<'a> {
                 NetworkAddress::MissionControl,
             );
 
-            if self.fuel_tank.is_some() {
-                let tank_telemetry_frame = self.generate_tank_telemetry_frame();
+            if let Some(tank_telemetry_frame) = self.generate_tank_telemetry_frame() {
                 self.send_packet(
                     &Packet::EcuTankTelemetry(tank_telemetry_frame),
                     NetworkAddress::MissionControl,
@@ -150,28 +132,32 @@ impl<'a> Ecu<'a> {
         }
     }
 
-    pub fn generate_tank_telemetry_frame(&self) -> EcuTankTelemetryFrame {
+    pub fn generate_tank_telemetry_frame(&self) -> Option<EcuTankTelemetryFrame> {
+        if self.config.tanks_config.is_none() {
+            return None;
+        }
+
         let fuel_tank_state = self.fuel_tank_state().unwrap_or(TankState::Idle);
         let oxidizer_tank_state = self.oxidizer_tank_state().unwrap_or(TankState::Idle);
-        EcuTankTelemetryFrame {
+        Some(EcuTankTelemetryFrame {
             timestamp: (self.driver.timestamp() * 1e3) as u64,
             fuel_tank_state,
             oxidizer_tank_state,
             fuel_tank_pressure_pa: self.fuel_tank_pressure_pa,
             oxidizer_tank_pressure_pa: self.oxidizer_tank_pressure_pa,
-        }
+        })
     }
 
-    pub fn update_sensor_data(&mut self, data: &EcuSensorData) {
+    pub fn update_sensor_data(&mut self, data: &EcuSensor) {
         match data {
-            EcuSensorData::FuelTankPressure { pressure_pa, raw_data: _ } => {
-                self.fuel_tank_pressure_pa = *pressure_pa;
+            EcuSensor::FuelTankPressure(data) => {
+                self.fuel_tank_pressure_pa = data.pressure_pa;
             },
-            EcuSensorData::OxidizerTankPressure { pressure_pa, raw_data: _ } => {
-                self.oxidizer_tank_pressure_pa = *pressure_pa;
+            EcuSensor::OxidizerTankPressure(data) => {
+                self.oxidizer_tank_pressure_pa = data.pressure_pa;
             },
-            EcuSensorData::IgniterChamberPressure { pressure_pa, raw_data: _ } => {
-                self.igniter_chamber_pressure_pa = *pressure_pa;
+            EcuSensor::IgniterChamberPressure(data) => {
+                self.igniter_chamber_pressure_pa = data.pressure_pa;
             },
         }
 
@@ -185,6 +171,28 @@ impl<'a> Ecu<'a> {
 
     pub fn configure_ecu(&mut self, config: EcuConfig) {
         self.config = config;
+
+        if self.config.tanks_config.is_some() {
+            self.fuel_tank = Some(ControllerEntity::new(
+                self,
+                tank_fsm::idle::Idle::new(
+                    TankType::Fuel,
+                    EcuBinaryOutput::FuelPressValve,
+                    EcuBinaryOutput::FuelVentValve,
+                ),
+            ));
+            self.oxidizer_tank = Some(ControllerEntity::new(
+                self,
+                tank_fsm::idle::Idle::new(
+                    TankType::Oxidizer,
+                    EcuBinaryOutput::OxidizerPressValve,
+                    EcuBinaryOutput::OxidizerVentValve,
+                ),
+            ));
+        } else {
+            self.fuel_tank = None;
+            self.oxidizer_tank = None;
+        }
     }
 
     pub(crate) fn send_packet(&mut self, packet: &Packet, destination: NetworkAddress) {

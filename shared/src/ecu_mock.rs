@@ -1,13 +1,13 @@
 use core::any::Any;
 
-use crate::ecu_hal::{EcuDriver, EcuSensorData, EcuBinaryValve};
+use crate::ecu_hal::{EcuDriver, EcuSensor, EcuBinaryOutput};
 use strum::EnumCount;
 
 pub struct EcuDriverMock {
     start_timestamp: f64,
     sparking: bool,
-    binary_valves: [bool; EcuBinaryValve::COUNT],
-    sensors: [(f32, f32, f32); EcuSensorData::COUNT],
+    binary_valves: [bool; EcuBinaryOutput::COUNT],
+    sensors: [(f32, f32, f32); EcuSensor::COUNT],
 }
 
 impl EcuDriver for EcuDriverMock {
@@ -19,11 +19,11 @@ impl EcuDriver for EcuDriverMock {
         self.sparking = state;
     }
 
-    fn set_binary_valve(&mut self, valve: EcuBinaryValve, state: bool) {
+    fn set_binary_valve(&mut self, valve: EcuBinaryOutput, state: bool) {
         self.binary_valves[valve.index()] = state;
     }
 
-    fn get_binary_valve(&self, valve: EcuBinaryValve) -> bool {
+    fn get_binary_valve(&self, valve: EcuBinaryOutput) -> bool {
         self.binary_valves[valve.index()]
     }
 
@@ -41,8 +41,8 @@ impl EcuDriverMock {
         Self {
             start_timestamp: get_timestamp(),
             sparking: false,
-            binary_valves: [false; EcuBinaryValve::COUNT],
-            sensors: [(0_f32, 0_f32, 0_f32); EcuSensorData::COUNT],
+            binary_valves: [false; EcuBinaryOutput::COUNT],
+            sensors: [(0_f32, 0_f32, 0_f32); EcuSensor::COUNT],
         }
     }
 }

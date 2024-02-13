@@ -25,20 +25,15 @@ def test_tanks_init_state(config):
     sim.advance_timestep()
     MAX_PRESSURE_PA = sil.ATMOSPHERIC_PRESSURE_PA + 10
 
-    assert sim.ecu['igniter_state'] == 'Idle'
-    assert sim.ecu['binary_valves']['FuelPress'] == False
-    assert sim.ecu['binary_valves']['OxidizerPress'] == False
-    # Note: Intentionally ignoring vent valve states for now
-    assert sim.fuel_tank_dynamics.tank_pressure_pa < MAX_PRESSURE_PA
-    assert sim.oxidizer_tank_dynamics.tank_pressure_pa < MAX_PRESSURE_PA
+    def assert_idle_state(sim: IgniterSimulation):
+        assert sim.ecu['igniter_state'] == 'Idle'
+        assert sim.ecu['binary_valves']['FuelPressValve'] == False
+        assert sim.ecu['binary_valves']['OxidizerPressValve'] == False
+        # Note: Intentionally ignoring vent valve states for now
+        assert sim.fuel_tank_dynamics.tank_pressure_pa < MAX_PRESSURE_PA
+        assert sim.oxidizer_tank_dynamics.tank_pressure_pa < MAX_PRESSURE_PA
 
-    sim.simulate_for(5.0)
-
-    assert sim.ecu['igniter_state'] == 'Idle'
-    assert sim.ecu['binary_valves']['FuelPress'] == False
-    assert sim.ecu['binary_valves']['OxidizerPress'] == False
-    assert sim.fuel_tank_dynamics.tank_pressure_pa < MAX_PRESSURE_PA
-    assert sim.oxidizer_tank_dynamics.tank_pressure_pa < MAX_PRESSURE_PA
+    sim.simulate_assert(assert_idle_state, 5.0)
 
 def test_tank_press_and_depress(config):
     sim = IgniterSimulation(config)
@@ -50,19 +45,19 @@ def test_tank_press_and_depress(config):
 
     assert sim.ecu['fuel_tank_state'] == 'Pressurized'
     assert sim.ecu['oxidizer_tank_state'] == 'Pressurized'
-    assert sim.ecu['binary_valves']['FuelPress'] == True
-    assert sim.ecu['binary_valves']['OxidizerPress'] == True
-    assert sim.ecu['binary_valves']['FuelVent'] == False
-    assert sim.ecu['binary_valves']['OxidizerVent'] == False
+    assert sim.ecu['binary_valves']['FuelPressValve'] == True
+    assert sim.ecu['binary_valves']['OxidizerPressValve'] == True
+    assert sim.ecu['binary_valves']['FuelVentValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerVentValve'] == False
 
     assert sim.simulate_until(lambda s: tanks_pressurized(s), 10.0)
 
     assert sim.ecu['fuel_tank_state'] == 'Pressurized'
     assert sim.ecu['oxidizer_tank_state'] == 'Pressurized'
-    assert sim.ecu['binary_valves']['FuelPress'] == True
-    assert sim.ecu['binary_valves']['OxidizerPress'] == True
-    assert sim.ecu['binary_valves']['FuelVent'] == False
-    assert sim.ecu['binary_valves']['OxidizerVent'] == False
+    assert sim.ecu['binary_valves']['FuelPressValve'] == True
+    assert sim.ecu['binary_valves']['OxidizerPressValve'] == True
+    assert sim.ecu['binary_valves']['FuelVentValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerVentValve'] == False
 
     assert sim.fuel_tank_dynamics.tank_pressure_pa > config.ecu_tank_pressure_set_point_pa * 0.9
     assert sim.oxidizer_tank_dynamics.tank_pressure_pa > config.ecu_tank_pressure_set_point_pa * 0.9
@@ -73,19 +68,19 @@ def test_tank_press_and_depress(config):
 
     assert sim.ecu['fuel_tank_state'] == 'Depressurized'
     assert sim.ecu['oxidizer_tank_state'] == 'Depressurized'
-    assert sim.ecu['binary_valves']['FuelPress'] == False
-    assert sim.ecu['binary_valves']['OxidizerPress'] == False
-    assert sim.ecu['binary_valves']['FuelVent'] == True
-    assert sim.ecu['binary_valves']['OxidizerVent'] == True
+    assert sim.ecu['binary_valves']['FuelPressValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerPressValve'] == False
+    assert sim.ecu['binary_valves']['FuelVentValve'] == True
+    assert sim.ecu['binary_valves']['OxidizerVentValve'] == True
 
     assert sim.simulate_until(lambda s: tanks_depressurized(s), 5.0)
 
     assert sim.ecu['fuel_tank_state'] == 'Depressurized'
     assert sim.ecu['oxidizer_tank_state'] == 'Depressurized'
-    assert sim.ecu['binary_valves']['FuelPress'] == False
-    assert sim.ecu['binary_valves']['OxidizerPress'] == False
-    assert sim.ecu['binary_valves']['FuelVent'] == True
-    assert sim.ecu['binary_valves']['OxidizerVent'] == True
+    assert sim.ecu['binary_valves']['FuelPressValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerPressValve'] == False
+    assert sim.ecu['binary_valves']['FuelVentValve'] == True
+    assert sim.ecu['binary_valves']['OxidizerVentValve'] == True
 
     assert sim.fuel_tank_dynamics.tank_pressure_pa < config.ecu_tank_pressure_set_point_pa * 0.5
     assert sim.oxidizer_tank_dynamics.tank_pressure_pa < config.ecu_tank_pressure_set_point_pa * 0.5

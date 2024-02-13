@@ -81,10 +81,10 @@ impl EcuDriver for Stm32F407EcuDriver {
         let pin_state = if state { PinState::High } else { PinState::Low };
 
         match valve {
-            EcuSolenoidValve::IgniterFuelMain => self.pins.sv1_ctrl.set_state(pin_state),
-            EcuSolenoidValve::IgniterOxidizerMain => self.pins.sv2_ctrl.set_state(pin_state),
-            EcuSolenoidValve::FuelPress => self.pins.sv3_ctrl.set_state(pin_state),
-            EcuSolenoidValve::FuelVent => self.pins.sv4_ctrl.set_state(pin_state),
+            EcuSolenoidValve::IgniterFuelValve => self.pins.sv1_ctrl.set_state(pin_state),
+            EcuSolenoidValve::IgniterOxidizerValve => self.pins.sv2_ctrl.set_state(pin_state),
+            EcuSolenoidValve::FuelPressValve => self.pins.sv3_ctrl.set_state(pin_state),
+            EcuSolenoidValve::FuelVentValve => self.pins.sv4_ctrl.set_state(pin_state),
         }
 
         self.solenoid_valve_states[valve as usize] = state;

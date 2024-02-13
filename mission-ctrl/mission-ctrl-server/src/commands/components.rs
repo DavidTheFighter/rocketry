@@ -3,7 +3,7 @@ use std::{sync::Arc, thread, time::Duration};
 use rocket::{serde::json::Json, State};
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, EcuBinaryValve},
+    ecu_hal::{EcuCommand, EcuBinaryOutput},
 };
 
 use crate::{
@@ -13,12 +13,12 @@ use crate::{
 
 use super::{format_response, send_command};
 
-fn match_valve(valve: &str) -> Option<EcuBinaryValve> {
+fn match_valve(valve: &str) -> Option<EcuBinaryOutput> {
     match valve {
-        "ig_fuel" => Some(EcuBinaryValve::IgniterFuelMain),
-        "ig_gox" => Some(EcuBinaryValve::IgniterOxidizerMain),
-        "press" => Some(EcuBinaryValve::FuelPress),
-        "vent" => Some(EcuBinaryValve::FuelVent),
+        "ig_fuel" => Some(EcuBinaryOutput::IgniterFuelValve),
+        "ig_gox" => Some(EcuBinaryOutput::IgniterOxidizerValve),
+        "press" => Some(EcuBinaryOutput::FuelPressValve),
+        "vent" => Some(EcuBinaryOutput::FuelVentValve),
         _ => None,
     }
 }

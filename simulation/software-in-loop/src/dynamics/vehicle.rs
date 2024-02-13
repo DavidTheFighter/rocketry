@@ -6,6 +6,7 @@ use super::Scalar;
 const G: Scalar = -9.806;
 
 #[pyclass]
+#[derive(Debug, Clone)]
 pub struct SilVehicleDynamics {
     pub position: Vector3<Scalar>, // World frame
     pub velocity: Vector3<Scalar>, // World frame

@@ -1,5 +1,4 @@
 use pyo3::prelude::*;
-
 use super::{tank::GAS_CONSTANT, Scalar};
 
 #[pyclass]
@@ -38,6 +37,7 @@ pub fn calc_chamber_pressure(
     throat_area_m2: Scalar,
     combustion_data: &CombustionData,
 ) -> Scalar {
+
     let throat_temp_k = combustion_data.chamber_temperature_k / (1.0 + combustion_data.specific_heat_ratio * (combustion_data.specific_heat_ratio - 1.0) / 2.0);
 
     let throat_pressure_pa = mass_flow_kg_s
@@ -53,3 +53,19 @@ pub fn calc_chamber_pressure(
             * 0.5
         ).powf(-combustion_data.specific_heat_ratio / (combustion_data.specific_heat_ratio - 1.0))
 }
+
+// pub const GAS_CONSTANT_UNIT: AvailableEnergy<> = 8.31446261815324;
+
+// pub fn calc_chamber_pressure_si(
+//     mass_flow_kg_s: MassRate<Scalar>,
+//     throat_area_m2: Area<Scalar>,
+//     combustion_data: &CombustionData,
+// ) -> Pressure<Scalar> {
+//     let throat_temp_k: TemperatureInterval<Scalar> = TemperatureInterval::new::<kelvin>(
+//         combustion_data.chamber_temperature_k / (1.0 + combustion_data.specific_heat_ratio * (combustion_data.specific_heat_ratio - 1.0) / 2.0)
+//     );
+
+//     let throat_pressure_pa = mass_flow_kg_s
+//         * (GAS_CONSTANT * throat_temp_k / (combustion_data.molar_mass_kg_mol * combustion_data.specific_heat_ratio)).sqrt()
+//         / throat_area_m2;
+// }

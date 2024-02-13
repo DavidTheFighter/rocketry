@@ -22,7 +22,7 @@ pub struct SilTankFeedConfig {
 }
 
 #[pyclass]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct SilTankDynamics {
     feed_config: SilTankFeedConfig,
     #[pyo3(get, set)]

@@ -97,8 +97,6 @@ class IgniterSimulation(SimulationBase):
 
         if math.fmod(self.t, self.config.ecu_update_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update(self.config.ecu_update_rate)
-            print(self.t - self.test_t)
-            self.test_t = self.t
 
         self.logger.log_common_data()
         self.logger.log_ecu_data(self.ecu)
