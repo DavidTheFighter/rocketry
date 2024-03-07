@@ -31,6 +31,8 @@ pub struct Ecu<'a> {
     pub fuel_tank_pressure_pa: f32,
     pub oxidizer_tank_pressure_pa: f32,
     pub igniter_chamber_pressure_pa: f32,
+    pub igniter_fuel_injector_pressure_pa: Option<f32>,
+    pub igniter_oxidizer_injector_pressure_pa: Option<f32>,
 
     pub last_telemetry_frame: Option<EcuTelemetryFrame>,
     time_since_last_telemetry: f32,
@@ -50,6 +52,8 @@ impl<'a> Ecu<'a> {
             fuel_tank_pressure_pa: 0.0,
             oxidizer_tank_pressure_pa: 0.0,
             igniter_chamber_pressure_pa: 0.0,
+            igniter_fuel_injector_pressure_pa: None,
+            igniter_oxidizer_injector_pressure_pa: None,
             last_telemetry_frame: None,
             time_since_last_telemetry: 1e3,
         };
@@ -159,6 +163,13 @@ impl<'a> Ecu<'a> {
             EcuSensor::IgniterChamberPressure(data) => {
                 self.igniter_chamber_pressure_pa = data.pressure_pa;
             },
+            EcuSensor::IgniterFuelInjectorPressure(data) => {
+                self.igniter_fuel_injector_pressure_pa = Some(data.pressure_pa);
+            },
+            EcuSensor::IgniterOxidizerInjectorPressure(data) => {
+                self.igniter_oxidizer_injector_pressure_pa = Some(data.pressure_pa);
+            },
+            _ => {},
         }
 
         if self.debug_info_enabled {

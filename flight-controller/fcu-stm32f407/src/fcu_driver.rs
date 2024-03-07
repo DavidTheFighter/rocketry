@@ -38,7 +38,7 @@ impl FcuDriver for Stm32F407FcuDriver {
     fn set_output_channel(&mut self, channel: OutputChannel, state: bool) {
         let pin_state = if state { PinState::High } else { PinState::Low };
         match channel {
-            OutputChannel::SolidMotorIgniter => self.pins.output1_ctrl.set_state(pin_state),
+            OutputChannel::SolidMotorIgniter => self.pins.output2_ctrl.set_state(pin_state),
             OutputChannel::Extra { index: _ } => {},
             // OutputChannel::OutputChannel1 => self.pins.output2_ctrl.set_state(pin_state),
             // OutputChannel::OutputChannel2 => self.pins.output3_ctrl.set_state(pin_state),

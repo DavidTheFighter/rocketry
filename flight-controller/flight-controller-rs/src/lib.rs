@@ -14,6 +14,7 @@ macro_rules! silprintln {
     ($($arg:tt)*) => {};
 }
 
+mod alert_watchdog;
 pub mod debug_info;
 mod dev_stats;
 pub mod state_vector;
@@ -35,7 +36,7 @@ use state_vector::StateVector;
 use strum::{EnumCount, IntoEnumIterator};
 
 pub const HEARTBEAT_RATE: f32 = 0.25;
-pub const ALERT_RATE: f32 = 1.0;
+pub const ALERT_RATE: f32 = 0.1;
 pub const PACKET_QUEUE_SIZE: usize = 16;
 
 pub type FcuBigBrother<'a> = BigBrother<'a, COMMS_NETWORK_MAP_SIZE, Packet, NetworkAddress>;
@@ -67,6 +68,7 @@ impl<'a> Fcu<'a> {
         let default_fcu_config = FcuConfig {
             telemetry_rate: 0.02,
             startup_acceleration_threshold: 0.1,
+            startup_acceleration_timeout: 5.0,
             calibration_duration: 5.0,
             kalman_process_variance: 1e-1,
             accelerometer_noise_std_dev: Vector3 {
@@ -98,7 +100,7 @@ impl<'a> Fcu<'a> {
             state_vector,
             last_telemetry_frame: None,
             debug_info_enabled: true,
-            alert_manager: AlertManager::new(),
+            alert_manager: AlertManager::new(ALERT_RATE),
             dev_stats: DevStatsCollector::new(),
             vehicle_fsm_state: None,
             time_since_last_telemetry: 0.0,
@@ -155,12 +157,7 @@ impl<'a> Fcu<'a> {
             self.time_since_last_heartbeat = 0.0;
         }
 
-        if self.time_since_last_alert_update > ALERT_RATE || self.alert_manager.has_pending_update()
-        {
-            let alert_packet = self.alert_manager.get_condition_packet();
-            self.send_packet(NetworkAddress::MissionControl, alert_packet);
-            self.time_since_last_alert_update = 0.0;
-        }
+        self.alert_manager.set_condition(FcuAlertCondition::BatteryVoltageLow);
 
         if self.debug_info_enabled {
             for variant in FcuDebugInfoVariant::iter() {
@@ -169,6 +166,15 @@ impl<'a> Fcu<'a> {
                     NetworkAddress::MissionControl,
                     Packet::FcuDebugInfo(variant_data),
                 );
+            }
+        }
+
+        self.update_alert_watchdog();
+
+        let am_packets = self.alert_manager.update(dt);
+        for packet in am_packets {
+            if let Some(packet) = packet {
+                self.send_packet(NetworkAddress::MissionControl, packet);
             }
         }
 
@@ -193,7 +199,7 @@ impl<'a> Fcu<'a> {
         match packet {
             Packet::VehicleCommand(command) => {
                 self.handle_command(source, command);
-            }
+            },
             Packet::EnableDataLogging(state) => {
                 self.data_logger.set_logging_enabled(*state);
             }
@@ -213,7 +219,10 @@ impl<'a> Fcu<'a> {
         match command {
             VehicleCommand::Configure(config) => {
                 self.configure_fcu(config.clone());
-            }
+            },
+            VehicleCommand::SetOutputChannel { channel, state } => {
+                self.driver.set_output_channel(*channel, *state);
+            },
             _ => {}
         }
     }

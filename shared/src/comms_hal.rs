@@ -2,10 +2,7 @@ use big_brother::big_brother::Broadcastable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, TankState},
-    fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand},
-    streamish_hal::StreamishCommand,
-    SensorConfig,
+    alerts, ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, TankState}, fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand}, streamish_hal::StreamishCommand, SensorConfig
 };
 
 use strum_macros::EnumCount as EnumCountMacro;
@@ -60,7 +57,7 @@ pub enum Packet {
     EcuDebugInfo(EcuDebugInfo),
     FcuDebugSensorMeasurement(FcuSensorData),
     EcuDebugSensorMeasurement(EcuSensor),
-    AlertBitmask(u32),
+    AlertBitmask(alerts::AlertBitmaskType),
 
     // -- Misc -- //
     DeviceBooted,
@@ -134,6 +131,9 @@ pub mod tests_data {
             timestamp: 0xABAD_1234_FEDC_DEAD,
             igniter_state: IgniterState::Shutdown,
             sparking: true,
+            igniter_chamber_pressure_pa: 1234.567,
+            igniter_fuel_injector_pressure_pa: Some(19522.4),
+            igniter_oxidizer_injector_pressure_pa: Some(96420.425),
         }),
         Packet::FcuDebugSensorMeasurement(FcuSensorData::Accelerometer {
             acceleration: Vector3 {

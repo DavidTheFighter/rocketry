@@ -13,10 +13,8 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use cameras::browser_stream;
-use telemetry::ecu_telemetry::{ecu_telemetry_endpoint, ecu_telemetry_graph, ecu_debug_data, telemetry_thread};
-use telemetry::fcu_telemetry::{
-    fcu_debug_data, fcu_telemetry_endpoint, fcu_telemetry_graph, fcu_telemetry_thread,
-};
+use telemetry::ecu_telemetry::telemetry_thread;
+use telemetry::fcu_telemetry::fcu_telemetry_thread;
 use input::input_thread;
 use observer::ObserverHandler;
 use rocket::fairing::{Fairing, Info, Kind};
@@ -40,16 +38,11 @@ fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
             "/",
             routes![
                 all_options,
-                ecu_telemetry_endpoint,
-                ecu_telemetry_graph,
-                ecu_debug_data,
-                fcu_telemetry_endpoint,
-                fcu_telemetry_graph,
-                fcu_debug_data,
                 browser_stream,
             ],
         )
         .mount("/commands", commands::get_routes())
+        .mount("/", telemetry::get_routes())
 }
 
 #[rocket::main]

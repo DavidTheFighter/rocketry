@@ -40,10 +40,9 @@
         :title="'Debug Info'"
         class="columnLeft"
       />
-      <DatasetDisplay
-        :states="this.dataset.problems"
-        :title="'Problems'"
-        :singleColumn="true"
+      <AlertDisplay
+        :alerts="dataset.alert_conditions"
+        :title="'Alerts'"
         class="columnMiddle"
       />
       <EmptyComponent class="columnRight" />
@@ -57,6 +56,7 @@ import RealtimeLineGraphChartjs from '../components/RealtimeLineGraphChartjs.vue
 import OrientationVisualization from '@/components/OrientationVisualization.vue';
 import RocketTerminal from '../components/RocketTerminal.vue';
 import DatasetDisplay from '../components/DatasetDisplay.vue';
+import AlertDisplay from '../components/AlertDisplay.vue';
 import * as util from '../util/data.js';
 
 export default {
@@ -67,6 +67,7 @@ export default {
     OrientationVisualization,
     RocketTerminal,
     DatasetDisplay,
+    AlertDisplay,
   },
   props: {
     refreshTimeMillis: {
@@ -197,6 +198,15 @@ export default {
         {
           name: "Baro Calib",
           value: this.dataset.debug_data?.barometer_calibration,
+          badValue: false,
+        },
+      ];
+    },
+    alertInfo() {
+      return [
+        {
+          name: "Alerts",
+          value: this.dataset.alert_conditions,
           badValue: false,
         },
       ];

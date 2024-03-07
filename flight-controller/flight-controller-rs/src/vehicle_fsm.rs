@@ -32,7 +32,9 @@ pub struct Calibrating {
 pub struct Armed;
 
 #[derive(Debug)]
-pub struct Ignition;
+pub struct Ignition {
+    time_since_state_entry: f32,
+}
 
 #[derive(Debug)]
 pub struct Ascent {

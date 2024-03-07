@@ -89,6 +89,13 @@ class IgniterSimulation(SimulationBase):
         if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update_igniter_chamber_pressure(self.igniter_dynamics.chamber_pressure_pa)
 
+        # TODO these pressure values need to be dependent on if the valve is open or not
+        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
+            self.ecu.update_igniter_fuel_injector_pressure(self.igniter_dynamics.fuel_pressure_pa)
+
+        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
+            self.ecu.update_igniter_oxidizer_injector_pressure(self.igniter_dynamics.oxidizer_pressure_pa)
+
         self.glue.update(self.dt)
 
         self.fuel_tank_dynamics.update(self.dt)

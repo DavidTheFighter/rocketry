@@ -107,6 +107,20 @@ impl EcuSil {
         }));
     }
 
+    pub fn update_igniter_fuel_injector_pressure(&mut self, pressure_pa: f32) {
+        self.ecu.update_sensor_data(&EcuSensor::IgniterFuelInjectorPressure(PressureData {
+            pressure_pa,
+            raw_data: 0,
+        }));
+    }
+
+    pub fn update_igniter_oxidizer_injector_pressure(&mut self, pressure_pa: f32) {
+        self.ecu.update_sensor_data(&EcuSensor::IgniterOxidizerInjectorPressure(PressureData {
+            pressure_pa,
+            raw_data: 0,
+        }));
+    }
+
     // Returns general and widely needed fields from the FCU
     fn __getitem__(&self, key: &str, py: Python) -> PyResult<PyObject> {
         let dict = PyDict::new(py);

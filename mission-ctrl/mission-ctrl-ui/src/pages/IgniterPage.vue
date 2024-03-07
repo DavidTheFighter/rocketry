@@ -71,13 +71,13 @@ export default {
         {
           name: 'IG GOx',
           color: 'cyan',
-          dataName: 'igniter_gox_pressure',
+          dataName: 'igniter_oxidizer_pressure_psi',
           units: "PSI",
         },
         {
           name: 'IG Fuel',
           color: 'orange',
-          dataName: 'igniter_fuel_pressure',
+          dataName: 'igniter_fuel_pressure_psi',
           units: "PSI",
         },
         {

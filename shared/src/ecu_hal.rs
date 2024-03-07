@@ -31,7 +31,19 @@ pub enum TankState {
 pub enum EcuSensor {
     FuelTankPressure(super::PressureData),
     OxidizerTankPressure(super::PressureData),
+
     IgniterChamberPressure(super::PressureData),
+    IgniterFuelInjectorPressure(super::PressureData),
+    IgniterOxidizerInjectorPressure(super::PressureData),
+    IgniterThroatTemperature(super::TemperatureData),
+
+    EngineChamberPressure(super::PressureData),
+    EngineFuelInjectorPressure(super::PressureData),
+    EngineOxidizerInjectorPressure(super::PressureData),
+    EngineThroatTemperature(super::TemperatureData),
+
+    FuelPumpOutletPressure(super::PressureData),
+    OxidizerPumpOutletPressure(super::PressureData),
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -61,6 +73,7 @@ pub enum EcuBinaryOutput {
     OxidizerVentValve,
     EngineFuelValve,
     EngineOxidizerValve,
+    FuelPurgeValve,
 }
 
 impl EcuBinaryOutput {
@@ -106,6 +119,9 @@ pub enum EcuDebugInfo {
         timestamp: u64,
         igniter_state: IgniterState,
         sparking: bool,
+        igniter_chamber_pressure_pa: f32,
+        igniter_fuel_injector_pressure_pa: Option<f32>,
+        igniter_oxidizer_injector_pressure_pa: Option<f32>,
     },
     TankInfo {
         timestamp: u64,
@@ -116,7 +132,6 @@ pub enum EcuDebugInfo {
         timestamp: u64,
         fuel_tank_pressure_pa: f32,
         oxidizer_tank_pressure_pa: f32,
-        igniter_chamber_pressure_pa: f32,
     },
 }
 

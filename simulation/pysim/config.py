@@ -38,6 +38,7 @@ class SimConfig:
     fcu_config: dict = field(default_factory=lambda: {
         "telemetry_rate": 0.02, # Seconds
         "startup_acceleration_threshold": 0.5, # Meters per second squared
+        "startup_acceleration_timeout": 5.0, # Seconds
         "calibration_duration": 2.5, # Seconds
         "kalman_process_variance": 1e1,
         "accelerometer_noise_std_dev": [0.01]*3, # Meters per second squared

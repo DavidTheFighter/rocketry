@@ -204,3 +204,20 @@ def orifice_compressible_pressure(m, do, dp, Cd, p2, rho, kappa=1.3, debug_print
             print("Approx pressure: {}, mass flow: {} vs {} = {}, delta: {}".format(approx_pressure, approx_m, m, abs(approx_m - m), delta))
 
     return approx_pressure
+
+
+if __name__ == '__main__':
+    flow_rate_gpm = 0.089
+    flow_pressure_psi = 40
+    orifice_diameter_in = 0.025
+
+    flow_rate_l_s = flow_rate_gpm * 3.78541 / 60.0
+    flowrate_kg_s = flow_rate_l_s
+    flow_pressure_pa = flow_pressure_psi * 6894.75729
+    orifice_area_m2 = pi * pow(orifice_diameter_in * 0.0254 / 2.0, 2.0)
+
+    cd = flowrate_kg_s / (orifice_area_m2 * pow(2.0 * 998 * flow_pressure_pa, 0.5))
+
+    print("Flow rate: {:.4f} kg/s".format(flowrate_kg_s))
+    print("Orifice area: {:.4f} m^2".format(orifice_area_m2))
+    print("Cd: {:.4f}".format(cd))

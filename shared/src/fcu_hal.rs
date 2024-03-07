@@ -3,7 +3,7 @@ use core::any::Any;
 use mint::{Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
-use strum_macros::{EnumCount as EnumCountMacro, EnumDiscriminants, EnumIter, EnumString};
+use strum_macros::{EnumCount as EnumCountMacro, EnumDiscriminants, EnumIter, EnumString, EnumProperty};
 
 use crate::alerts::AlertBitmaskType;
 
@@ -34,6 +34,10 @@ pub enum VehicleCommand {
     },
     IgniteSolidMotor {
         magic_number: u64, // IGNITION_MAGIC_NUMBER
+    },
+    SetOutputChannel {
+        channel: OutputChannel,
+        state: bool,
     },
 }
 
@@ -67,9 +71,14 @@ pub enum PwmChannel {
     PwmChannel5 = 5,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, EnumIter, EnumProperty, PartialEq, Eq)]
 pub enum FcuAlertCondition {
+    #[strum(props(severity = "-1"))]
+    DebugModeEnabled,
+    #[strum(props(severity = "1"))]
     NoIgniterContinuity,
+    #[strum(props(severity = "1"))]
+    BatteryVoltageLow,
 }
 
 impl Into<AlertBitmaskType> for FcuAlertCondition {
@@ -178,6 +187,7 @@ pub struct FcuDevStatsFrame {
 pub struct FcuConfig {
     pub telemetry_rate: f32,
     pub startup_acceleration_threshold: f32,
+    pub startup_acceleration_timeout: f32, // Seconds
     pub calibration_duration: f32,
     pub kalman_process_variance: f32,
     pub accelerometer_noise_std_dev: Vector3<f32>,
@@ -338,6 +348,7 @@ impl FcuConfig {
         Self {
             telemetry_rate: 0.02,
             startup_acceleration_threshold: 0.1,
+            startup_acceleration_timeout: 4.0,
             calibration_duration: 5.0,
             kalman_process_variance: 1e-3,
             accelerometer_noise_std_dev: Vector3 {

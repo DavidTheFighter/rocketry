@@ -145,3 +145,9 @@ pub struct PressureData {
     pub pressure_pa: f32,
     pub raw_data: u16,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct TemperatureData {
+    pub temperature_k: f32,
+    pub raw_data: u16,
+}

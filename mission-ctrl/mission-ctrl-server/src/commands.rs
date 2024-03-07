@@ -13,7 +13,7 @@ use rocket::{
 use shared::comms_hal::{NetworkAddress, Packet};
 
 use crate::observer::{ObserverEvent, ObserverHandler};
-use components::{set_solenoid_valve, test_solenoid_valve, test_spark};
+use components::{set_solenoid_valve, test_solenoid_valve, test_spark, set_fcu_output};
 use logging::{erase_flash, retrieve_logs, set_logging};
 use sequence::test_fire_igniter;
 use streamish::{start_stream, stop_stream};
@@ -25,6 +25,7 @@ pub fn get_routes() -> Vec<rocket::Route> {
         set_solenoid_valve,
         test_solenoid_valve,
         test_spark,
+        set_fcu_output,
         // Sequence
         test_fire_igniter,
         // Tanks

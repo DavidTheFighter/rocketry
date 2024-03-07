@@ -11,6 +11,17 @@ const GRAPH_DISPLAY_TIME_S: f32 = 20.0;
 const VISUAL_UPDATES_PER_S: f32 = 20.0;
 const GRAPH_MAX_DATA_POINTS: usize = (GRAPH_DISPLAY_TIME_S * VISUAL_UPDATES_PER_S) as usize;
 
+pub fn get_routes() -> Vec<rocket::Route> {
+    routes![
+        ecu_telemetry::ecu_telemetry_endpoint,
+        ecu_telemetry::ecu_telemetry_graph,
+        ecu_telemetry::ecu_debug_data,
+        fcu_telemetry::fcu_telemetry_endpoint,
+        fcu_telemetry::fcu_telemetry_graph,
+        fcu_telemetry::fcu_debug_data,
+    ]
+}
+
 fn populate_graph_data_mutex(
     endpoint_data_mutex: &Mutex<Option<Value>>,
     graph_data: Map<String, Value>,

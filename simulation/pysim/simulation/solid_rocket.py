@@ -139,4 +139,31 @@ class SolidRocketSimulation:
         replay.replay(self.logging)
 
 if __name__ == "__main__":
-    print("This file is not meant to be run directly")
+    from pysim.app import simulate_app
+
+    def solid_rocket_app():
+        config = SimConfig()
+        config.sim_update_rate = 0.0005 # Seconds
+
+        armed = False
+        ignited = False
+
+        def tick_callback(sim: SolidRocketSimulation):
+            nonlocal armed, ignited
+
+            if sim.fcu['vehicle_state'] == 'Idle' and not armed:
+                armed = True
+                sim.mission_ctrl.send_arm_vehicle_packet()
+
+            if sim.fcu['vehicle_state'] == 'Armed' and not ignited:
+                ignited = True
+                sim.mission_ctrl.send_ignite_solid_motor_packet()
+
+            if sim.fcu['vehicle_state'] == 'Landed':
+                return True
+
+            return True
+
+        simulate_app(config, SolidRocketSimulation, tick_callback)
+
+    solid_rocket_app()

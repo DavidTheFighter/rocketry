@@ -1,12 +1,13 @@
-test_upstream = 90 # PSI
-test_downstream = 14.7 # PSI
+test_upstream = 100 # PSI
+test_downstream = 0.0 # PSI
+test_wattage = 190 # W
 
 desired_downstream = 300 # PSI
 desired_massflow = 0.22 # kg/s
 
 fluid_density = 1000 # kg/m^3
 
-C = 0.95
+C = 0.75
 orifice_diameter = 0.063 # inches
 
 # --- Calculations but in metric --- #
@@ -30,6 +31,7 @@ test_flow_power = flow_power(test_flow_rate, test_upstream - test_downstream) # 
 
 print("Test flow rate: {:.4f} kg/s".format(test_flow_rate))
 print("Test flow power: {:.4f} W".format(test_flow_power))
+print("Test efficiency: {:.1f}%".format(100.0 * test_flow_power / test_wattage))
 
 desired_upstream = test_flow_power / (desired_massflow * 9.81 * 0.00010199773339984)
 

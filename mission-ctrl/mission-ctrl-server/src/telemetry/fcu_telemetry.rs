@@ -6,8 +6,10 @@ use rocket::serde::{
     json::{json, serde_json::Map, Json, Value},
     Serialize,
 };
+use shared::alerts::{self, AlertBitmaskType};
 use shared::comms_hal::{NetworkAddress, Packet};
-use shared::fcu_hal::{FcuDebugInfo, FcuTelemetryFrame};
+use shared::fcu_hal::{FcuAlertCondition, FcuDebugInfo, FcuTelemetryFrame};
+use strum::{IntoEnumIterator, EnumProperty};
 
 use crate::observer::{ObserverEvent, ObserverHandler};
 use crate::{process_is_running, timestamp};
@@ -36,6 +38,7 @@ struct FcuTelemetryHandler {
     observer_handler: Arc<ObserverHandler>,
     last_fcu_telemetry: FcuTelemetryFrame,
     last_debug_info: FcuDebugInfo,
+    last_alert_bitmask: AlertBitmaskType,
     telemetry_rate_record_time: f64,
     last_telemetry_timestamp: f64,
     current_telemetry_rate_hz: u32,
@@ -48,6 +51,7 @@ impl FcuTelemetryHandler {
             observer_handler,
             last_fcu_telemetry: FcuTelemetryFrame::default(),
             last_debug_info: FcuDebugInfo::default(),
+            last_alert_bitmask: 0,
             telemetry_rate_record_time: 1.0,
             last_telemetry_timestamp: timestamp(),
             current_telemetry_rate_hz: 0,
@@ -67,7 +71,7 @@ impl FcuTelemetryHandler {
                         self.last_fcu_telemetry = frame;
                         self.last_telemetry_timestamp = timestamp();
                         telemetry_counter += 1;
-                    }
+                    },
                     Packet::FcuDebugInfo(debug_info) => {
                         self.last_debug_info = debug_info;
 
@@ -82,7 +86,10 @@ impl FcuTelemetryHandler {
                         }
 
                         self.populate_debug_info(endpoint_data.as_mut().unwrap());
-                    }
+                    },
+                    Packet::AlertBitmask(bitmask) => {
+                        self.last_alert_bitmask = bitmask;
+                    },
                     _ => {}
                 }
             }
@@ -131,6 +138,26 @@ impl FcuTelemetryHandler {
         telemetry_frame_map.insert(
             String::from("fcu_bitrate"),
             Value::Number(self.fcu_bitrate.into()),
+        );
+
+        let mut alert_conditions = Vec::new();
+        for condition in FcuAlertCondition::iter() {
+            if alerts::is_condition_set(self.last_alert_bitmask, condition as AlertBitmaskType) {
+                let mut alert_value = rocket::serde::json::serde_json::Map::new();
+                alert_value.insert(
+                    String::from("alert"),
+                    json!(format!("{:?}", condition)),
+                );
+                alert_value.insert(
+                    String::from("severity"),
+                    json!(condition.get_str("severity").unwrap()),
+                );
+                alert_conditions.push(Value::Object(alert_value));
+            }
+        }
+        telemetry_frame_map.insert(
+            String::from("alert_conditions"),
+            Value::Array(alert_conditions),
         );
 
         telemetry_frame

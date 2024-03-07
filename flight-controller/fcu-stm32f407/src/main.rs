@@ -90,8 +90,8 @@ mod app {
         cpu_utilization: AtomicU32,
     }
 
-    #[task(local = [blue_led], priority = 1)]
-    fn heartbeat_blink_led(ctx: heartbeat_blink_led::Context) {
+    #[task(local = [blue_led], shared = [fcu], priority = 1)]
+    fn heartbeat_blink_led(mut ctx: heartbeat_blink_led::Context) {
         heartbeat_blink_led::spawn_after(1000.millis().into()).unwrap();
         ctx.local.blue_led.toggle();
 

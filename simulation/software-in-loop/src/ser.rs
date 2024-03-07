@@ -22,7 +22,7 @@ pub fn list_from_array<T: Serialize>(py: Python, list: T) -> &PyList {
             list.append(value.as_str().unwrap()).unwrap();
         } else if value.is_boolean() {
             list.append(value.as_bool().unwrap()).unwrap();
-        } else {
+        } else if !value.is_null() {
             panic!("Unsupported type {:?} for list ({:?}", value, list);
         }
     }
@@ -48,7 +48,7 @@ pub fn dict_from_obj<T: Serialize>(py: Python, obj: T) -> &PyDict {
             dict.set_item(key, value.as_str().unwrap()).unwrap();
         } else if value.is_boolean() {
             dict.set_item(key, value.as_bool().unwrap()).unwrap();
-        } else {
+        } else if !value.is_null() {
             panic!(
                 "Unsupported type {:?} for key {:?} ({:?})",
                 value, key, dict

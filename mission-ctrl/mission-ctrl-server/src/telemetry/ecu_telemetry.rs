@@ -51,6 +51,7 @@ struct TelemetryHandler {
     last_ecu_telemetry: HashMap<u8, EcuTelemetryFrame>,
     last_tank_telemetry: HashMap<u8, EcuTankTelemetryFrame>,
     last_debug_info: HashMap<u8, EcuDebugInfo>,
+    debug_info_values: HashMap<u8, Map<String, Value>>,
     telemetry_rate_record_time: f64,
     current_telemetry_rate_hz: u32,
 }
@@ -62,6 +63,7 @@ impl TelemetryHandler {
             last_ecu_telemetry: HashMap::new(),
             last_tank_telemetry: HashMap::new(),
             last_debug_info: HashMap::new(),
+            debug_info_values: HashMap::new(),
             telemetry_rate_record_time: 0.25,
             current_telemetry_rate_hz: 0,
         }
@@ -163,7 +165,7 @@ impl TelemetryHandler {
         }
     }
 
-    fn populate_debug_info(&self, existing_data: &mut Value, ecu_index: u8) {
+    fn populate_debug_info(&mut self, existing_data: &mut Value, ecu_index: u8) {
         if let Some(last_debug_info) = &self.last_debug_info.get(&ecu_index) {
             let debug_info = rocket::serde::json::to_value(last_debug_info)
                 .expect("Failed to convert debug info to serde value");
@@ -177,6 +179,8 @@ impl TelemetryHandler {
                     existing_data.insert(key.clone(), value.clone());
                 }
             }
+
+            self.debug_info_values.insert(ecu_index, existing_data.clone());
         }
     }
 
@@ -188,6 +192,26 @@ impl TelemetryHandler {
                 String::from("igniter_chamber_pressure_psi"),
                 json!(last_ecu_telemetry.igniter_chamber_pressure_pa / 6894.75729),
             );
+        }
+
+        if let Some(values) = self.debug_info_values.get(&ecu_index) {
+            if let Some(pressure_pa) = values.get("igniter_fuel_injector_pressure_pa") {
+                if let Some(pressure_pa) = pressure_pa.as_f64() {
+                    graph_data.insert(
+                        String::from("igniter_fuel_pressure_psi"),
+                        json!(pressure_pa / 6894.75729),
+                    );
+                }
+            }
+
+            if let Some(pressure_pa) = values.get("igniter_oxidizer_injector_pressure_pa") {
+                if let Some(pressure_pa) = pressure_pa.as_f64() {
+                    graph_data.insert(
+                        String::from("igniter_oxidizer_pressure_psi"),
+                        json!(pressure_pa / 6894.75729),
+                    );
+                }
+            }
         }
 
         if let Some(last_tank_telemetry) = &self.last_tank_telemetry.get(&ecu_index) {

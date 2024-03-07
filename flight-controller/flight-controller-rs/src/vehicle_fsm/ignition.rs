@@ -1,4 +1,4 @@
-use super::{Ascent, FsmState, Ignition};
+use super::{Ascent, FsmState, Idle, Ignition};
 use crate::Fcu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
@@ -10,13 +10,17 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Ignition {
     fn update<'a>(
         &mut self,
         fcu: &mut Fcu,
-        _dt: f32,
+        dt: f32,
         _packets: &[(NetworkAddress, Packet)],
     ) -> Option<FsmState> {
         if self.begun_accelerating(fcu) {
             fcu.state_vector.set_landed(false);
             return Some(Ascent::new());
+        } else if self.timed_out(fcu) {
+            return Some(Idle::new());
         }
+
+        self.time_since_state_entry += dt;
 
         None
     }
@@ -34,7 +38,9 @@ impl<'f> ControllerState<FsmState, Fcu<'f>> for Ignition {
 
 impl Ignition {
     pub fn new() -> FsmState {
-        FsmState::Ignition(Ignition {})
+        FsmState::Ignition(Ignition {
+            time_since_state_entry: 0.0,
+        })
     }
 
     fn begun_accelerating(&self, fcu: &mut Fcu) -> bool {
@@ -45,5 +51,9 @@ impl Ignition {
         }
 
         false
+    }
+
+    fn timed_out(&self, fcu: &mut Fcu) -> bool {
+        self.time_since_state_entry > fcu.config.startup_acceleration_timeout
     }
 }

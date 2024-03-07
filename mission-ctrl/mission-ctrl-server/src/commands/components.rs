@@ -3,7 +3,7 @@ use std::{sync::Arc, thread, time::Duration};
 use rocket::{serde::json::Json, State};
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, EcuBinaryOutput},
+    ecu_hal::{EcuBinaryOutput, EcuCommand}, fcu_hal::{self, VehicleCommand},
 };
 
 use crate::{
@@ -25,8 +25,8 @@ fn match_valve(valve: &str) -> Option<EcuBinaryOutput> {
 
 fn match_state(state: &str) -> Option<bool> {
     match state {
-        "1" | "on" | "open" => Some(true),
-        "0" | "off" | "closed" => Some(false),
+        "1" | "on" | "open" | "true" => Some(true),
+        "0" | "off" | "closed" | "false" => Some(false),
         _ => None,
     }
 }
@@ -145,4 +145,40 @@ pub fn test_spark(observer_handler: &State<Arc<ObserverHandler>>) -> Json<Comman
     }
 
     return_value
+}
+
+#[post("/fcu-output", data = "<args>")]
+pub fn set_fcu_output(
+    observer_handler: &State<Arc<ObserverHandler>>,
+    args: Json<Vec<String>>,
+) -> Json<CommandResponse> {
+    if args.len() != 3 {
+        return format_response(format!("{} <name> <state>\n", args[0]), false);
+    }
+
+    let channel = match args[1].as_str() {
+        "igniter" => fcu_hal::OutputChannel::SolidMotorIgniter,
+        _ => {
+            return format_response(
+                format!("'{}' is not a valid output name!", args[1].as_str()),
+                false,
+            );
+        }
+    };
+
+    let state = match match_state(args[2].as_str()) {
+        Some(state) => state,
+        None => {
+            return format_response(
+                format!("'{}' is not a valid output state!", args[2].as_str()),
+                false,
+            );
+        }
+    };
+
+    send_command(
+        observer_handler,
+        NetworkAddress::FlightController,
+        Packet::VehicleCommand(VehicleCommand::SetOutputChannel { channel, state }),
+    )
 }
