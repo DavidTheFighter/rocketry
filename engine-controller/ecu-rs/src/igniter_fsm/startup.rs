@@ -68,7 +68,7 @@ impl Startup {
     fn update_stable_pressure_timer(&mut self, ecu: &mut Ecu, dt: f32) {
         let startup_pressure_threshold_pa = ecu.config.igniter_config.startup_pressure_threshold_pa;
 
-        if ecu.igniter_chamber_pressure_pa >= startup_pressure_threshold_pa {
+        if ecu.state_vector.sensor_data.igniter_chamber_pressure_pa >= startup_pressure_threshold_pa {
             self.stable_pressure_time += dt;
         } else {
             self.stable_pressure_time = 0.0;

@@ -12,9 +12,9 @@ impl<'a> Ecu<'a> {
                 timestamp,
                 igniter_state: self.igniter_state(),
                 sparking: self.driver.get_sparking(),
-                igniter_chamber_pressure_pa: self.igniter_chamber_pressure_pa,
-                igniter_fuel_injector_pressure_pa: self.igniter_fuel_injector_pressure_pa,
-                igniter_oxidizer_injector_pressure_pa: self.igniter_oxidizer_injector_pressure_pa,
+                igniter_chamber_pressure_pa: self.state_vector.sensor_data.igniter_chamber_pressure_pa,
+                igniter_fuel_injector_pressure_pa: self.state_vector.sensor_data.igniter_fuel_injector_pressure_pa,
+                igniter_oxidizer_injector_pressure_pa: self.state_vector.sensor_data.igniter_oxidizer_injector_pressure_pa,
             },
             EcuDebugInfoVariant::TankInfo => EcuDebugInfo::TankInfo {
                 timestamp,
@@ -23,8 +23,8 @@ impl<'a> Ecu<'a> {
             },
             EcuDebugInfoVariant::SensorData => EcuDebugInfo::SensorData {
                 timestamp,
-                fuel_tank_pressure_pa: self.fuel_tank_pressure_pa,
-                oxidizer_tank_pressure_pa: self.oxidizer_tank_pressure_pa,
+                fuel_tank_pressure_pa: self.state_vector.sensor_data.fuel_tank_pressure_pa,
+                oxidizer_tank_pressure_pa: self.state_vector.sensor_data.oxidizer_tank_pressure_pa,
             },
         }
     }
