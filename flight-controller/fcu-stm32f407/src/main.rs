@@ -29,7 +29,7 @@ mod app {
     use big_brother::interface::smoltcp_interface::{SmoltcpInterface, SmoltcpInterfaceStorage};
     use cortex_m::peripheral::DWT;
     use cortex_m::interrupt::Mutex;
-    use flight_controller_rs::{Fcu, FcuBigBrother};
+    use fcu_rs::{Fcu, FcuBigBrother};
     use shared::comms_hal::{NetworkAddress, Packet};
     use stm32f4::stm32f407::{I2C1, DMA2, ADC1};
     use stm32f4xx_hal::{

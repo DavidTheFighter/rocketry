@@ -26,7 +26,7 @@ ENDREGA_1KN = EngineDesign(
     injector_pressure=500.0, # PSI
     exit_pressure=10.0, # PSI
     mix_ratio=1.2,  # O/F
-    thrust=1000.0,  # Newtons
+    thrust=2000.0,  # Newtons
     l_star=1.5, # meters
     convergent_half_angle=15.0 # degrees
 )

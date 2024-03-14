@@ -4,7 +4,7 @@ use big_brother::{
     big_brother::{BigBrotherError, MAX_INTERFACE_COUNT},
     interface::{mock_interface::MockInterface, BigBrotherInterface},
 };
-use flight_controller_rs::FcuBigBrother;
+use fcu_rs::FcuBigBrother;
 use pyo3::{prelude::*, types::PyList};
 use shared::{
     comms_hal::{NetworkAddress, Packet}, ecu_hal, fcu_hal
@@ -59,7 +59,7 @@ impl MissionControl {
         }
     }
 
-    pub fn update_timestep(&mut self, dt: f32) {
+    pub fn update(&mut self, dt: f32) {
         let mut comms = self._big_brother.borrow_mut();
 
         if self.time_since_last_1ms >= 0.001 {

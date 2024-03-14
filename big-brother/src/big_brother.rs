@@ -102,7 +102,7 @@ where
             _packet_type: core::marker::PhantomData,
         };
 
-        bb.send_bb_packet(
+        let _ = bb.send_bb_packet(
             BigBrotherPacket::MetaPacket(BigBrotherMetapacket::Heartbeat {
                 session_id: session_id,
             }),
@@ -186,7 +186,7 @@ where
         if timestamp.wrapping_sub(self.last_heartbeat_timestamp) > 100 {
             self.last_heartbeat_timestamp = timestamp;
 
-            self.send_bb_packet(
+            let _ = self.send_bb_packet(
                 BigBrotherPacket::MetaPacket(BigBrotherMetapacket::Heartbeat {
                     session_id: self.session_id,
                 }),

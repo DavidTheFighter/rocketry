@@ -23,17 +23,17 @@ class SimulationBase:
             if not self.advance_timestep():
                 break
 
-    def simulate_until(self, condition, timeout_s):
+    def simulate_until(self, condition_fn, timeout_s):
         start_time = self.t
 
         while self.t - start_time < timeout_s:
             if not self.advance_timestep():
                 return False
 
-            if condition(self):
+            if condition_fn(self):
                 break
 
-        return condition(self)
+        return condition_fn(self)
 
     def simulate_assert(self, assert_fn, duration_s):
         start_time = self.t
@@ -43,6 +43,20 @@ class SimulationBase:
                 break
 
             assert_fn(self)
+
+    def simulate_until_with_assert(self, condition_fn, assert_fn, timeout_s):
+        start_time = self.t
+
+        while self.t - start_time < timeout_s:
+            if not self.advance_timestep():
+                return False
+
+            assert_fn(self)
+
+            if condition_fn(self):
+                break
+
+        return condition_fn(self)
 
     def replay(self):
         replay = SimReplay(self.config, self.logger)

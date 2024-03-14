@@ -26,8 +26,8 @@ path = "../../big-brother"
 default-features = false
 features = ["smoltcp", "no_std"]
 
-[dependencies.flight-controller-rs]
-path = "../flight-controller-rs"
+[dependencies.fcu-rs]
+path = "../fcu-rs"
 
 [dependencies.stm32f4]
 version = "0.15.1"

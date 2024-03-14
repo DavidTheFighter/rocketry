@@ -27,13 +27,19 @@ where
     }
 
     pub fn set_condition(&mut self, condition: T) {
-        self.condition_bitmask |= 1 << condition.into();
-        self.pending_update = true;
+        let condition = condition.into();
+        if self.condition_bitmask & (1 << condition) == 0 {
+            self.condition_bitmask |= 1 << condition;
+            self.pending_update = true;
+        }
     }
 
     pub fn clear_condition(&mut self, condition: T) {
-        self.condition_bitmask &= !(1 << condition.into());
-        self.pending_update = true;
+        let condition = condition.into();
+        if self.condition_bitmask & (1 << condition) != 0 {
+            self.condition_bitmask &= !(1 << condition);
+            self.pending_update = true;
+        }
     }
 
     pub fn assign_condition(&mut self, condition: T, value: bool) {

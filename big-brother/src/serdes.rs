@@ -1,8 +1,3 @@
-use postcard::{
-    from_bytes_cobs,
-    ser_flavors::{Cobs, Slice},
-    serialize_with_flavor,
-};
 use serde::{Deserialize, Serialize};
 
 use crate::{big_brother::BigBrotherError, dedupe};

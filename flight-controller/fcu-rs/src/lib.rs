@@ -55,7 +55,6 @@ pub struct Fcu<'a> {
     vehicle_fsm_state: Option<vehicle_fsm::FsmState>,
     time_since_last_telemetry: f32,
     time_since_last_heartbeat: f32,
-    time_since_last_alert_update: f32,
     apogee: f32,
 }
 
@@ -105,7 +104,6 @@ impl<'a> Fcu<'a> {
             vehicle_fsm_state: None,
             time_since_last_telemetry: 0.0,
             time_since_last_heartbeat: 0.0,
-            time_since_last_alert_update: 0.0,
             apogee: 0.0,
         };
         fcu.init_vehicle_fsm();
@@ -124,7 +122,6 @@ impl<'a> Fcu<'a> {
         let mut packets = empty_packet_array();
         let mut num_packets = 0;
         while let Some((packet, source)) = self.comms.recv_packet().ok().flatten() {
-            silprintln!("FCU: From {:?} received packet: {:?}", source, packet);
             packets[num_packets] = (source, packet);
             num_packets += 1;
         }
@@ -148,13 +145,6 @@ impl<'a> Fcu<'a> {
                 Packet::FcuTelemetry(telemetry),
             );
             self.time_since_last_telemetry = 0.0;
-        }
-
-        if self.time_since_last_heartbeat >= HEARTBEAT_RATE {
-            self.comms
-                .send_packet(&Packet::Heartbeat, NetworkAddress::Broadcast)
-                .unwrap();
-            self.time_since_last_heartbeat = 0.0;
         }
 
         self.alert_manager.set_condition(FcuAlertCondition::BatteryVoltageLow);

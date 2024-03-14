@@ -77,7 +77,6 @@ class IgniterSimulation(SimulationBase):
         self.test_t = 0.0
 
     def advance_timestep(self):
-        self.mission_ctrl.update_timestep(self.dt)
         self.ecu.update_timestamp(self.t)
 
         if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
@@ -98,6 +97,7 @@ class IgniterSimulation(SimulationBase):
 
         self.glue.update(self.dt)
 
+        self.mission_ctrl.update(self.dt)
         self.fuel_tank_dynamics.update(self.dt)
         self.oxidizer_tank_dynamics.update(self.dt)
         self.igniter_dynamics.update(self.dt)

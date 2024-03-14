@@ -6,6 +6,7 @@ pub mod logging;
 pub mod mission_ctrl;
 pub mod network;
 pub mod ser;
+pub mod simulation_manager;
 
 use pyo3::prelude::*;
 
@@ -32,6 +33,7 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<network::SilNetworkPhy>()?;
     m.add_class::<network::SilNetworkIface>()?;
 
+    m.add_function(wrap_pyfunction!(simulation_manager::simulate_app_replay, m)?)?;
     m.add_function(wrap_pyfunction!(logging::load_logs_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(fcu::convert_altitude_to_pressure, m)?)?;
     m.add_function(wrap_pyfunction!(fcu::convert_pressure_to_altitude, m)?)?;

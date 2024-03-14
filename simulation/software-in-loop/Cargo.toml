@@ -27,8 +27,8 @@ uom = "0.35.0"
 path = "../../engine-controller/ecu-rs/"
 features = ["sil"]
 
-[dependencies.flight-controller-rs]
-path = "../../flight-controller/flight-controller-rs/"
+[dependencies.fcu-rs]
+path = "../../flight-controller/fcu-rs/"
 features = ["sil"]
 
 [dependencies.big-brother]

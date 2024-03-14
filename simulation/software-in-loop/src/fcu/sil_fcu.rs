@@ -8,7 +8,7 @@ use crate::ser::{dict_from_obj, obj_from_dict};
 use big_brother::big_brother::MAX_INTERFACE_COUNT;
 use big_brother::interface::mock_interface::MockInterface;
 use big_brother::interface::BigBrotherInterface;
-use flight_controller_rs::{Fcu, FcuBigBrother};
+use fcu_rs::{Fcu, FcuBigBrother};
 use mint::Vector3;
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;

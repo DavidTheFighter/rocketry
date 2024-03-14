@@ -16,20 +16,11 @@ where
         mapping.from_counter
     };
 
+    // This does a wrapped sub of new - old, it tells us how much newer the new counter is. Old
+    // packets will be above MAX/2, new packets will be below MAX/2
     let diff = metadata.counter.wrapping_sub(compare_counter);
 
-    // println!("{} vs {} -> {} vs {}", metadata.counter, compare_counter, diff, abs_diff);
-
-    let from_wrapped = metadata.counter < CounterType::MAX / 2
-        && compare_counter > CounterType::MAX / 2
-        && metadata.counter < compare_counter;
-    let host_wrapped = diff > CounterType::MAX / 2 && metadata.counter > compare_counter;
-
-    if (metadata.counter < compare_counter && !from_wrapped) || host_wrapped {
-        // println!("Duplicate {:?}->{:?}: {} vs {} ({} {})", metadata.from_addr, metadata.to_addr, metadata.counter, compare_counter, from_wrapped, host_wrapped);
-        // defmt::warn!("Duplicate: {} vs {} ({} {})", metadata.counter, compare_counter, from_wrapped, host_wrapped);
-        Err(())
-    } else {
+    if diff < CounterType::MAX / 2 {
         let missed_packets = metadata.counter.wrapping_sub(compare_counter);
 
         if metadata.to_addr.is_broadcast() {
@@ -39,6 +30,8 @@ where
         }
 
         Ok(missed_packets as usize)
+    } else {
+        Err(())
     }
 }
 

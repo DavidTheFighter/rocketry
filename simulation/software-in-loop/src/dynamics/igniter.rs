@@ -34,6 +34,8 @@ pub struct SilIgniterDynamics {
     pub combustion_data: CombustionData,
     pub throat_area_m2: Scalar,
 
+    pub combustion_pressure_modifier: PyObject,
+
     #[pyo3(get)]
     pub chamber_pressure_pa: Scalar,
 }
@@ -42,6 +44,7 @@ pub struct SilIgniterDynamics {
 impl SilIgniterDynamics {
     #[new]
     pub fn new(
+        py: Python,
         fuel_injector: &mut InjectorConfig,
         oxidizer_injector: &mut InjectorConfig,
         combustion_data: &mut CombustionData,
@@ -57,11 +60,12 @@ impl SilIgniterDynamics {
             oxidizer_injector: oxidizer_injector.clone(),
             chamber_pressure_pa: 0.0,
             combustion_data: combustion_data.clone(),
+            combustion_pressure_modifier: py.None(),
             throat_area_m2: throat_diameter_m.powi(2) * std::f64::consts::PI / 4.0,
         }
     }
 
-    pub fn update(&mut self, dt: f64) {
+    pub fn update(&mut self, py: Python, dt: f64) {
         let dt = dt as Scalar;
 
         let fuel_mass_flow_kg = self.calc_fuel_mass_flow_kg(dt);
@@ -69,7 +73,7 @@ impl SilIgniterDynamics {
 
         let total_mass_flow_kg = fuel_mass_flow_kg + oxidizer_mass_flow_kg;
 
-        let target_combustion_pressure_pa = if self.can_support_combustion(fuel_mass_flow_kg, oxidizer_mass_flow_kg) {
+        let mut target_combustion_pressure_pa = if self.can_support_combustion(fuel_mass_flow_kg, oxidizer_mass_flow_kg) {
              calc_chamber_pressure(
                 total_mass_flow_kg / dt,
                 self.throat_area_m2,
@@ -79,8 +83,18 @@ impl SilIgniterDynamics {
             0.0
         };
 
+        if let Ok(result) = self.combustion_pressure_modifier.call1(py, (target_combustion_pressure_pa,)) {
+            if let Ok(pressure) = result.extract::<Scalar>(py) {
+                target_combustion_pressure_pa = pressure;
+            }
+        }
+
         let delta = target_combustion_pressure_pa - self.chamber_pressure_pa;
         self.chamber_pressure_pa += delta * 10.0 * dt;
+    }
+
+    pub fn set_combustion_pressure_modifier(&mut self, callback: PyObject) {
+        self.combustion_pressure_modifier = callback;
     }
 }
 

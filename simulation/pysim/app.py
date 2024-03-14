@@ -31,7 +31,10 @@ def simulate_app(config: SimConfig, simulation_class_name: str, tick_callback=No
             if not should_continue:
                 break
 
-    print("Simulation took {:.2f} s".format(time.time() - start_time))
+    elapsed = time.time() - start_time
+    ratio = sim.t / elapsed
+
+    print("Simulation took {:.2f}s ({:.2f} sim seconds per 1.0 real second)".format(elapsed, ratio))
 
     print("Done! Replaying")
     sim.replay()

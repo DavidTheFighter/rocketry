@@ -11,7 +11,7 @@ class SimReplay():
         self.logger = logger
         self.config = config
 
-    def replay(self, logging):
+    def replay(self, server_data_queue=None):
         lt = time.time()
         dt = self.logger.dt
 
@@ -27,37 +27,38 @@ class SimReplay():
             if i % (int(self.config.fcu_update_rate / dt)) == 0:
                 data = self.logger.grab_timestep_frame(i)
 
-                if i % (int(0.1 / dt)) == 0:
+                if i % (int(1.0 / dt)) == 0:
                     print('Time {:.2f} s'.format(t))
 
-                if self.logger.has_fcu_logs():
-                    # Do some calcs to make the webview easier
-                    data['fcu_position'] = data['fcu_telemetry']['position']
-                    data['fcu_velocity'] = data['fcu_telemetry']['velocity']
-                    data['fcu_acceleration'] = data['fcu_telemetry']['acceleration']
-                    data['fcu_orientation'] = data['fcu_telemetry']['orientation']
-                    data['fcu_angular_velocity'] = data['fcu_telemetry']['angular_velocity']
-                    data['fcu_angular_acceleration'] = data['angular_acceleration']
+                if server_data_queue != None:
+                    if self.logger.has_fcu_logs():
+                        # Do some calcs to make the webview easier
+                        data['fcu_position'] = data['fcu_telemetry']['position']
+                        data['fcu_velocity'] = data['fcu_telemetry']['velocity']
+                        data['fcu_acceleration'] = data['fcu_telemetry']['acceleration']
+                        data['fcu_orientation'] = data['fcu_telemetry']['orientation']
+                        data['fcu_angular_velocity'] = data['fcu_telemetry']['angular_velocity']
+                        data['fcu_angular_acceleration'] = data['angular_acceleration']
 
-                    data['dposition'] = [x2 - x1 for x1, x2 in zip(data['position'], data['fcu_position'])]
-                    data['dvelocity'] = [x2 - x1 for x1, x2 in zip(data['velocity'], data['fcu_velocity'])]
-                    data['dacceleration'] = [x2 - x1 for x1, x2 in zip(data['acceleration'], data['fcu_acceleration'])]
-                    data['dangular_velocity'] = [x2 - x1 for x1, x2 in zip(data['angular_velocity'], data['fcu_angular_velocity'])]
+                        data['dposition'] = [x2 - x1 for x1, x2 in zip(data['position'], data['fcu_position'])]
+                        data['dvelocity'] = [x2 - x1 for x1, x2 in zip(data['velocity'], data['fcu_velocity'])]
+                        data['dacceleration'] = [x2 - x1 for x1, x2 in zip(data['acceleration'], data['fcu_acceleration'])]
+                        data['dangular_velocity'] = [x2 - x1 for x1, x2 in zip(data['angular_velocity'], data['fcu_angular_velocity'])]
 
-                    data['dorientation'] = [np.degrees(np.arccos(np.clip(np.dot(
-                        data['orientation'],
-                        data['fcu_orientation']
-                    ), -1.0, 1.0)))]
+                        data['dorientation'] = [np.degrees(np.arccos(np.clip(np.dot(
+                            data['orientation'],
+                            data['fcu_orientation']
+                        ), -1.0, 1.0)))]
 
-                    data['sim_data'] = {
-                        'time': t,
-                        'speed': pow(sum([pow(s, 2.0) for s in data['velocity']]), 0.5),
-                        'measured_speed': pow(sum([pow(s, 2.0) for s in data['fcu_velocity']]), 0.5),
-                        'altitude_agl': data['position'][1],
-                        'measured_altitude_agl': data['fcu_position'][1],
-                    }
+                        data['sim_data'] = {
+                            'time': t,
+                            'speed': pow(sum([pow(s, 2.0) for s in data['velocity']]), 0.5),
+                            'measured_speed': pow(sum([pow(s, 2.0) for s in data['fcu_velocity']]), 0.5),
+                            'altitude_agl': data['position'][1],
+                            'measured_altitude_agl': data['fcu_position'][1],
+                        }
 
-                logging.put(data)
+                    server_data_queue.put(data)
 
                 while len(packet_accum) > 0:
                     packet_data = bytearray(packet_accum.pop(0))

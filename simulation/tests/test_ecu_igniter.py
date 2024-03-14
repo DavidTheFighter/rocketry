@@ -59,3 +59,26 @@ def test_ignition(config):
     assert sim.simulate_until(lambda s: s.ecu['igniter_state'] == 'Shutdown', 2.0)
     assert sim.simulate_until(lambda s: s.ecu['igniter_state'] == 'Idle', 3.0)
 
+def test_unstable_pressure_no_ignition(config):
+    sim = IgniterSimulation(config)
+    sim.advance_timestep()
+
+    def combustion_modifier(pressure_pa: float) -> float:
+        return 0.0
+
+    sim.igniter_dynamics.set_combustion_pressure_modifier(combustion_modifier)
+
+    sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
+    sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
+    assert sim.simulate_until(lambda s: tanks_pressurized(s), 5.0)
+
+    def no_ignition_assert(sim: IgniterSimulation):
+        assert sim.ecu['igniter_state'] != 'Firing'
+        assert sim.igniter_dynamics.chamber_pressure_pa < sil.ATMOSPHERIC_PRESSURE_PA * 1.1
+
+    sim.mission_ctrl.send_fire_igniter_packet(0)
+    assert sim.simulate_until_with_assert(
+        condition_fn=lambda s: s.ecu['igniter_state'] == 'Shutdown',
+        assert_fn=no_ignition_assert,
+        timeout_s=5.0,
+    )
