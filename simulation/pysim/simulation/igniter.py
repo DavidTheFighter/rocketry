@@ -113,8 +113,6 @@ class IgniterSimulation(SimulationBase):
         return True
 
 if __name__ == "__main__":
-    from pysim.app import simulate_app
-
     def igniter_app():
         config = SimConfig()
         config.sim_update_rate = 0.0005 # Seconds
@@ -144,6 +142,6 @@ if __name__ == "__main__":
 
             return True
 
-        simulate_app(config, IgniterSimulation, tick_callback)
+        sil.simulate_app_replay(IgniterSimulation(config), tick_callback)
 
     igniter_app()

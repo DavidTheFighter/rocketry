@@ -35,6 +35,7 @@ impl LoggingThread {
     pub fn run(&mut self) {
         while process_is_running() {
             loop {
+                // Delay to prevent busy waiting comes from self.get_packet()
                 if let Some(packet) = self.get_packet() {
                     self.handle_packet(packet);
                 } else {

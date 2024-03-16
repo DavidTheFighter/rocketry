@@ -80,7 +80,7 @@ export default {
       return [
         {
           name: 'Altitude',
-          color: 'blue',
+          color: 'cyan',
           dataName: 'altitude',
           units: "m",
         },

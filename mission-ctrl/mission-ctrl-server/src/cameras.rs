@@ -47,6 +47,7 @@ impl CameraStreaming {
 
     pub fn run(&mut self) {
         while process_is_running() {
+            // Delay to prevent busy waiting comes from self.get_event()
             if let Some((event_id, event)) = self.get_event() {
                 match event {
                     ObserverEvent::PacketReceived {

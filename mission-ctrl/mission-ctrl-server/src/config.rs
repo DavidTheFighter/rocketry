@@ -26,6 +26,7 @@ impl ConfigHandler {
         self.send_ecu_config(NetworkAddress::EngineController(0));
 
         while process_is_running() {
+            // Delay to prevent busy waiting comes from self.get_device_booted()
             if let Some(address) = self.get_device_booted() {
                 match address {
                     NetworkAddress::EngineController(_) => {

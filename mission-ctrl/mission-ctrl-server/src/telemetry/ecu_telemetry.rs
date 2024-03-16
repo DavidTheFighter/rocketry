@@ -75,6 +75,7 @@ impl TelemetryHandler {
         let mut last_rate_record_time = timestamp();
 
         while process_is_running() {
+            // Delay to prevent busy-waiting comes from self.get_packet()
             if let Some((remote, packet)) = self.get_packet() {
                 let ecu_index = if let NetworkAddress::EngineController(index) = remote {
                     index

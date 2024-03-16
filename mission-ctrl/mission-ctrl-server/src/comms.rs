@@ -83,6 +83,8 @@ impl CommsThread {
 
                 last_poll_time = timestamp();
             }
+
+            std::thread::sleep(std::time::Duration::from_micros(250));
         }
     }
 

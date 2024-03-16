@@ -1,6 +1,7 @@
 pub mod combustion;
 pub mod fluid;
 pub mod igniter;
+pub mod pipe;
 pub mod tank;
 pub mod vehicle;
 

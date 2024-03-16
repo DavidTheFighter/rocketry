@@ -65,6 +65,7 @@ impl FcuTelemetryHandler {
         let mut last_rate_record_time = timestamp();
 
         while process_is_running() {
+            // Delay to prevent busy waiting comes from self.get_packet()
             if let Some(packet) = self.get_packet() {
                 match packet {
                     Packet::FcuTelemetry(frame) => {
