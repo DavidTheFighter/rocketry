@@ -32,15 +32,15 @@ impl SilGlue {
     pub fn update(&self, py: Python, _dt: f64) {
         self.route_ecu_controls(py);
 
-        if let Some(mut igniter) = borrow_py(py, &self.igniter) {
-            if let Some(fuel_tank) = borrow_py(py, &self.fuel_tank) {
-                igniter.fuel_pressure_pa = fuel_tank.tank_pressure_pa;
-            }
+        // if let Some(mut igniter) = borrow_py(py, &self.igniter) {
+        //     if let Some(fuel_tank) = borrow_py(py, &self.fuel_tank) {
+        //         igniter.fuel_pressure_pa = fuel_tank.tank_pressure_pa;
+        //     }
 
-            if let Some(oxidizer_tank) = borrow_py(py, &self.oxidizer_tank) {
-                igniter.oxidizer_pressure_pa = oxidizer_tank.tank_pressure_pa;
-            }
-        }
+        //     if let Some(oxidizer_tank) = borrow_py(py, &self.oxidizer_tank) {
+        //         igniter.oxidizer_pressure_pa = oxidizer_tank.tank_pressure_pa;
+        //     }
+        // }
     }
 
     pub fn set_from_self(&mut self, py: Python, cls: PyObject) {
@@ -69,21 +69,21 @@ impl SilGlue {
 impl SilGlue {
     fn route_ecu_controls(&self, py: Python) {
         if let Some(ecu) = borrow_py(py, &self.ecu) {
-            if let Some(mut fuel_tank) = borrow_py(py, &self.fuel_tank) {
-                fuel_tank.feed_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::FuelPressValve);
-                fuel_tank.vent_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::FuelVentValve);
-            }
+            // if let Some(mut fuel_tank) = borrow_py(py, &self.fuel_tank) {
+            //     fuel_tank.feed_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::FuelPressValve);
+            //     fuel_tank.vent_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::FuelVentValve);
+            // }
 
-            if let Some(mut oxidizer_tank) = borrow_py(py, &self.oxidizer_tank) {
-                oxidizer_tank.feed_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::OxidizerPressValve);
-                oxidizer_tank.vent_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::OxidizerVentValve);
-            }
+            // if let Some(mut oxidizer_tank) = borrow_py(py, &self.oxidizer_tank) {
+            //     oxidizer_tank.feed_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::OxidizerPressValve);
+            //     oxidizer_tank.vent_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::OxidizerVentValve);
+            // }
 
-            if let Some(mut igniter) = borrow_py(py, &self.igniter) {
-                igniter.fuel_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::IgniterFuelValve);
-                igniter.oxidizer_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::IgniterOxidizerValve);
-                igniter.has_ignition_source = self.test_allow_igniter_ignition && ecu._driver.borrow_mut().get_sparking();
-            }
+            // if let Some(mut igniter) = borrow_py(py, &self.igniter) {
+            //     igniter.fuel_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::IgniterFuelValve);
+            //     igniter.oxidizer_valve_open = ecu._driver.borrow_mut().get_binary_valve(EcuBinaryOutput::IgniterOxidizerValve);
+            //     igniter.has_ignition_source = self.test_allow_igniter_ignition && ecu._driver.borrow_mut().get_sparking();
+            // }
         }
     }
 }

@@ -1,8 +1,17 @@
 use pyo3::prelude::*;
 
-use super::{combustion::{calc_chamber_pressure, CombustionData}, fluid::LiquidDefinition, Scalar};
+use super::{combustion::{calc_chamber_pressure, CombustionData}, fluid::LiquidDefinition, pipe::FluidConnection, Scalar};
 
 pub const MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA: Scalar = 206843.0; // 30 PSI
+
+#[pyclass]
+#[derive(Debug, Clone, Default)]
+pub struct IgniterState {
+    #[pyo3(get)]
+    pub chamber_pressure_pa: Scalar,
+    #[pyo3(get, set)]
+    pub has_ignition_source: bool,
+}
 
 #[pyclass]
 #[derive(Debug, Clone)]
@@ -19,15 +28,14 @@ pub struct InjectorConfig {
 #[derive(Debug, Clone)]
 pub struct SilIgniterDynamics {
     #[pyo3(get, set)]
-    pub fuel_pressure_pa: Scalar,
+    pub state: IgniterState,
     #[pyo3(get, set)]
-    pub oxidizer_pressure_pa: Scalar,
+    pub new_state: IgniterState,
+
     #[pyo3(get, set)]
-    pub fuel_valve_open: bool,
+    pub fuel_inlet: Py<FluidConnection>,
     #[pyo3(get, set)]
-    pub oxidizer_valve_open: bool,
-    #[pyo3(get, set)]
-    pub has_ignition_source: bool,
+    pub oxidizer_inlet: Py<FluidConnection>,
 
     pub fuel_injector: InjectorConfig,
     pub oxidizer_injector: InjectorConfig,
@@ -35,9 +43,6 @@ pub struct SilIgniterDynamics {
     pub throat_area_m2: Scalar,
 
     pub combustion_pressure_modifier: PyObject,
-
-    #[pyo3(get)]
-    pub chamber_pressure_pa: Scalar,
 }
 
 #[pymethods]
@@ -45,31 +50,35 @@ impl SilIgniterDynamics {
     #[new]
     pub fn new(
         py: Python,
+        fuel_inlet: Py<FluidConnection>,
+        oxidizer_inlet: Py<FluidConnection>,
         fuel_injector: &mut InjectorConfig,
         oxidizer_injector: &mut InjectorConfig,
         combustion_data: &mut CombustionData,
         throat_diameter_m: Scalar,
     ) -> Self {
         Self {
-            fuel_pressure_pa: 0.0,
-            oxidizer_pressure_pa: 0.0,
-            fuel_valve_open: false,
-            oxidizer_valve_open: false,
-            has_ignition_source: false,
+            state: IgniterState::default(),
+            new_state: IgniterState::default(),
+            fuel_inlet,
+            oxidizer_inlet,
             fuel_injector: fuel_injector.clone(),
             oxidizer_injector: oxidizer_injector.clone(),
-            chamber_pressure_pa: 0.0,
             combustion_data: combustion_data.clone(),
             combustion_pressure_modifier: py.None(),
             throat_area_m2: throat_diameter_m.powi(2) * std::f64::consts::PI / 4.0,
         }
     }
 
-    pub fn update(&mut self, py: Python, dt: f64) {
+    fn post_update(&mut self) {
+        self.state = self.new_state.clone();
+    }
+
+    fn update(&mut self, py: Python, dt: f64) {
         let dt = dt as Scalar;
 
-        let fuel_mass_flow_kg = self.calc_fuel_mass_flow_kg(dt);
-        let oxidizer_mass_flow_kg = self.calc_oxidizer_mass_flow_kg(dt);
+        let fuel_mass_flow_kg = self.calc_fuel_mass_flow_kg(dt, self.fuel_inlet.borrow(py));
+        let oxidizer_mass_flow_kg = self.calc_oxidizer_mass_flow_kg(dt, self.oxidizer_inlet.borrow(py));
 
         let total_mass_flow_kg = fuel_mass_flow_kg + oxidizer_mass_flow_kg;
 
@@ -89,12 +98,28 @@ impl SilIgniterDynamics {
             }
         }
 
-        let delta = target_combustion_pressure_pa - self.chamber_pressure_pa;
-        self.chamber_pressure_pa += delta * 10.0 * dt;
+        let delta = target_combustion_pressure_pa - self.state.chamber_pressure_pa;
+
+        self.new_state.chamber_pressure_pa += delta * 10.0 * dt;
     }
 
     pub fn set_combustion_pressure_modifier(&mut self, callback: PyObject) {
         self.combustion_pressure_modifier = callback;
+    }
+
+    #[getter]
+    pub fn fuel_pressure_pa(&self, py: Python) -> f64 {
+        self.fuel_inlet.borrow(py).state.outlet_pressure_pa
+    }
+
+    #[getter]
+    pub fn oxidizer_pressure_pa(&self, py: Python) -> f64 {
+        self.oxidizer_inlet.borrow(py).state.outlet_pressure_pa
+    }
+
+    #[getter]
+    pub fn chamber_pressure_pa(&self) -> f64 {
+        self.state.chamber_pressure_pa
     }
 }
 
@@ -119,19 +144,19 @@ impl SilIgniterDynamics {
             return false;
         }
 
-        if self.chamber_pressure_pa > MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA { // 30 PSI
+        if self.state.chamber_pressure_pa > MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA { // 30 PSI
             return true;
         }
 
-        if self.has_ignition_source {
+        if self.state.has_ignition_source {
             return true;
         }
 
         false
     }
 
-    fn calc_fuel_mass_flow_kg(&self, dt: Scalar) -> Scalar {
-        if !self.fuel_valve_open || self.fuel_pressure_pa <= self.chamber_pressure_pa{
+    fn calc_fuel_mass_flow_kg(&self, dt: Scalar, inlet: PyRef<'_, FluidConnection>) -> Scalar {
+        if inlet.state.closed || inlet.state.outlet_pressure_pa <= self.state.chamber_pressure_pa {
             return 0.0;
         }
 
@@ -139,14 +164,14 @@ impl SilIgniterDynamics {
             * self.fuel_injector.injector_orifice_cd
             * (2.0
                 * self.fuel_injector.liquid.density_kg_m3
-                * (self.fuel_pressure_pa - self.chamber_pressure_pa)
+                * (inlet.state.outlet_pressure_pa - self.state.chamber_pressure_pa)
             ).sqrt();
 
         mass_flow_rate_kg_s * dt
     }
 
-    fn calc_oxidizer_mass_flow_kg(&self, dt: Scalar) -> Scalar {
-        if !self.oxidizer_valve_open || self.oxidizer_pressure_pa <= self.chamber_pressure_pa{
+    fn calc_oxidizer_mass_flow_kg(&self, dt: Scalar, inlet: PyRef<'_, FluidConnection>) -> Scalar {
+        if inlet.state.closed || inlet.state.outlet_pressure_pa <= self.state.chamber_pressure_pa{
             return 0.0;
         }
 
@@ -154,7 +179,7 @@ impl SilIgniterDynamics {
             * self.oxidizer_injector.injector_orifice_cd
             * (2.0
                 * self.oxidizer_injector.liquid.density_kg_m3
-                * (self.oxidizer_pressure_pa - self.chamber_pressure_pa)
+                * (inlet.state.outlet_pressure_pa - self.state.chamber_pressure_pa)
             ).sqrt();
 
         mass_flow_rate_kg_s * dt

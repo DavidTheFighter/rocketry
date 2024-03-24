@@ -6,7 +6,7 @@ use pyo3::{prelude::*, types::{PyList, PyDict}};
 use shared::{comms_hal::NetworkAddress, ecu_hal::{EcuBinaryOutput, EcuSensor}, PressureData};
 use strum::IntoEnumIterator;
 
-use crate::{network::SilNetworkIface, ser::{obj_from_dict, dict_from_obj}};
+use crate::{dynamics::{igniter::SilIgniterDynamics, SilTankDynamics}, network::SilNetworkIface, ser::{dict_from_obj, obj_from_dict}};
 
 use super::driver::EcuDriverSil;
 
@@ -16,12 +16,21 @@ pub struct EcuSil {
     pub(crate) _big_brother_ifaces: [Option<Rc<RefCell<MockInterface>>>; 2],
     pub(crate) _big_brother: Rc<RefCell<EcuBigBrother<'static>>>,
     pub(crate) ecu: Ecu<'static>,
+    fuel_tank: Py<SilTankDynamics>,
+    oxidizer_tank: Py<SilTankDynamics>,
+    igniter: Py<SilIgniterDynamics>,
 }
 
 #[pymethods]
 impl EcuSil {
     #[new]
-    pub fn new(network_ifaces: &PyList, ecu_index: u8) -> Self {
+    pub fn new(
+        network_ifaces: &PyList,
+        ecu_index: u8,
+        fuel_tank: Py<SilTankDynamics>,
+        oxidizer_tank: Py<SilTankDynamics>,
+        igniter: Py<SilIgniterDynamics>,
+    ) -> Self {
         let driver = Rc::new(RefCell::new(EcuDriverSil::new()));
         let driver_ref: &'static mut EcuDriverSil =
             unsafe { std::mem::transmute(&mut *driver.borrow_mut()) };
@@ -62,11 +71,27 @@ impl EcuSil {
             _big_brother_ifaces: big_brother_ifaces,
             _big_brother: big_brother,
             ecu,
+            fuel_tank,
+            oxidizer_tank,
+            igniter,
         }
     }
 
-    pub fn update(&mut self, dt: f32) {
+    pub fn update(&mut self, py: Python, dt: f32) {
         self.ecu.update(dt);
+
+        let mut igniter = self.igniter.borrow_mut(py);
+        igniter.new_state.has_ignition_source = self.ecu.driver.get_sparking();
+        igniter.fuel_inlet.borrow_mut(py).new_state.closed = !self.ecu.driver.get_binary_valve(EcuBinaryOutput::IgniterFuelValve);
+        igniter.oxidizer_inlet.borrow_mut(py).new_state.closed = !self.ecu.driver.get_binary_valve(EcuBinaryOutput::IgniterOxidizerValve);
+
+        let mut fuel_tank = self.fuel_tank.borrow_mut(py);
+        fuel_tank.new_state.feed_valve_open = self.ecu.driver.get_binary_valve(EcuBinaryOutput::FuelPressValve);
+        fuel_tank.new_state.vent_valve_open = self.ecu.driver.get_binary_valve(EcuBinaryOutput::FuelVentValve);
+
+        let mut oxidizer_tank = self.oxidizer_tank.borrow_mut(py);
+        oxidizer_tank.new_state.feed_valve_open = self.ecu.driver.get_binary_valve(EcuBinaryOutput::OxidizerPressValve);
+        oxidizer_tank.new_state.vent_valve_open = self.ecu.driver.get_binary_valve(EcuBinaryOutput::OxidizerVentValve);
     }
 
     pub fn update_ecu_config(&mut self, dict: &PyDict) {

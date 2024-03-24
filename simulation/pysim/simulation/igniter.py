@@ -8,8 +8,6 @@ from pysim.simulation.simulation import SimulationBase
 class IgniterSimulation(SimulationBase):
     def __init__(self, config: SimConfig, loggingQueue=None, log_to_file=False):
         super().__init__(config, loggingQueue, log_to_file)
-        self.glue = sil.SilGlue()
-
         self.eth_network = sil.SilNetwork([10, 0, 0, 0])
 
         self.ecu_eth_phy = sil.SilNetworkPhy(self.eth_network)
@@ -18,8 +16,10 @@ class IgniterSimulation(SimulationBase):
         self.mission_ctrl_eth_phy = sil.SilNetworkPhy(self.eth_network)
         self.mission_ctrl_eth_iface = sil.SilNetworkIface(self.mission_ctrl_eth_phy)
 
-        self.ecu = sil.EcuSil([self.ecu_eth_iface], 0)
         self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface])
+
+        self.fuel_pipe = sil.FluidConnection()
+        self.oxidizer_pipe = sil.FluidConnection()
 
         self.feed_config = sil.SilTankFeedConfig(
             2000 * 6894.76, # Feed pressure in Pa
@@ -35,6 +35,7 @@ class IgniterSimulation(SimulationBase):
             0.65, # Vent orifice coefficient of discharge
             sil.ATMOSPHERIC_PRESSURE_PA, # Initial tank pressure in Pa
             0.005, # Tank volume in m^3
+            self.fuel_pipe,
         )
         self.oxidizer_tank_dynamics = sil.SilTankDynamics(
             self.feed_config,
@@ -42,6 +43,7 @@ class IgniterSimulation(SimulationBase):
             0.65, # Vent orifice coefficient of discharge
             sil.ATMOSPHERIC_PRESSURE_PA, # Initial tank pressure in Pa
             0.01, # Tank volume in m^3
+            self.oxidizer_pipe,
         )
 
         self.igniter_fuel_injector = sil.InjectorConfig(
@@ -62,13 +64,28 @@ class IgniterSimulation(SimulationBase):
         )
 
         self.igniter_dynamics = sil.SilIgniterDynamics(
+            self.fuel_pipe,
+            self.oxidizer_pipe,
             self.igniter_fuel_injector,
             self.igniter_oxidizer_injector,
             self.combustion_data_tmp,
             0.004, # Throat diameter in m
         )
 
-        self.glue.set_from_self(self)
+        self.ecu = sil.EcuSil(
+            [self.ecu_eth_iface],
+            0,
+            self.fuel_tank_dynamics,
+            self.oxidizer_tank_dynamics,
+            self.igniter_dynamics,
+        )
+
+        self.dynamics_manager = sil.DynamicsManager()
+        self.dynamics_manager.add_dynamics_component(self.fuel_tank_dynamics)
+        self.dynamics_manager.add_dynamics_component(self.oxidizer_tank_dynamics)
+        self.dynamics_manager.add_dynamics_component(self.igniter_dynamics)
+        self.dynamics_manager.add_dynamics_component(self.fuel_pipe)
+        self.dynamics_manager.add_dynamics_component(self.oxidizer_pipe)
 
         self.logger = sil.Logger([self.eth_network])
         self.logger.dt = self.config.sim_update_rate
@@ -88,19 +105,14 @@ class IgniterSimulation(SimulationBase):
         if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update_igniter_chamber_pressure(self.igniter_dynamics.chamber_pressure_pa)
 
-        # TODO these pressure values need to be dependent on if the valve is open or not
         if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update_igniter_fuel_injector_pressure(self.igniter_dynamics.fuel_pressure_pa)
 
         if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update_igniter_oxidizer_injector_pressure(self.igniter_dynamics.oxidizer_pressure_pa)
 
-        self.glue.update(self.dt)
-
         self.mission_ctrl.update(self.dt)
-        self.fuel_tank_dynamics.update(self.dt)
-        self.oxidizer_tank_dynamics.update(self.dt)
-        self.igniter_dynamics.update(self.dt)
+        self.dynamics_manager.update(self.dt)
 
         if math.fmod(self.t, self.config.ecu_update_rate) <= self.dt + self.config.sim_update_rate * 0.1:
             self.ecu.update(self.config.ecu_update_rate)

@@ -1,7 +1,7 @@
 pub mod dynamics;
 pub mod ecu;
 pub mod fcu;
-pub mod glue;
+// pub mod glue;
 pub mod logging;
 pub mod mission_ctrl;
 pub mod network;
@@ -14,10 +14,12 @@ extern crate uom;
 
 #[pymodule]
 fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
-    m.add_class::<glue::SilGlue>()?;
+    // m.add_class::<glue::SilGlue>()?;
     m.add_class::<ecu::EcuSil>()?;
     m.add_class::<fcu::FcuSil>()?;
     m.add_class::<mission_ctrl::MissionControl>()?;
+
+    m.add_class::<dynamics::DynamicsManager>()?;
 
     m.add_class::<dynamics::SilTankDynamics>()?;
     m.add_class::<dynamics::SilTankFeedConfig>()?;
@@ -26,6 +28,8 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<dynamics::igniter::SilIgniterDynamics>()?;
     m.add_class::<dynamics::igniter::InjectorConfig>()?;
     m.add_class::<logging::Logger>()?;
+
+    m.add_class::<dynamics::pipe::FluidConnection>()?;
     m.add_class::<dynamics::fluid::GasDefinition>()?;
     m.add_class::<dynamics::fluid::LiquidDefinition>()?;
 
