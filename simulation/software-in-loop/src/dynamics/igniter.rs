@@ -37,6 +37,9 @@ pub struct SilIgniterDynamics {
     #[pyo3(get, set)]
     pub oxidizer_inlet: Py<FluidConnection>,
 
+    #[pyo3(get, set)]
+    pub allow_ignition: bool,
+
     pub fuel_injector: InjectorConfig,
     pub oxidizer_injector: InjectorConfig,
     pub combustion_data: CombustionData,
@@ -64,6 +67,7 @@ impl SilIgniterDynamics {
             oxidizer_inlet,
             fuel_injector: fuel_injector.clone(),
             oxidizer_injector: oxidizer_injector.clone(),
+            allow_ignition: true,
             combustion_data: combustion_data.clone(),
             combustion_pressure_modifier: py.None(),
             throat_area_m2: throat_diameter_m.powi(2) * std::f64::consts::PI / 4.0,
@@ -129,6 +133,10 @@ impl SilIgniterDynamics {
         fuel_mass_flow_kg: Scalar,
         oxidizer_mass_flow_kg: Scalar,
     ) -> bool {
+        if !self.allow_ignition {
+            return false;
+        }
+
         let mixture_ratio = if fuel_mass_flow_kg == 0.0 {
             Scalar::INFINITY
         } else {

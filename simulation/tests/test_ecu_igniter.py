@@ -28,7 +28,7 @@ def test_no_startup_with_no_pressurized_tanks(config):
 
 def test_no_ignition_without_spark(config):
     sim = IgniterSimulation(config)
-    sim.glue.test_allow_igniter_ignition = False
+    sim.igniter_dynamics.allow_ignition = False
     sim.advance_timestep()
 
     sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
