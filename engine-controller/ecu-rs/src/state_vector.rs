@@ -1,8 +1,8 @@
 use serde::Serialize;
-use shared::ecu_hal::EcuSensor;
+use shared::{ecu_hal::EcuSensor, SensorData};
 
 #[derive(Debug, Clone, Serialize)]
-pub struct SensorData {
+pub struct SensorDataVector {
     pub fuel_tank_pressure_pa: f32, // Pa
     pub oxidizer_tank_pressure_pa: f32, // Pa
     pub igniter_chamber_pressure_pa: f32, // Pa
@@ -12,13 +12,13 @@ pub struct SensorData {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StateVector {
-    pub(crate) sensor_data: SensorData,
+    pub(crate) sensor_data: SensorDataVector,
 }
 
 impl StateVector {
     pub fn new() -> Self {
         Self {
-            sensor_data: SensorData {
+            sensor_data: SensorDataVector {
                 fuel_tank_pressure_pa: 0.0,
                 oxidizer_tank_pressure_pa: 0.0,
                 igniter_chamber_pressure_pa: 0.0,
@@ -28,22 +28,32 @@ impl StateVector {
         }
     }
 
-    pub fn update_sensor_data(&mut self, data: &EcuSensor) {
-        match data {
-            EcuSensor::FuelTankPressure(data) => {
-                self.sensor_data.fuel_tank_pressure_pa = data.pressure_pa;
+    pub fn update_sensor_data(&mut self, sensor: EcuSensor, data: &SensorData) {
+        match sensor {
+            EcuSensor::FuelTankPressure => {
+                if let SensorData::Pressure { pressure_pa, .. } = data {
+                    self.sensor_data.fuel_tank_pressure_pa = *pressure_pa;
+                }
             },
-            EcuSensor::OxidizerTankPressure(data) => {
-                self.sensor_data.oxidizer_tank_pressure_pa = data.pressure_pa;
+            EcuSensor::OxidizerTankPressure => {
+                if let SensorData::Pressure { pressure_pa, .. } = data {
+                    self.sensor_data.oxidizer_tank_pressure_pa = *pressure_pa;
+                }
             },
-            EcuSensor::IgniterChamberPressure(data) => {
-                self.sensor_data.igniter_chamber_pressure_pa = data.pressure_pa;
+            EcuSensor::IgniterChamberPressure => {
+                if let SensorData::Pressure { pressure_pa, .. } = data {
+                    self.sensor_data.igniter_chamber_pressure_pa = *pressure_pa;
+                }
             },
-            EcuSensor::IgniterFuelInjectorPressure(data) => {
-                self.sensor_data.igniter_fuel_injector_pressure_pa = Some(data.pressure_pa);
+            EcuSensor::IgniterFuelInjectorPressure => {
+                if let SensorData::Pressure { pressure_pa, .. } = data {
+                    self.sensor_data.igniter_fuel_injector_pressure_pa = Some(*pressure_pa);
+                }
             },
-            EcuSensor::IgniterOxidizerInjectorPressure(data) => {
-                self.sensor_data.igniter_oxidizer_injector_pressure_pa = Some(data.pressure_pa);
+            EcuSensor::IgniterOxidizerInjectorPressure => {
+                if let SensorData::Pressure { pressure_pa, .. } = data {
+                    self.sensor_data.igniter_oxidizer_injector_pressure_pa = Some(*pressure_pa);
+                }
             },
             _ => {},
         }

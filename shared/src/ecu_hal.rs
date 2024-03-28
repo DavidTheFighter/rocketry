@@ -25,25 +25,27 @@ pub enum TankState {
     Pressurized,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, EnumCountMacro, EnumDiscriminants)]
-#[strum_discriminants(name(EcuSensorDataVariant))]
-#[strum_discriminants(derive(EnumIter, Serialize, Deserialize))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter, Hash)]
 pub enum EcuSensor {
-    FuelTankPressure(super::PressureData),
-    OxidizerTankPressure(super::PressureData),
+    FuelTankPressure,
+    OxidizerTankPressure,
 
-    IgniterChamberPressure(super::PressureData),
-    IgniterFuelInjectorPressure(super::PressureData),
-    IgniterOxidizerInjectorPressure(super::PressureData),
-    IgniterThroatTemperature(super::TemperatureData),
+    IgniterChamberPressure,
+    IgniterFuelInjectorPressure,
+    IgniterOxidizerInjectorPressure,
+    IgniterThroatTemperature,
 
-    EngineChamberPressure(super::PressureData),
-    EngineFuelInjectorPressure(super::PressureData),
-    EngineOxidizerInjectorPressure(super::PressureData),
-    EngineThroatTemperature(super::TemperatureData),
+    EngineChamberPressure,
+    EngineFuelInjectorPressure,
+    EngineOxidizerInjectorPressure,
+    EngineThroatTemperature,
 
-    FuelPumpOutletPressure(super::PressureData),
-    OxidizerPumpOutletPressure(super::PressureData),
+    FuelPumpOutletPressure,
+    FuelPumpInletPressure,
+    FuelPumpInducerPressure,
+    OxidizerPumpOutletPressure,
+    OxidizerPumpInletPressure,
+    OxidizerPumpInducerPressure,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -57,7 +59,7 @@ pub enum EcuCommand {
     SetFuelTank(TankState),
     SetOxidizerTank(TankState),
     ConfigureSensor {
-        sensor: EcuSensorDataVariant,
+        sensor: EcuSensor,
         config: SensorConfig,
     },
     ConfigureEcu(EcuConfig),

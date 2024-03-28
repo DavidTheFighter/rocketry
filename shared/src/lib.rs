@@ -141,13 +141,13 @@ impl SensorConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct PressureData {
-    pub pressure_pa: f32,
-    pub raw_data: u16,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
-pub struct TemperatureData {
-    pub temperature_k: f32,
-    pub raw_data: u16,
+pub enum SensorData {
+    Pressure {
+        pressure_pa: f32,
+        raw_data: u16,
+    },
+    Temperature {
+        temperature_k: f32,
+        raw_data: u16,
+    },
 }

@@ -1,10 +1,8 @@
 use big_brother::BigBrother;
 use shared::{
-    comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{
+    comms_hal::{NetworkAddress, Packet}, ecu_hal::{
         EcuBinaryOutput, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, TankState
-    },
-    ControllerEntity, COMMS_NETWORK_MAP_SIZE,
+    }, ControllerEntity, SensorData, COMMS_NETWORK_MAP_SIZE
 };
 
 use crate::{
@@ -143,12 +141,12 @@ impl<'a> Ecu<'a> {
         })
     }
 
-    pub fn update_sensor_data(&mut self, data: &EcuSensor) {
-        self.state_vector.update_sensor_data(data);
+    pub fn update_sensor_data(&mut self, sensor: EcuSensor, data: &SensorData) {
+        self.state_vector.update_sensor_data(sensor, data);
 
         if self.debug_info_enabled {
             self.send_packet(
-                &Packet::EcuDebugSensorMeasurement(data.clone()),
+                &Packet::EcuDebugSensorMeasurement((sensor, data.clone())),
                 NetworkAddress::MissionControl,
             );
         }

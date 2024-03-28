@@ -2,7 +2,7 @@
 
 import os
 
-SEARCH_DIRECTORIES = ['design-scripts', 'ecu', 'fcu', 'hal', 'mission-ctrl', 'simulation', 'comms-manager', 'streamish'] # What directories to recursively search
+SEARCH_DIRECTORIES = ['big-brother', 'bootloader', 'design-scripts', 'engine-controller', 'flight-controller', 'mission-ctrl', 'shared', 'simulation', 'streamish'] # What directories to recursively search
 DIRECTORY_BLACKLIST = ['target', 'build', 'node_modules', 'dist', 'assets']
 CODE_FILE_WHITELIST = ['.rs', '.py', '.js', '.vue', '.html', '.css']
 

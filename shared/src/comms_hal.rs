@@ -2,7 +2,7 @@ use big_brother::big_brother::Broadcastable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    alerts, ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, TankState}, fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand}, streamish_hal::StreamishCommand, SensorConfig
+    alerts, ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, TankState}, fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand}, streamish_hal::StreamishCommand, SensorConfig, SensorData
 };
 
 use strum_macros::EnumCount as EnumCountMacro;
@@ -56,7 +56,7 @@ pub enum Packet {
     FcuDebugInfo(FcuDebugInfo),
     EcuDebugInfo(EcuDebugInfo),
     FcuDebugSensorMeasurement(FcuSensorData),
-    EcuDebugSensorMeasurement(EcuSensor),
+    EcuDebugSensorMeasurement((EcuSensor, SensorData)),
     AlertBitmask(alerts::AlertBitmaskType),
 
     // -- Misc -- //
@@ -68,7 +68,7 @@ pub enum Packet {
 pub mod tests_data {
     use super::*;
     use crate::{
-        ecu_hal::{EngineState, IgniterState}, fcu_hal, PressureData, SensorCalibration, RESET_MAGIC_NUMBER
+        ecu_hal::{EngineState, IgniterState}, fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER
     };
     use mint::Vector3;
     use strum::EnumCount;
@@ -147,10 +147,13 @@ pub mod tests_data {
                 z: 19852,
             },
         }),
-        Packet::EcuDebugSensorMeasurement(EcuSensor::FuelTankPressure(PressureData {
-            pressure_pa: 1937234.15,
-            raw_data: 5120,
-        })),
+        Packet::EcuDebugSensorMeasurement((
+            EcuSensor::FuelTankPressure,
+            SensorData::Pressure {
+                pressure_pa: 19522.4,
+                raw_data: 0x1234,
+            },
+        )),
         Packet::Heartbeat,
         Packet::DoNothing,
     ];

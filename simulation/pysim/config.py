@@ -63,6 +63,69 @@ class SimConfig:
         'telemetry_rate_s': 0.02,
     })
 
+    ecu_sensor_config: dict = field(default_factory=lambda: {
+        'FuelTankPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 200 * 6894.75729, # PSI to pascals
+        },
+        'OxidizerTankPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 200 * 6894.75729, # PSI to pascals
+        },
+        'IgniterChamberPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 500 * 6894.75729, # PSI to pascals
+        },
+        'IgniterFuelInjectorPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 500 * 6894.75729, # PSI to pascals
+        },
+        'IgniterOxidizerInjectorPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 500 * 6894.75729, # PSI to pascals
+        },
+        'EngineChamberPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 500 * 6894.75729, # PSI to pascals
+        },
+        'EngineFuelInjectorPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 500 * 6894.75729, # PSI to pascals
+        },
+        'EngineOxidizerInjectorPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 500 * 6894.75729, # PSI to pascals
+        },
+        'FuelPumpOutletPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 500 * 6894.75729, # PSI to pascals
+        },
+        'OxidizerPumpOutletPressure': {
+            'rate': 0.001, # Seconds
+            'std_dev': 3500, # Pascals
+            'pressure_min': 0, # Pascals
+            'pressure_max': 500 * 6894.75729, # PSI to pascals
+        },
+    })
+
     def is_time_before_thrust(self, t):
         return t < self.thrust_wait
 

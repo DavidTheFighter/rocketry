@@ -5,6 +5,7 @@ pub mod fcu;
 pub mod logging;
 pub mod mission_ctrl;
 pub mod network;
+pub mod sensors;
 pub mod ser;
 pub mod simulation_manager;
 

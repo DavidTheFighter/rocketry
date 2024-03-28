@@ -75,6 +75,7 @@ class IgniterSimulation(SimulationBase):
         self.ecu = sil.EcuSil(
             [self.ecu_eth_iface],
             0,
+            config.ecu_sensor_config,
             self.fuel_tank_dynamics,
             self.oxidizer_tank_dynamics,
             self.igniter_dynamics,
@@ -95,21 +96,6 @@ class IgniterSimulation(SimulationBase):
 
     def advance_timestep(self):
         self.ecu.update_timestamp(self.t)
-
-        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
-            self.ecu.update_fuel_tank_pressure(self.fuel_tank_dynamics.tank_pressure_pa)
-
-        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
-            self.ecu.update_oxidizer_tank_pressure(self.oxidizer_tank_dynamics.tank_pressure_pa)
-
-        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
-            self.ecu.update_igniter_chamber_pressure(self.igniter_dynamics.chamber_pressure_pa)
-
-        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
-            self.ecu.update_igniter_fuel_injector_pressure(self.igniter_dynamics.fuel_pressure_pa)
-
-        if math.fmod(self.t, self.config.ecu_pressure_sensor_rate) <= self.dt + self.config.sim_update_rate * 0.1:
-            self.ecu.update_igniter_oxidizer_injector_pressure(self.igniter_dynamics.oxidizer_pressure_pa)
 
         self.mission_ctrl.update(self.dt)
         self.dynamics_manager.update(self.dt)

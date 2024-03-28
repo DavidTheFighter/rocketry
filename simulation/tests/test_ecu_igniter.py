@@ -2,6 +2,7 @@ import software_in_loop as sil
 from simulation.pysim.simulation.igniter import IgniterSimulation
 from simulation.pysim.config import SimConfig
 import pytest
+import math
 
 from simulation.tests.test_ecu_tank import tanks_pressurized
 
@@ -64,7 +65,9 @@ def test_unstable_pressure_no_ignition(config):
     sim.advance_timestep()
 
     def combustion_modifier(pressure_pa: float) -> float:
-        return 0.0
+        nonlocal sim
+
+        return 0.0 # pressure_pa * (math.sin(sim.t * 1000.0) * 0.5 + 0.5)
 
     sim.igniter_dynamics.set_combustion_pressure_modifier(combustion_modifier)
 

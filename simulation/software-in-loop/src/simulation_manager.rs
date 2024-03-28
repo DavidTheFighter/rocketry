@@ -24,7 +24,7 @@ pub fn simulate_app_replay(
         .extract::<f64>(py)
         .expect("Failed to extract time t as f64 from sim");
 
-    println!("Simulation finished in {:.2} seconds ({:.2}s simulation/realtime)", elapsed, sim_elapsed / elapsed);
+    println!("Simulation finished in {:.2} seconds ({:.2}s simtime/realtime)", elapsed, sim_elapsed / elapsed);
     println!("Done! Replaying...");
     simulation.call_method0(py, "replay").expect("Failed to call replay method on simulation");
     println!("Replay finished");

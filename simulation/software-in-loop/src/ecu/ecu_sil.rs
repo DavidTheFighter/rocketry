@@ -1,14 +1,14 @@
-use std::{rc::Rc, cell::RefCell};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use big_brother::{interface::{mock_interface::MockInterface, BigBrotherInterface}, big_brother::MAX_INTERFACE_COUNT};
 use ecu_rs::{Ecu, ecu::EcuBigBrother};
 use pyo3::{prelude::*, types::{PyList, PyDict}};
-use shared::{comms_hal::NetworkAddress, ecu_hal::{EcuBinaryOutput, EcuSensor}, PressureData};
+use shared::{comms_hal::NetworkAddress, ecu_hal::{EcuBinaryOutput, EcuSensor}};
 use strum::IntoEnumIterator;
 
-use crate::{dynamics::{igniter::SilIgniterDynamics, SilTankDynamics}, network::SilNetworkIface, ser::{dict_from_obj, obj_from_dict}};
+use crate::{dynamics::{igniter::SilIgniterDynamics, SilTankDynamics}, network::SilNetworkIface, sensors::noise::SensorNoise, ser::{dict_from_obj, obj_from_dict}};
 
-use super::driver::EcuDriverSil;
+use super::{driver::EcuDriverSil, sensors::initialize_sensors};
 
 #[pyclass(unsendable)]
 pub struct EcuSil {
@@ -16,6 +16,7 @@ pub struct EcuSil {
     pub(crate) _big_brother_ifaces: [Option<Rc<RefCell<MockInterface>>>; 2],
     pub(crate) _big_brother: Rc<RefCell<EcuBigBrother<'static>>>,
     pub(crate) ecu: Ecu<'static>,
+    pub(crate) sensors: HashMap<EcuSensor, Box<dyn SensorNoise>>,
     fuel_tank: Py<SilTankDynamics>,
     oxidizer_tank: Py<SilTankDynamics>,
     igniter: Py<SilIgniterDynamics>,
@@ -27,6 +28,7 @@ impl EcuSil {
     pub fn new(
         network_ifaces: &PyList,
         ecu_index: u8,
+        sensor_configuration: &PyDict,
         fuel_tank: Py<SilTankDynamics>,
         oxidizer_tank: Py<SilTankDynamics>,
         igniter: Py<SilIgniterDynamics>,
@@ -71,14 +73,16 @@ impl EcuSil {
             _big_brother_ifaces: big_brother_ifaces,
             _big_brother: big_brother,
             ecu,
+            sensors: initialize_sensors(sensor_configuration),
             fuel_tank,
             oxidizer_tank,
             igniter,
         }
     }
 
-    pub fn update(&mut self, py: Python, dt: f32) {
-        self.ecu.update(dt);
+    pub fn update(&mut self, py: Python, dt: f64) {
+        self.ecu.update(dt as f32);
+        self.update_sensors(py, dt);
 
         let mut igniter = self.igniter.borrow_mut(py);
         igniter.new_state.has_ignition_source = self.ecu.driver.get_sparking();
@@ -111,41 +115,6 @@ impl EcuSil {
             .update_timestamp(sim_time);
     }
 
-    pub fn update_fuel_tank_pressure(&mut self, pressure_pa: f32) {
-        self.ecu.update_sensor_data(&EcuSensor::FuelTankPressure(PressureData {
-            pressure_pa,
-            raw_data: 0,
-        }));
-    }
-
-    pub fn update_oxidizer_tank_pressure(&mut self, pressure_pa: f32) {
-        self.ecu.update_sensor_data(&EcuSensor::OxidizerTankPressure(PressureData {
-            pressure_pa,
-            raw_data: 0,
-        }));
-    }
-
-    pub fn update_igniter_chamber_pressure(&mut self, pressure_pa: f32) {
-        self.ecu.update_sensor_data(&EcuSensor::IgniterChamberPressure(PressureData {
-            pressure_pa,
-            raw_data: 0,
-        }));
-    }
-
-    pub fn update_igniter_fuel_injector_pressure(&mut self, pressure_pa: f32) {
-        self.ecu.update_sensor_data(&EcuSensor::IgniterFuelInjectorPressure(PressureData {
-            pressure_pa,
-            raw_data: 0,
-        }));
-    }
-
-    pub fn update_igniter_oxidizer_injector_pressure(&mut self, pressure_pa: f32) {
-        self.ecu.update_sensor_data(&EcuSensor::IgniterOxidizerInjectorPressure(PressureData {
-            pressure_pa,
-            raw_data: 0,
-        }));
-    }
-
     // Returns general and widely needed fields from the FCU
     fn __getitem__(&self, key: &str, py: Python) -> PyResult<PyObject> {
         let dict = PyDict::new(py);
@@ -174,5 +143,28 @@ impl EcuSil {
 
         dict.get_item_with_error(key)
             .map(|value| value.to_object(py))
+    }
+}
+
+impl EcuSil {
+    pub fn get_direct_sensor_value(&self, py: Python, sensor: EcuSensor) -> f64 {
+        match sensor {
+            EcuSensor::FuelTankPressure => self.fuel_tank.borrow(py).new_state.tank_pressure_pa as f64,
+            EcuSensor::OxidizerTankPressure => self.oxidizer_tank.borrow(py).new_state.tank_pressure_pa as f64,
+            EcuSensor::IgniterChamberPressure => self.igniter.borrow(py).chamber_pressure_pa() as f64,
+            EcuSensor::IgniterFuelInjectorPressure => self.igniter.borrow(py).fuel_inlet.borrow(py).new_state.outlet_pressure_pa as f64,
+            EcuSensor::IgniterOxidizerInjectorPressure => self.igniter.borrow(py).oxidizer_inlet.borrow(py).new_state.outlet_pressure_pa as f64,
+            EcuSensor::IgniterThroatTemperature => 0.0,
+            EcuSensor::EngineChamberPressure => 0.0,
+            EcuSensor::EngineFuelInjectorPressure => 0.0,
+            EcuSensor::EngineOxidizerInjectorPressure => 0.0,
+            EcuSensor::EngineThroatTemperature => 0.0,
+            EcuSensor::FuelPumpOutletPressure => 0.0,
+            EcuSensor::FuelPumpInletPressure => 0.0,
+            EcuSensor::FuelPumpInducerPressure => 0.0,
+            EcuSensor::OxidizerPumpOutletPressure => 0.0,
+            EcuSensor::OxidizerPumpInletPressure => 0.0,
+            EcuSensor::OxidizerPumpInducerPressure => 0.0,
+        }
     }
 }
