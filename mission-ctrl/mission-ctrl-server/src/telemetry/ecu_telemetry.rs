@@ -5,7 +5,7 @@ use std::time::Duration;
 use rocket::serde::json::Value;
 use rocket::serde::{json::{json, Json, serde_json::Map}, Serialize};
 use shared::comms_hal::{NetworkAddress, Packet};
-use shared::ecu_hal::{EcuDebugInfo, EcuTankTelemetryFrame, EcuTelemetryFrame};
+use shared::ecu_hal::{EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame};
 
 use once_cell::sync::Lazy;
 
@@ -52,6 +52,7 @@ struct TelemetryHandler {
     last_tank_telemetry: HashMap<u8, EcuTankTelemetryFrame>,
     last_debug_info: HashMap<u8, EcuDebugInfo>,
     debug_info_values: HashMap<u8, Map<String, Value>>,
+    debug_sensor_values: HashMap<u8, HashMap<EcuSensor, f32>>,
     telemetry_rate_record_time: f64,
     current_telemetry_rate_hz: u32,
 }
@@ -64,6 +65,7 @@ impl TelemetryHandler {
             last_tank_telemetry: HashMap::new(),
             last_debug_info: HashMap::new(),
             debug_info_values: HashMap::new(),
+            debug_sensor_values: HashMap::new(),
             telemetry_rate_record_time: 0.25,
             current_telemetry_rate_hz: 0,
         }
@@ -105,6 +107,20 @@ impl TelemetryHandler {
                         }
 
                         self.populate_debug_info(endpoint_data.get_mut(&ecu_index).unwrap(), ecu_index);
+                    },
+                    Packet::EcuDebugSensorMeasurement((sensor, data)) => {
+                        let sensor_values = self.debug_sensor_values
+                            .entry(ecu_index)
+                            .or_insert(HashMap::new());
+
+                        match data {
+                            shared::SensorData::Pressure { pressure_pa, raw_data: _ } => {
+                                sensor_values.insert(sensor, pressure_pa);
+                            },
+                            shared::SensorData::Temperature { temperature_k, raw_data: _ } => {
+                                sensor_values.insert(sensor, temperature_k + 273.15);
+                            },
+                        }
                     },
                     _ => {}
                 }
@@ -195,23 +211,21 @@ impl TelemetryHandler {
             );
         }
 
-        if let Some(values) = self.debug_info_values.get(&ecu_index) {
-            if let Some(pressure_pa) = values.get("igniter_fuel_injector_pressure_pa") {
-                if let Some(pressure_pa) = pressure_pa.as_f64() {
-                    graph_data.insert(
-                        String::from("igniter_fuel_pressure_psi"),
-                        json!(pressure_pa / 6894.75729),
-                    );
-                }
+        if let Some(_values) = self.debug_info_values.get(&ecu_index) { }
+
+        if let Some(sensor_data) = &self.debug_sensor_values.get(&ecu_index) {
+            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::IgniterFuelInjectorPressure) {
+                graph_data.insert(
+                    String::from("igniter_fuel_pressure_psi"),
+                    json!(pressure_pa / 6894.75729),
+                );
             }
 
-            if let Some(pressure_pa) = values.get("igniter_oxidizer_injector_pressure_pa") {
-                if let Some(pressure_pa) = pressure_pa.as_f64() {
-                    graph_data.insert(
-                        String::from("igniter_oxidizer_pressure_psi"),
-                        json!(pressure_pa / 6894.75729),
-                    );
-                }
+            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::IgniterOxidizerInjectorPressure) {
+                graph_data.insert(
+                    String::from("igniter_oxidizer_pressure_psi"),
+                    json!(pressure_pa / 6894.75729),
+                );
             }
         }
 

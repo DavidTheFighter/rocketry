@@ -5,7 +5,7 @@ use std::{collections::HashMap, hash::Hash};
 use pyo3::types::PyDict;
 use shared::ecu_hal::EcuSensor;
 
-use crate::sensors::noise::{LinearVoltagePressureTranducer, LinearVoltageTemperatureSensor, SensorNoise};
+use crate::sensors::{LinearVoltagePressureTranducer, LinearVoltageTemperatureSensor, SensorNoise};
 
 use super::EcuSil;
 

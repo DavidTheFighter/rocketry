@@ -1,11 +1,10 @@
 use rocket::serde::Deserialize;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, IgniterConfig},
+    ecu_hal::IgniterConfig,
     SensorConfig,
 };
 use std::{sync::Arc, time::Duration};
-use strum::IntoEnumIterator;
 
 use crate::{
     observer::{ObserverEvent, ObserverHandler},

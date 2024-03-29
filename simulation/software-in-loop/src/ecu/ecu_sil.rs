@@ -6,7 +6,7 @@ use pyo3::{prelude::*, types::{PyList, PyDict}};
 use shared::{comms_hal::NetworkAddress, ecu_hal::{EcuBinaryOutput, EcuSensor}};
 use strum::IntoEnumIterator;
 
-use crate::{dynamics::{igniter::SilIgniterDynamics, SilTankDynamics}, network::SilNetworkIface, sensors::noise::SensorNoise, ser::{dict_from_obj, obj_from_dict}};
+use crate::{dynamics::{igniter::SilIgniterDynamics, SilTankDynamics}, network::SilNetworkIface, sensors::SensorNoise, ser::{dict_from_obj, obj_from_dict}};
 
 use super::{driver::EcuDriverSil, sensors::initialize_sensors};
 
