@@ -1,0 +1,4 @@
+(cd ../../bootloader/ethboot-program && cargo build --release)
+
+pwd
+../../target/release/ethboot-program boot-stm32f407vgt6.json ecu-stm32f407.bin 169.254.0.7

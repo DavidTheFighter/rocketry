@@ -2,8 +2,6 @@
 #![no_std]
 
 pub mod ecu_driver;
-mod comms;
-mod daq;
 mod peripherals;
 
 use core::panic::PanicInfo;
@@ -16,19 +14,20 @@ pub(crate) fn now() -> u64 {
 
 #[rtic::app(device = stm32f4xx_hal::pac, dispatchers = [EXTI0, EXTI1, EXTI2])]
 mod app {
-    use crate::comms::{eth_interrupt, send_packet};
     use crate::peripherals::{adc_dma, ADCStorage};
     use crate::ecu_driver::{Stm32F407EcuDriver, EcuControlPins, ecu_update};
     use core::{
         mem::MaybeUninit,
         sync::atomic::{compiler_fence, AtomicU32, Ordering},
     };
-    use shared::comms_manager::CommsManager;
+    use big_brother::interface::smoltcp_interface::{SmoltcpInterface, SmoltcpInterfaceStorage};
     use cortex_m::peripheral::DWT;
+    use ecu_rs::ecu::EcuBigBrother;
+    use ecu_rs::Ecu;
+    use rand_core::RngCore;
     use shared::comms_hal::{NetworkAddress, Packet};
     use rtic::export::Queue;
-    use smoltcp::iface;
-    use stm32_eth::{EthPins, EthernetDMA, RxRingEntry, TxRingEntry};
+    use stm32_eth::EthPins;
     use stm32f4xx_hal::{
         adc::{
             config::{AdcConfig, Clock, Dma, Resolution, SampleTime, Scan, Sequence},
@@ -39,11 +38,6 @@ mod app {
         prelude::*,
     };
     use systick_monotonic::Systick;
-
-    use crate::{
-        comms::{init_comms, NetworkingStorage, RX_RING_ENTRY_DEFAULT, TX_RING_ENTRY_DEFAULT},
-        daq::DAQHandler,
-    };
 
     const CRYSTAL_FREQ: u32 = 25_000_000;
     const MCU_FREQ: u32 = 37_500_000;
@@ -58,17 +52,12 @@ mod app {
         blue_led: PE5<Output>,
         adc: ADCStorage,
         dwt: DWT,
-        ecu_module: engine_controller::Ecu<'static, Stm32F407EcuDriver>,
     }
 
     #[shared]
     struct Shared {
-        interface: iface::Interface<'static, &'static mut EthernetDMA<'static, 'static>>,
-        udp_socket_handle: iface::SocketHandle,
-        daq: DAQHandler,
-        comms_manager: CommsManager<16>,
-        packet_queue: Queue<Packet, PACKET_QUEUE_SIZE>,
         cpu_utilization: AtomicU32,
+        ecu: ecu_rs::Ecu<'static>,
     }
 
     #[task(local = [blue_led], priority = 1)]
@@ -77,47 +66,46 @@ mod app {
         ctx.local.blue_led.toggle();
     }
 
+    #[task(
+        binds = ETH,
+        shared = [ecu],
+        priority = 12,
+    )]
+    fn eth_interrupt(mut ctx: eth_interrupt::Context) {
+        stm32_eth::eth_interrupt_handler();
+
+        ctx.shared.ecu.lock(|ecu| {
+            ecu.poll_interfaces();
+        });
+    }
+
     extern "Rust" {
         #[task(
-            shared = [daq, packet_queue, &cpu_utilization],
-            local = [ecu_module],
+            shared = [ecu, &cpu_utilization],
+            local = [],
             capacity = 8,
             priority = 7,
         )]
         fn ecu_update(mut ctx: ecu_update::Context);
 
-        #[task(
-            local = [data: [u8; 512] = [0u8; 512]],
-            shared = [interface, udp_socket_handle, comms_manager],
-            capacity = 8,
-            priority = 12,
-        )]
-        fn send_packet(ctx: send_packet::Context, packet: Packet, address: NetworkAddress);
-
         #[task(binds = DMA2_STREAM0,
             local = [adc],
-            shared = [daq, interface, udp_socket_handle],
+            shared = [ecu],
             priority = 10
         )]
         fn adc_dma(mut ctx: adc_dma::Context);
-
-        #[task(
-            binds = ETH,
-            local = [data: [u8; 512] = [0u8; 512]],
-            shared = [interface, udp_socket_handle, packet_queue, comms_manager],
-            priority = 12,
-        )]
-        fn eth_interrupt(ctx: eth_interrupt::Context);
     }
 
     #[monotonic(binds = SysTick, default = true)]
     type Monotonic = Systick<1000>;
 
     #[init(local = [
-        rx_ring: [RxRingEntry; 4] = [RX_RING_ENTRY_DEFAULT; 4],
-        tx_ring: [TxRingEntry; 4] = [TX_RING_ENTRY_DEFAULT; 4],
-        net_storage: NetworkingStorage = NetworkingStorage::new(),
-        dma: MaybeUninit<EthernetDMA<'static, 'static>> = MaybeUninit::uninit(),
+        eth_device: MaybeUninit<stm32_eth::dma::EthernetDMA<'static,'static> > = MaybeUninit::uninit(),
+        rx_ring: [stm32_eth::dma::RxRingEntry; 4] = [stm32_eth::dma::RxRingEntry::INIT; 4],
+        tx_ring: [stm32_eth::dma::TxRingEntry; 4] = [stm32_eth::dma::TxRingEntry::INIT; 4],
+        smoltcp_interface_storage: SmoltcpInterfaceStorage<'static> = SmoltcpInterfaceStorage::new(),
+        smoltcp_interface: MaybeUninit<SmoltcpInterface<'static, &'static mut stm32_eth::dma::EthernetDMA<'static, 'static>>> = MaybeUninit::uninit(),
+        big_brother: MaybeUninit<EcuBigBrother<'static>> = MaybeUninit::uninit(),
         ecu_driver: MaybeUninit<Stm32F407EcuDriver> = MaybeUninit::uninit(),
     ])]
     fn init(ctx: init::Context) -> (Shared, Local, init::Monotonics) {
@@ -215,7 +203,7 @@ mod app {
         let mut adc3_transfer =
             Transfer::init_peripheral_to_memory(dma2.1, adc3, adc3_buffer1, None, dma_config);
 
-        let eth_pins = EthPins {
+        let eth_pins = stm32_eth::EthPins {
             ref_clk: gpioa.pa1,
             crs: gpioa.pa7,
             tx_en: gpiob.pb11,
@@ -224,21 +212,22 @@ mod app {
             rx_d0: gpioc.pc4,
             rx_d1: gpioc.pc5,
         };
-        let (eth_dma, _eth_mac) = stm32_eth::new(
-            p.ETHERNET_MAC,
-            p.ETHERNET_MMC,
-            p.ETHERNET_DMA,
-            ctx.local.rx_ring,
-            ctx.local.tx_ring,
-            clocks,
-            eth_pins,
-        )
-        .unwrap();
 
-        let eth_dma = ctx.local.dma.write(eth_dma);
-        eth_dma.enable_interrupt();
+        let ethernet_parts = stm32_eth::PartsIn {
+            dma: p.ETHERNET_DMA,
+            mac: p.ETHERNET_MAC,
+            mmc: p.ETHERNET_MMC,
+            ptp: p.ETHERNET_PTP,
+        };
 
-        let (interface, udp_socket_handle) = init_comms(ctx.local.net_storage, eth_dma);
+        let stm32_eth::Parts {
+            dma: eth_device_dma,
+            mac: _,
+            ptp: _,
+        } = stm32_eth::new(ethernet_parts, ctx.local.rx_ring, ctx.local.tx_ring, clocks, eth_pins)
+            .expect("Failed to intialize STM32 eth");
+
+        eth_device_dma.enable_interrupt();
 
         heartbeat_blink_led::spawn().unwrap();
         ecu_update::spawn().unwrap();
@@ -248,20 +237,41 @@ mod app {
         compiler_fence(Ordering::SeqCst);
         adc1_transfer.start(|adc| adc.start_conversion());
 
-        send_packet::spawn(Packet::DeviceBooted, NetworkAddress::Broadcast).unwrap();
-
         let ecu_driver = ctx.local.ecu_driver.write(
             Stm32F407EcuDriver::new(ecu_control_pins),
         );
 
+        let eth_device = ctx.local.eth_device.write(eth_device_dma);
+
+        let smoltcp_interface = ctx.local.smoltcp_interface.write(
+            SmoltcpInterface::new(
+                [0x00, 0x80, 0xE1, 0x00, 0x00, 0x01],
+                eth_device,
+                [169, 254, 0, 6],
+                [169, 254, 255, 255],
+                16,
+                ctx.local.smoltcp_interface_storage,
+                0,
+            ),
+        );
+
+        let mut rand_source = p.RNG.constrain(&clocks);
+
+        let big_brother = ctx.local.big_brother.write(
+            EcuBigBrother::new(
+                NetworkAddress::EngineController(0),
+                rand_source.next_u32(),
+                NetworkAddress::Broadcast,
+                [Some(smoltcp_interface), None],
+            ),
+        );
+
+        let ecu = Ecu::new(ecu_driver, big_brother);
+
         (
             Shared {
-                interface,
-                udp_socket_handle,
-                daq: DAQHandler::new(),
-                packet_queue: Queue::new(),
                 cpu_utilization: AtomicU32::new(0),
-                comms_manager: CommsManager::new(NetworkAddress::EngineController(0)),
+                ecu,
             },
             Local {
                 blue_led,
@@ -274,7 +284,6 @@ mod app {
                     adc3_buffer: adc3_buffer2,
                 },
                 dwt: core.DWT,
-                ecu_module: engine_controller::Ecu::new(ecu_driver),
             },
             init::Monotonics(mono),
         )

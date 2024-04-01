@@ -25,6 +25,12 @@ pub enum TankState {
     Pressurized,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
+pub enum PumpState {
+    Idle,
+    Pumping,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter, Hash)]
 pub enum EcuSensor {
     FuelTankPressure,

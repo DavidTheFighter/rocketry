@@ -4,7 +4,7 @@ use shared::{
     ControllerState,
 };
 
-use crate::{silprintln, Ecu};
+use crate::Ecu;
 
 use super::{startup::Startup, IgniterFsm};
 

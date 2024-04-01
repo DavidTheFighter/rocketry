@@ -1,11 +1,8 @@
 use core::sync::atomic::{compiler_fence, Ordering};
 
 use crate::app;
-use shared::{
-    comms_hal::{NetworkAddress, Packet},
-    ecu_hal::EcuDAQFrame,
-};
 use rtic::Mutex;
+use shared::{ecu_hal::EcuSensor, SensorData};
 use stm32_eth::stm32::{ADC1, ADC2, ADC3, DMA2};
 use stm32f4xx_hal::{
     adc::Adc,
@@ -23,6 +20,9 @@ pub struct ADCStorage {
         Transfer<Stream1<DMA2>, 2, Adc<ADC3>, PeripheralToMemory, &'static mut [u16; 2]>,
     pub adc3_buffer: Option<&'static mut [u16; 2]>,
 }
+
+const PMAP_MIN: f32 = 410.0;
+const PMAP_MAX: f32 = 3686.0;
 
 pub fn adc_dma(mut ctx: app::adc_dma::Context) {
     let storage = ctx.local.adc;
@@ -45,23 +45,30 @@ pub fn adc_dma(mut ctx: app::adc_dma::Context) {
         .unwrap()
         .0;
 
-    let daq_frame = EcuDAQFrame {
-        sensor_values: [
-            adc3_buffer[0],
-            adc1_buffer[1],
-            adc2_buffer[0],
-            adc2_buffer[1],
-            adc1_buffer[0],
-            adc3_buffer[1],
-        ],
-    };
+    ctx.shared.ecu.lock(|ecu| {
+        ecu.update_sensor_data(
+            EcuSensor::FuelPumpOutletPressure,
+            &SensorData::Pressure {
+                pressure_pa: (((adc1_buffer[0] as f32) - PMAP_MIN) / (PMAP_MAX - PMAP_MIN)) * 300.0,
+                raw_data: adc1_buffer[0],
+            },
+        );
 
-    ctx.shared.daq.lock(|daq| {
-        if daq.add_daq_frame(daq_frame) {
-            let daq_frame = Packet::EcuDAQ(*daq.get_inactive_buffer());
+        ecu.update_sensor_data(
+            EcuSensor::FuelPumpInletPressure,
+            &SensorData::Pressure {
+                pressure_pa: (((adc1_buffer[1] as f32) - PMAP_MIN) / (PMAP_MAX - PMAP_MIN)) * 300.0,
+                raw_data: adc1_buffer[1],
+            },
+        );
 
-            app::send_packet::spawn(daq_frame, NetworkAddress::MissionControl).ok();
-        }
+        ecu.update_sensor_data(
+            EcuSensor::FuelPumpInducerPressure,
+            &SensorData::Pressure {
+                pressure_pa: (((adc2_buffer[0] as f32) - PMAP_MIN) / (PMAP_MAX - PMAP_MIN)) * 300.0,
+                raw_data: adc2_buffer[0],
+            },
+        );
     });
 
     storage.adc1_buffer = Some(adc1_buffer);

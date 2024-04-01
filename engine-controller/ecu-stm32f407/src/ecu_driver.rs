@@ -2,7 +2,7 @@ use core::sync::atomic::Ordering;
 
 use shared::SensorConfig;
 use shared::comms_hal::{Packet, NetworkAddress};
-use shared::ecu_hal::{EcuDriver, EcuSensor, EcuDAQFrame, EcuTelemetryFrame, IgniterState, FuelTankState, EcuSolenoidValve};
+use shared::ecu_hal::{EcuBinaryOutput, EcuDriver, EcuSensor, EcuTelemetryFrame, IgniterState};
 use rtic::Mutex;
 use stm32f4xx_hal::gpio::{PA12, PA11, PA10, PA9, Output, PinState};
 use stm32f4xx_hal::signature::{VtempCal30, VtempCal110};
@@ -29,7 +29,7 @@ pub struct Stm32F407EcuDriver {
     sensor_values: [f32; EcuSensor::COUNT],
     sensor_mins: [f32; EcuSensor::COUNT],
     sensor_maxs: [f32; EcuSensor::COUNT],
-    solenoid_valve_states: [bool; EcuSolenoidValve::COUNT],
+    solenoid_valve_states: [bool; EcuBinaryOutput::COUNT],
     sparking: bool,
 }
 
@@ -43,51 +43,33 @@ impl Stm32F407EcuDriver {
             sensor_values: [0.0; EcuSensor::COUNT],
             sensor_mins: [0.0; EcuSensor::COUNT],
             sensor_maxs: [0.0; EcuSensor::COUNT],
-            solenoid_valve_states: [false; EcuSolenoidValve::COUNT],
+            solenoid_valve_states: [false; EcuBinaryOutput::COUNT],
             sparking: false,
         }
-    }
-
-    pub fn update(&mut self, last_frame: EcuDAQFrame, mins: EcuDAQFrame, maxs: EcuDAQFrame) -> f32 {
-        let current_time = now();
-        let elapsed_time = ((current_time - self.last_update_time) as f32) * 1e-3;
-
-        let apply_sensor_value = |sensor: EcuSensor, frame: EcuDAQFrame| -> f32 {
-            self.sensor_configs[sensor as usize]
-                .apply(frame.sensor_values[sensor as usize] as f32)
-        };
-
-        for sensor in EcuSensor::iter() {
-            self.sensor_values[sensor as usize] = apply_sensor_value(sensor, last_frame);
-            self.sensor_mins[sensor as usize] = apply_sensor_value(sensor, mins);
-            self.sensor_maxs[sensor as usize] = apply_sensor_value(sensor, maxs);
-        }
-
-        self.sensor_values[EcuSensor::ECUBoardTemp as usize] =
-            raw_board_temp_to_celsius(last_frame.sensor_values[EcuSensor::ECUBoardTemp as usize]);
-        self.sensor_mins[EcuSensor::ECUBoardTemp as usize] =
-            raw_board_temp_to_celsius(mins.sensor_values[EcuSensor::ECUBoardTemp as usize]);
-        self.sensor_maxs[EcuSensor::ECUBoardTemp as usize] =
-            raw_board_temp_to_celsius(maxs.sensor_values[EcuSensor::ECUBoardTemp as usize]);
-
-        self.last_update_time = current_time;
-
-        elapsed_time
     }
 }
 
 impl EcuDriver for Stm32F407EcuDriver {
-    fn set_solenoid_valve(&mut self, valve: EcuSolenoidValve, state: bool) {
+    fn timestamp(&self) -> f32 {
+        (crate::now() as f32) * 1e-3
+    }
+
+    fn set_binary_valve(&mut self, valve: EcuBinaryOutput, state: bool) {
         let pin_state = if state { PinState::High } else { PinState::Low };
 
         match valve {
-            EcuSolenoidValve::IgniterFuelValve => self.pins.sv1_ctrl.set_state(pin_state),
-            EcuSolenoidValve::IgniterOxidizerValve => self.pins.sv2_ctrl.set_state(pin_state),
-            EcuSolenoidValve::FuelPressValve => self.pins.sv3_ctrl.set_state(pin_state),
-            EcuSolenoidValve::FuelVentValve => self.pins.sv4_ctrl.set_state(pin_state),
+            EcuBinaryOutput::IgniterFuelValve => self.pins.sv1_ctrl.set_state(pin_state),
+            EcuBinaryOutput::IgniterOxidizerValve => self.pins.sv2_ctrl.set_state(pin_state),
+            EcuBinaryOutput::FuelPressValve => self.pins.sv3_ctrl.set_state(pin_state),
+            EcuBinaryOutput::FuelVentValve => self.pins.sv4_ctrl.set_state(pin_state),
+            _ => {},
         }
 
         self.solenoid_valve_states[valve as usize] = state;
+    }
+
+    fn get_binary_valve(&self, valve: EcuBinaryOutput) -> bool {
+        self.solenoid_valve_states[valve.index()]
     }
 
     fn set_sparking(&mut self, state: bool) {
@@ -104,44 +86,8 @@ impl EcuDriver for Stm32F407EcuDriver {
         self.sparking = state;
     }
 
-    fn get_solenoid_valve(&self, valve: EcuSolenoidValve) -> bool {
-        self.solenoid_valve_states[valve as usize]
-    }
-
-    fn get_sensor(&self, sensor: EcuSensor) -> f32 {
-        self.sensor_values[sensor as usize]
-    }
-
     fn get_sparking(&self) -> bool {
         self.sparking
-    }
-
-    fn send_packet(&mut self, packet: Packet, address: NetworkAddress) {
-        app::send_packet::spawn(packet, address).expect("ecu_driver failed to send a packet");
-    }
-
-    fn generate_telemetry_frame(&self) -> EcuTelemetryFrame {
-        EcuTelemetryFrame {
-            timestamp: now(),
-            igniter_state: IgniterState::Idle,
-            fuel_tank_state: FuelTankState::Idle,
-            sensors: self.sensor_values,
-            solenoid_valves: self.solenoid_valve_states,
-            sparking: self.sparking,
-            cpu_utilization: self.cpu_utilization,
-        }
-    }
-
-    fn collect_daq_sensor_data(&mut self, sensor: EcuSensor) -> (f32, f32, f32) {
-        (
-            self.sensor_values[sensor as usize],
-            self.sensor_mins[sensor as usize],
-            self.sensor_maxs[sensor as usize],
-        )
-    }
-
-    fn configure_sensor(&mut self, sensor: EcuSensor, config: SensorConfig) {
-        self.sensor_configs[sensor as usize] = config;
     }
 
     fn as_mut_any(&mut self) -> &mut dyn core::any::Any {
@@ -150,25 +96,12 @@ impl EcuDriver for Stm32F407EcuDriver {
 }
 
 pub fn ecu_update(mut ctx: app::ecu_update::Context) {
-    app::ecu_update::spawn_after(10.millis().into()).unwrap();
-
-    let (frame, mins, maxs) = ctx.shared.daq.lock(|daq| {
-        let (frame, mins, maxs) = daq.get_values();
-        daq.reset_ranges();
-
-        (frame, mins, maxs)
-    });
+    app::ecu_update::spawn_after(1.millis().into()).unwrap();
 
     let cpu_utilization = ctx.shared.cpu_utilization.load(Ordering::Relaxed);
-    ctx.local.ecu_module.driver().cpu_utilization = cpu_utilization;
 
-    let dt = ctx.local.ecu_module.driver().update(frame, mins, maxs);
-    ctx.local.ecu_module.update(dt, None);
-
-    ctx.shared.packet_queue.lock(|packet_queue| {
-        while let Some(packet) = packet_queue.dequeue() {
-            ctx.local.ecu_module.update(0.0, Some(packet));
-        }
+    ctx.shared.ecu.lock(|ecu| {
+        ecu.update(0.001);
     });
 }
 

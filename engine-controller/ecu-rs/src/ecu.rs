@@ -61,7 +61,7 @@ impl<'a> Ecu<'a> {
     }
 
     pub fn update(&mut self, dt: f32) {
-        self.comms.poll_1ms((self.driver.timestamp() * 1e3) as u32);
+        self.poll_interfaces();
 
         let mut packets = empty_packet_array();
         let mut num_packets = 0;
@@ -114,6 +114,10 @@ impl<'a> Ecu<'a> {
                 );
             }
         }
+    }
+
+    pub fn poll_interfaces(&mut self) {
+        self.comms.poll_1ms((self.driver.timestamp() * 1e3) as u32);
     }
 
     pub fn generate_telemetry_frame(&self) -> EcuTelemetryFrame {

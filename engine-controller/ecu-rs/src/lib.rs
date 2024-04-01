@@ -5,6 +5,7 @@ pub mod debug_info;
 pub mod ecu;
 pub mod engine_fsm;
 pub mod igniter_fsm;
+pub mod pump_fsm;
 pub mod state_vector;
 pub mod tank_fsm;
 

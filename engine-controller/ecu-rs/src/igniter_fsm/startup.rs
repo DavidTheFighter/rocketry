@@ -6,7 +6,7 @@ use shared::{
     ControllerState,
 };
 
-use crate::{silprintln, Ecu};
+use crate::Ecu;
 
 use super::{firing::Firing, shutdown::Shutdown, IgniterFsm};
 

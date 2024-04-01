@@ -1,4 +1,4 @@
-use crate::{silprintln, Ecu};
+use crate::Ecu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
     ecu_hal::{EcuCommand, EcuBinaryOutput},

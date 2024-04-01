@@ -66,7 +66,7 @@ impl TelemetryHandler {
             last_debug_info: HashMap::new(),
             debug_info_values: HashMap::new(),
             debug_sensor_values: HashMap::new(),
-            telemetry_rate_record_time: 0.25,
+            telemetry_rate_record_time: 0.5,
             current_telemetry_rate_hz: 0,
         }
     }
@@ -225,6 +225,27 @@ impl TelemetryHandler {
                 graph_data.insert(
                     String::from("igniter_oxidizer_pressure_psi"),
                     json!(pressure_pa / 6894.75729),
+                );
+            }
+
+            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpOutletPressure) {
+                graph_data.insert(
+                    String::from("fuel_pump_outlet_pressure_psi"),
+                    json!(pressure_pa),
+                );
+            }
+
+            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpInletPressure) {
+                graph_data.insert(
+                    String::from("fuel_pump_inlet_pressure_psi"),
+                    json!(pressure_pa),
+                );
+            }
+
+            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpInducerPressure) {
+                graph_data.insert(
+                    String::from("fuel_pump_inducer_pressure_psi"),
+                    json!(pressure_pa),
                 );
             }
         }
