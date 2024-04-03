@@ -4,7 +4,7 @@
       <RealtimeLineGraphChartjs
         :data-description="igniterDataset"
         :dataset="graph_data"
-        :yrange="[0, 250]"
+        :yrange="[0, 300]"
         :xTitle="'Time (sec)'"
         :yTitle="'Pressure (PSI)'"
         :displayTimeSeconds="20.0"

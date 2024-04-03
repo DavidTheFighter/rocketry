@@ -248,6 +248,27 @@ impl TelemetryHandler {
                     json!(pressure_pa / 6894.75729),
                 );
             }
+
+            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::OxidizerPumpOutletPressure) {
+                graph_data.insert(
+                    String::from("oxidizer_pump_outlet_pressure_psi"),
+                    json!(pressure_pa / 6894.75729),
+                );
+            }
+
+            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::OxidizerPumpInletPressure) {
+                graph_data.insert(
+                    String::from("oxidizer_pump_inlet_pressure_psi"),
+                    json!(pressure_pa / 6894.75729),
+                );
+            }
+
+            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::OxidizerPumpInducerPressure) {
+                graph_data.insert(
+                    String::from("oxidizer_pump_inducer_pressure_psi"),
+                    json!(pressure_pa / 6894.75729),
+                );
+            }
         }
 
         if let Some(last_tank_telemetry) = &self.last_tank_telemetry.get(&ecu_index) {

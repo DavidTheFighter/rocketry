@@ -2,9 +2,9 @@
   <div>
     <div class="row">
       <RealtimeLineGraphChartjs
-        :data-description="igniterDataset"
+        :data-description="fuelPumpDataset"
         :dataset="graph_data"
-        :yrange="[0, 250]"
+        :yrange="[0, 300]"
         :xTitle="'Time (sec)'"
         :yTitle="'Pressure (PSI)'"
         :displayTimeSeconds="20.0"
@@ -13,7 +13,7 @@
         class="columnLeft"
       />
       <RealtimeLineGraphChartjs
-        :data-description="tankDataset"
+        :data-description="oxidizerPumpDataset"
         :dataset="graph_data"
         :yrange="[0, 300]"
         :xTitle="'Time (sec)'"
@@ -25,19 +25,20 @@
         class="columnMiddle"
       />
       <RealtimeLineGraphChartjs
-        :data-description="tempDataset"
+        :data-description="inletDataset"
         :dataset="graph_data"
+        :yrange="[0, 300]"
         :xTitle="'Time (sec)'"
-        :yTitle="'Temperature (°C)'"
+        :yTitle="'Pressure (PSI)'"
         :displayTimeSeconds="20.0"
         :displayTickInterval="2.0"
         :paddingFigs="3"
         :justifyLegend="'left'"
-        class="columnLeft"
+        class="columnRight"
       />
     </div>
     <div class="row">
-      <HardwareDisplay class="columnLeft" :valves="valveDataset"/>
+      <EmptyComponent class="columnLeft" />
       <RocketTerminal class="columnMiddle" id="terminal"/>
       <DatasetDisplay class="columnRight" :states="softwareDataset"/>
     </div>
@@ -47,16 +48,16 @@
 <script>
 import RealtimeLineGraphChartjs from '../components/RealtimeLineGraphChartjs.vue';
 import RocketTerminal from '../components/RocketTerminal.vue';
-import HardwareDisplay from '../components/HardwareDisplay.vue';
 import DatasetDisplay from '../components/DatasetDisplay.vue';
+import EmptyComponent from '@/components/EmptyComponent.vue';
 import * as util from '../util/data.js';
 
 export default {
-  name: 'IgniterPage',
+  name: 'PumpTestPage',
   components: {
     RealtimeLineGraphChartjs,
     RocketTerminal,
-    HardwareDisplay,
+    EmptyComponent,
     DatasetDisplay,
   },
   props: {
@@ -66,81 +67,51 @@ export default {
     },
   },
   computed: {
-    igniterDataset() {
+    fuelPumpDataset() {
       return [
         {
-          name: 'IG GOx',
-          color: 'cyan',
-          dataName: 'igniter_oxidizer_pressure_psi',
-          units: "PSI",
-        },
-        {
-          name: 'IG Fuel',
+          name: 'F Outlet',
           color: 'orange',
-          dataName: 'igniter_fuel_pressure_psi',
+          dataName: 'fuel_pump_outlet_pressure_psi',
           units: "PSI",
         },
         {
-          name: 'IG Chamber',
+          name: 'F Inducer',
           color: 'red',
-          dataName: 'igniter_chamber_pressure_psi',
+          dataName: 'fuel_pump_inducer_pressure_psi',
           units: "PSI",
         },
       ];
     },
-    tankDataset() {
+    oxidizerPumpDataset() {
       return [
         {
-          name: 'Fuel Tank',
-          color: 'orange',
-          dataName: "fuel_tank_pressure_psi",
-          units: "PSI",
-        },
-        {
-          name: 'Oxidizer Tank',
+          name: 'Ox Outlet',
           color: 'cyan',
-          dataName: "oxidizer_tank_pressure_psi",
+          dataName: 'oxidizer_pump_outlet_pressure_psi',
+          units: "PSI",
+        },
+        {
+          name: 'Ox Inducer',
+          color: 'blue',
+          dataName: 'oxidizer_pump_inducer_pressure_psi',
           units: "PSI",
         },
       ];
     },
-    tempDataset() {
+    inletDataset() {
       return [
         {
-          name: 'ECU Board',
-          color: '#7FFFD4',
-          data: this.dataset.ecu_board_temp,
-          units: "°C",
+          name: 'F Inlet',
+          color: 'orange',
+          dataName: 'fuel_pump_inlet_pressure_psi',
+          units: "PSI",
         },
         {
-          name: 'IG Throat',
-          color: '#A9A9A9',
-          data: this.dataset.igniter_throat_temp,
-          units: "°C",
-        },
-      ];
-    },
-    valveDataset() {
-      return [
-        {
-          name: 'IG Fuel Valve',
-          data: this.dataset.igniter_fuel_valve,
-        },
-        {
-          name: 'IG GOx Valve',
-          data: this.dataset.igniter_gox_valve,
-        },
-        {
-          name: 'Fuel Press Valve',
-          data: this.dataset.fuel_press_valve,
-        },
-        {
-          name: 'Fuel Vent Valve',
-          data: this.dataset.fuel_vent_valve,
-        },
-        {
-          name: 'IG Spark Plug',
-          data: this.dataset.sparking,
+          name: 'Ox Inlet',
+          color: 'cyan',
+          dataName: 'oxidizer_pump_inlet_pressure_psi',
+          units: "PSI",
         },
       ];
     },
@@ -158,16 +129,6 @@ export default {
           name: 'Telemetry Rate',
           value: this.dataset.telemetry_rate,
           units: "Hz",
-        },
-        {
-          name: 'DAQ Rate',
-          value: this.dataset.daq_rate,
-          units: "Hz",
-        },
-        {
-          name: 'CPU Usage',
-          value: this.dataset.cpu_utilization,
-          units: "%",
         },
       ];
     },

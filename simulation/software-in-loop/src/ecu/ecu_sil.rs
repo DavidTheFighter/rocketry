@@ -148,9 +148,7 @@ impl EcuSil {
 
         if let Some(oxidizer_pump) = self.oxidizer_pump.as_ref(){
             oxidizer_pump.borrow_mut(py).new_state.motor_duty_cycle =
-                self.ecu
-                    .driver
-                    .get_linear_output(EcuLinearOutput::OxidizerPump) as f64;
+                self.ecu.driver.get_linear_output(EcuLinearOutput::OxidizerPump) as f64;
         }
     }
 
@@ -244,10 +242,22 @@ impl EcuSil {
             EcuSensor::EngineFuelInjectorPressure => 0.0,
             EcuSensor::EngineOxidizerInjectorPressure => 0.0,
             EcuSensor::EngineThroatTemperature => 0.0,
-            EcuSensor::FuelPumpOutletPressure => 0.0,
+            EcuSensor::FuelPumpOutletPressure => {
+                self
+                    .fuel_pump
+                    .as_ref()
+                    .map(|pump| pump.borrow(py).state.pressure_pa as f64)
+                    .unwrap_or(0.0)
+            },
             EcuSensor::FuelPumpInletPressure => 0.0,
             EcuSensor::FuelPumpInducerPressure => 0.0,
-            EcuSensor::OxidizerPumpOutletPressure => 0.0,
+            EcuSensor::OxidizerPumpOutletPressure => {
+                self
+                    .oxidizer_pump
+                    .as_ref()
+                    .map(|pump| pump.borrow(py).state.pressure_pa as f64)
+                    .unwrap_or(0.0)
+            },
             EcuSensor::OxidizerPumpInletPressure => 0.0,
             EcuSensor::OxidizerPumpInducerPressure => 0.0,
         }

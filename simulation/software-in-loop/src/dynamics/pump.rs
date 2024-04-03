@@ -43,7 +43,7 @@ impl SilPumpDynamics {
             inlet,
             outlet,
             maximum_pressure_rise_pa,
-            pressure_velocity: 1.0,
+            pressure_velocity: 3.0,
         }
     }
 

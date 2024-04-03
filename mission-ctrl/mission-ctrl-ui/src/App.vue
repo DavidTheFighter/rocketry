@@ -6,6 +6,7 @@ import NotFound from './pages/NotFound.vue';
 import RocketPage from './pages/RocketPage.vue';
 import RocketSimPage from './pages/RocketSimPage.vue';
 import StreamTestPage from './pages/StreamTestPage.vue';
+import PumpTestPage from './pages/PumpTestPage.vue';
 
 const routes = {
   '/': IgniterPage,
@@ -16,6 +17,7 @@ const routes = {
   '/rocket': RocketPage,
   '/rocketsim': RocketSimPage,
   '/streamtest': StreamTestPage,
+  '/pumptest': PumpTestPage,
 };
 
 export default {

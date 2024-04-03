@@ -123,6 +123,18 @@ impl MissionControl {
         let packet = Packet::EcuCommand(command);
         self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
     }
+
+    pub fn send_set_fuel_pump_packet(&mut self, ecu_index: u8, duty: f32) {
+        let command = ecu_hal::EcuCommand::SetPumpDuty((ecu_hal::PumpType::FuelMain, duty));
+        let packet = Packet::EcuCommand(command);
+        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
+    }
+
+    pub fn send_set_oxidizer_pump_packet(&mut self, ecu_index: u8, duty: f32) {
+        let command = ecu_hal::EcuCommand::SetPumpDuty((ecu_hal::PumpType::OxidizerMain, duty));
+        let packet = Packet::EcuCommand(command);
+        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
+    }
 }
 
 impl MissionControl {

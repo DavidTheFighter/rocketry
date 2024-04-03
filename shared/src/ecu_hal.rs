@@ -37,6 +37,12 @@ pub enum TankType {
     OxidizerMain,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PumpType {
+    FuelMain,
+    OxidizerMain,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter, Hash)]
 pub enum EcuSensor {
     FuelTankPressure,
@@ -69,8 +75,7 @@ pub enum EcuCommand {
     SetSparking(bool),
     FireIgniter,
     SetTankState((TankType, TankState)),
-    SetFuelPumpDuty(f32),
-    SetOxidizerPumpDuty(f32),
+    SetPumpDuty((PumpType, f32)),
     ConfigureSensor {
         sensor: EcuSensor,
         config: SensorConfig,

@@ -37,7 +37,7 @@ class IgniterPumpSimulation(SimulationBase):
             0.65, # Vent orifice coefficient of discharge
             sil.ATMOSPHERIC_PRESSURE_PA, # Initial tank pressure in Pa
             0.005, # Tank volume in m^3
-            self.fuel_pipe,
+            self.tank_fuel_pipe,
         )
         self.oxidizer_tank_dynamics = sil.SilTankDynamics(
             self.feed_config,
@@ -45,7 +45,7 @@ class IgniterPumpSimulation(SimulationBase):
             0.65, # Vent orifice coefficient of discharge
             sil.ATMOSPHERIC_PRESSURE_PA, # Initial tank pressure in Pa
             0.01, # Tank volume in m^3
-            self.oxidizer_pipe,
+            self.tank_oxidizer_pipe,
         )
 
         self.igniter_fuel_injector = sil.InjectorConfig(
@@ -76,7 +76,7 @@ class IgniterPumpSimulation(SimulationBase):
         self.fuel_pump = sil.SilPumpDynamics(
             self.tank_fuel_pipe,
             self.pump_fuel_pipe,
-            150 * 6894.76, # Pump pressure rise in Pa
+            200 * 6894.76, # Pump pressure rise in Pa
         )
 
         self.oxidizer_pump = sil.SilPumpDynamics(
@@ -92,6 +92,8 @@ class IgniterPumpSimulation(SimulationBase):
             self.fuel_tank_dynamics,
             self.oxidizer_tank_dynamics,
             self.igniter_dynamics,
+            self.fuel_pump,
+            self.oxidizer_pump,
         )
 
         self.dynamics_manager = sil.DynamicsManager()
@@ -102,6 +104,8 @@ class IgniterPumpSimulation(SimulationBase):
         self.dynamics_manager.add_dynamics_component(self.pump_fuel_pipe)
         self.dynamics_manager.add_dynamics_component(self.tank_oxidizer_pipe)
         self.dynamics_manager.add_dynamics_component(self.pump_oxidizer_pipe)
+        self.dynamics_manager.add_dynamics_component(self.fuel_pump)
+        self.dynamics_manager.add_dynamics_component(self.oxidizer_pump)
 
         self.logger = sil.Logger([self.eth_network])
         self.logger.dt = self.config.sim_update_rate
@@ -132,16 +136,22 @@ if __name__ == "__main__":
 
         ignited = False
         pressurized = False
+        pumped = False
 
         def tick_callback(sim: IgniterPumpSimulation):
-            nonlocal ignited, pressurized
+            nonlocal ignited, pressurized, pumped
 
             if not ignited and not pressurized and sim.t > 0.5:
                 pressurized = True
                 sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
                 sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
 
-            if not ignited and sim.t > 2.0:
+            if not pumped and pressurized and sim.t > 1.0:
+                pumped = True
+                sim.mission_ctrl.send_set_fuel_pump_packet(0, True)
+                sim.mission_ctrl.send_set_oxidizer_pump_packet(0, True)
+
+            if not ignited and sim.t > 3.0:
                 ignited = True
                 sim.mission_ctrl.send_fire_igniter_packet(0)
 
@@ -149,6 +159,8 @@ if __name__ == "__main__":
                 pressurized = False
                 sim.mission_ctrl.send_set_fuel_tank_packet(0, False)
                 sim.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
+                sim.mission_ctrl.send_set_fuel_pump_packet(0, False)
+                sim.mission_ctrl.send_set_oxidizer_pump_packet(0, False)
 
             if ignited and sim.t > 10.0:
                 return False

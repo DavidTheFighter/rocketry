@@ -1,7 +1,7 @@
 use big_brother::BigBrother;
 use shared::{
     comms_hal::{NetworkAddress, Packet}, ecu_hal::{
-        EcuBinaryOutput, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, PumpState, TankState, TankType
+        EcuBinaryOutput, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, PumpState, PumpType, TankState, TankType
     }, ControllerEntity, SensorData, COMMS_NETWORK_MAP_SIZE
 };
 
@@ -63,12 +63,12 @@ impl<'a> Ecu<'a> {
 
         ecu.fuel_pump = Some(ControllerEntity::new(
             &mut ecu,
-            pump_fsm::idle::Idle::new(EcuLinearOutput::FuelPump),
+            pump_fsm::idle::Idle::new(PumpType::FuelMain, EcuLinearOutput::FuelPump),
         ));
 
         ecu.oxidizer_pump = Some(ControllerEntity::new(
             &mut ecu,
-            pump_fsm::idle::Idle::new(EcuLinearOutput::OxidizerPump),
+            pump_fsm::idle::Idle::new(PumpType::OxidizerMain, EcuLinearOutput::OxidizerPump),
         ));
 
         ecu
@@ -80,7 +80,7 @@ impl<'a> Ecu<'a> {
         let mut packets = empty_packet_array();
         let mut num_packets = 0;
         while let Some((packet, source)) = self.comms.recv_packet().ok().flatten() {
-            silprintln!("ECU: From {:?} received packet: {:?}", source, packet);
+            silprintln!("Received from {:?} got {:?}", source, packet);
             packets[num_packets] = (source, packet);
             num_packets += 1;
         }
@@ -99,6 +99,16 @@ impl<'a> Ecu<'a> {
         if let Some(mut oxidizer_tank) = self.oxidizer_tank.take() {
             oxidizer_tank.update(self, dt, packets);
             self.oxidizer_tank = Some(oxidizer_tank);
+        }
+
+        if let Some(mut fuel_pump) = self.fuel_pump.take() {
+            fuel_pump.update(self, dt, packets);
+            self.fuel_pump = Some(fuel_pump);
+        }
+
+        if let Some(mut oxidizer_pump) = self.oxidizer_pump.take() {
+            oxidizer_pump.update(self, dt, packets);
+            self.oxidizer_pump = Some(oxidizer_pump);
         }
 
         self.time_since_last_telemetry += dt;
