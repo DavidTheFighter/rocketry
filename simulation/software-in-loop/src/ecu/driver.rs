@@ -1,12 +1,13 @@
 use core::any::Any;
 
-use shared::ecu_hal::{EcuDriver, EcuBinaryOutput};
+use shared::ecu_hal::{EcuBinaryOutput, EcuDriver, EcuLinearOutput};
 use strum::EnumCount;
 
 pub struct EcuDriverSil {
     start_timestamp: f64,
     sparking: bool,
     binary_valves: [bool; EcuBinaryOutput::COUNT],
+    linear_outputs: [f32; EcuLinearOutput::COUNT],
     current_sim_timestamp: f32,
     last_sim_timestamp_update_timestamp: f64,
 }
@@ -28,6 +29,14 @@ impl EcuDriver for EcuDriverSil {
         self.binary_valves[valve.index()]
     }
 
+    fn set_linear_output(&mut self, output: EcuLinearOutput, value: f32) {
+        self.linear_outputs[output.index()] = value;
+    }
+
+    fn get_linear_output(&self, output: EcuLinearOutput) -> f32 {
+        self.linear_outputs[output.index()]
+    }
+
     fn get_sparking(&self) -> bool {
         self.sparking
     }
@@ -43,6 +52,7 @@ impl EcuDriverSil {
             start_timestamp: get_timestamp(),
             sparking: false,
             binary_valves: [false; EcuBinaryOutput::COUNT],
+            linear_outputs: [0.0; EcuLinearOutput::COUNT],
             current_sim_timestamp: 0.0,
             last_sim_timestamp_update_timestamp: get_timestamp(),
         }

@@ -1,12 +1,26 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use big_brother::{interface::{mock_interface::MockInterface, BigBrotherInterface}, big_brother::MAX_INTERFACE_COUNT};
-use ecu_rs::{Ecu, ecu::EcuBigBrother};
-use pyo3::{prelude::*, types::{PyList, PyDict}};
-use shared::{comms_hal::NetworkAddress, ecu_hal::{EcuBinaryOutput, EcuSensor}};
+use big_brother::{
+    big_brother::MAX_INTERFACE_COUNT,
+    interface::{mock_interface::MockInterface, BigBrotherInterface},
+};
+use ecu_rs::{ecu::EcuBigBrother, Ecu};
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyList},
+};
+use shared::{
+    comms_hal::NetworkAddress,
+    ecu_hal::{EcuBinaryOutput, EcuLinearOutput, EcuSensor},
+};
 use strum::IntoEnumIterator;
 
-use crate::{dynamics::{igniter::SilIgniterDynamics, SilTankDynamics}, network::SilNetworkIface, sensors::SensorNoise, ser::{dict_from_obj, obj_from_dict}};
+use crate::{
+    dynamics::{igniter::SilIgniterDynamics, pump::SilPumpDynamics, SilTankDynamics},
+    network::SilNetworkIface,
+    sensors::SensorNoise,
+    ser::{dict_from_obj, obj_from_dict},
+};
 
 use super::{driver::EcuDriverSil, sensors::initialize_sensors};
 
@@ -17,9 +31,11 @@ pub struct EcuSil {
     pub(crate) _big_brother: Rc<RefCell<EcuBigBrother<'static>>>,
     pub(crate) ecu: Ecu<'static>,
     pub(crate) sensors: HashMap<EcuSensor, Box<dyn SensorNoise>>,
-    fuel_tank: Py<SilTankDynamics>,
-    oxidizer_tank: Py<SilTankDynamics>,
-    igniter: Py<SilIgniterDynamics>,
+    fuel_tank: Option<Py<SilTankDynamics>>,
+    oxidizer_tank: Option<Py<SilTankDynamics>>,
+    igniter: Option<Py<SilIgniterDynamics>>,
+    fuel_pump: Option<Py<SilPumpDynamics>>,
+    oxidizer_pump: Option<Py<SilPumpDynamics>>,
 }
 
 #[pymethods]
@@ -29,9 +45,11 @@ impl EcuSil {
         network_ifaces: &PyList,
         ecu_index: u8,
         sensor_configuration: &PyDict,
-        fuel_tank: Py<SilTankDynamics>,
-        oxidizer_tank: Py<SilTankDynamics>,
-        igniter: Py<SilIgniterDynamics>,
+        fuel_tank: Option<Py<SilTankDynamics>>,
+        oxidizer_tank: Option<Py<SilTankDynamics>>,
+        igniter: Option<Py<SilIgniterDynamics>>,
+        fuel_pump: Option<Py<SilPumpDynamics>>,
+        oxidizer_pump: Option<Py<SilPumpDynamics>>,
     ) -> Self {
         let driver = Rc::new(RefCell::new(EcuDriverSil::new()));
         let driver_ref: &'static mut EcuDriverSil =
@@ -77,6 +95,8 @@ impl EcuSil {
             fuel_tank,
             oxidizer_tank,
             igniter,
+            fuel_pump,
+            oxidizer_pump,
         }
     }
 
@@ -84,18 +104,54 @@ impl EcuSil {
         self.ecu.update(dt as f32);
         self.update_sensors(py, dt);
 
-        let mut igniter = self.igniter.borrow_mut(py);
-        igniter.new_state.has_ignition_source = self.ecu.driver.get_sparking();
-        igniter.fuel_inlet.borrow_mut(py).new_state.closed = !self.ecu.driver.get_binary_valve(EcuBinaryOutput::IgniterFuelValve);
-        igniter.oxidizer_inlet.borrow_mut(py).new_state.closed = !self.ecu.driver.get_binary_valve(EcuBinaryOutput::IgniterOxidizerValve);
+        if let Some(igniter) = self.igniter.as_ref() {
+            let mut igniter = igniter.borrow_mut(py);
+            igniter.new_state.has_ignition_source = self.ecu.driver.get_sparking();
+            igniter.fuel_inlet.borrow_mut(py).new_state.closed = !self
+                .ecu
+                .driver
+                .get_binary_valve(EcuBinaryOutput::IgniterFuelValve);
+            igniter.oxidizer_inlet.borrow_mut(py).new_state.closed = !self
+                .ecu
+                .driver
+                .get_binary_valve(EcuBinaryOutput::IgniterOxidizerValve);
+        }
 
-        let mut fuel_tank = self.fuel_tank.borrow_mut(py);
-        fuel_tank.new_state.feed_valve_open = self.ecu.driver.get_binary_valve(EcuBinaryOutput::FuelPressValve);
-        fuel_tank.new_state.vent_valve_open = self.ecu.driver.get_binary_valve(EcuBinaryOutput::FuelVentValve);
+        if let Some(fuel_tank) = self.fuel_tank.as_ref() {
+            let mut fuel_tank = fuel_tank.borrow_mut(py);
+            fuel_tank.new_state.feed_valve_open = self
+                .ecu
+                .driver
+                .get_binary_valve(EcuBinaryOutput::FuelPressValve);
+            fuel_tank.new_state.vent_valve_open = self
+                .ecu
+                .driver
+                .get_binary_valve(EcuBinaryOutput::FuelVentValve);
+        }
 
-        let mut oxidizer_tank = self.oxidizer_tank.borrow_mut(py);
-        oxidizer_tank.new_state.feed_valve_open = self.ecu.driver.get_binary_valve(EcuBinaryOutput::OxidizerPressValve);
-        oxidizer_tank.new_state.vent_valve_open = self.ecu.driver.get_binary_valve(EcuBinaryOutput::OxidizerVentValve);
+        if let Some(oxidizer_tank) = self.oxidizer_tank.as_ref(){
+            let mut oxidizer_tank = oxidizer_tank.borrow_mut(py);
+            oxidizer_tank.new_state.feed_valve_open = self
+                .ecu
+                .driver
+                .get_binary_valve(EcuBinaryOutput::OxidizerPressValve);
+            oxidizer_tank.new_state.vent_valve_open = self
+                .ecu
+                .driver
+                .get_binary_valve(EcuBinaryOutput::OxidizerVentValve);
+        }
+
+        if let Some(fuel_pump) = self.fuel_pump.as_ref() {
+            fuel_pump.borrow_mut(py).new_state.motor_duty_cycle =
+                self.ecu.driver.get_linear_output(EcuLinearOutput::FuelPump) as f64;
+        }
+
+        if let Some(oxidizer_pump) = self.oxidizer_pump.as_ref(){
+            oxidizer_pump.borrow_mut(py).new_state.motor_duty_cycle =
+                self.ecu
+                    .driver
+                    .get_linear_output(EcuLinearOutput::OxidizerPump) as f64;
+        }
     }
 
     pub fn update_ecu_config(&mut self, dict: &PyDict) {
@@ -149,11 +205,40 @@ impl EcuSil {
 impl EcuSil {
     pub fn get_direct_sensor_value(&self, py: Python, sensor: EcuSensor) -> f64 {
         match sensor {
-            EcuSensor::FuelTankPressure => self.fuel_tank.borrow(py).new_state.tank_pressure_pa as f64,
-            EcuSensor::OxidizerTankPressure => self.oxidizer_tank.borrow(py).new_state.tank_pressure_pa as f64,
-            EcuSensor::IgniterChamberPressure => self.igniter.borrow(py).chamber_pressure_pa() as f64,
-            EcuSensor::IgniterFuelInjectorPressure => self.igniter.borrow(py).fuel_inlet.borrow(py).new_state.outlet_pressure_pa as f64,
-            EcuSensor::IgniterOxidizerInjectorPressure => self.igniter.borrow(py).oxidizer_inlet.borrow(py).new_state.outlet_pressure_pa as f64,
+            EcuSensor::FuelTankPressure => {
+                self
+                    .fuel_tank
+                    .as_ref()
+                    .map(|tank| tank.borrow(py).state.tank_pressure_pa as f64)
+                    .unwrap_or(0.0)
+            }
+            EcuSensor::OxidizerTankPressure => {
+                self
+                    .oxidizer_tank
+                    .as_ref()
+                    .map(|tank| tank.borrow(py).state.tank_pressure_pa as f64)
+                    .unwrap_or(0.0)
+            }
+            EcuSensor::IgniterChamberPressure => {
+                self
+                    .igniter
+                    .as_ref()
+                    .map(|igniter| igniter.borrow(py).chamber_pressure_pa() as f64)
+                    .unwrap_or(0.0)
+            }
+            EcuSensor::IgniterFuelInjectorPressure =>
+                self
+                    .igniter
+                    .as_ref()
+                    .map(|igniter| igniter.borrow(py).fuel_inlet.borrow(py).outlet_pressure_pa() as f64)
+                    .unwrap_or(0.0),
+            EcuSensor::IgniterOxidizerInjectorPressure => {
+                self
+                    .igniter
+                    .as_ref()
+                    .map(|igniter| igniter.borrow(py).oxidizer_inlet.borrow(py).outlet_pressure_pa() as f64)
+                    .unwrap_or(0.0)
+            }
             EcuSensor::IgniterThroatTemperature => 0.0,
             EcuSensor::EngineChamberPressure => 0.0,
             EcuSensor::EngineFuelInjectorPressure => 0.0,

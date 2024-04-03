@@ -8,12 +8,6 @@ use crate::Ecu;
 pub mod idle;
 pub mod pumping;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TankType {
-    Fuel,
-    Oxidizer,
-}
-
 #[derive(Debug)]
 pub enum PumpFsm {
     Idle(idle::Idle),

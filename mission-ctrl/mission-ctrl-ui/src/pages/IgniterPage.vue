@@ -71,20 +71,20 @@ export default {
         {
           name: 'IG GOx',
           color: 'cyan',
-          dataName: 'fuel_pump_outlet_pressure_psi',
-          units: "PSI",
+          dataName: 'igniter_oxidizer_pressure_psi',
+          units: "PSIA",
         },
         {
           name: 'IG Fuel',
           color: 'orange',
           dataName: 'igniter_fuel_pressure_psi',
-          units: "PSI",
+          units: "PSIA",
         },
         {
           name: 'IG Chamber',
           color: 'red',
           dataName: 'igniter_chamber_pressure_psi',
-          units: "PSI",
+          units: "PSIA",
         },
       ];
     },
@@ -94,13 +94,13 @@ export default {
           name: 'Fuel Tank',
           color: 'orange',
           dataName: "fuel_tank_pressure_psi",
-          units: "PSI",
+          units: "PSIA",
         },
         {
           name: 'Oxidizer Tank',
           color: 'cyan',
           dataName: "oxidizer_tank_pressure_psi",
-          units: "PSI",
+          units: "PSIA",
         },
       ];
     },

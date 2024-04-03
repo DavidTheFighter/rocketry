@@ -9,7 +9,9 @@ use pyo3::{
 };
 use serde::{Deserialize, Serialize};
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuDebugInfo, EcuTelemetryFrame}, fcu_hal::{FcuDebugInfo, FcuDevStatsFrame, FcuTelemetryFrame}
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuDebugInfo, EcuTelemetryFrame},
+    fcu_hal::{FcuDebugInfo, FcuDevStatsFrame, FcuTelemetryFrame},
 };
 use std::{
     io::Write,
@@ -17,7 +19,9 @@ use std::{
     thread,
 };
 
-use crate::{dynamics::SilVehicleDynamics, ecu::EcuSil, fcu::FcuSil, network::SilNetwork, ser::dict_from_obj};
+use crate::{
+    dynamics::SilVehicleDynamics, ecu::EcuSil, fcu::FcuSil, network::SilNetwork, ser::dict_from_obj,
+};
 
 type Scalar = f64;
 

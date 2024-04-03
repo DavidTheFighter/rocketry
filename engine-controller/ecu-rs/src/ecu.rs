@@ -1,12 +1,12 @@
 use big_brother::BigBrother;
 use shared::{
     comms_hal::{NetworkAddress, Packet}, ecu_hal::{
-        EcuBinaryOutput, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, TankState
+        EcuBinaryOutput, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, PumpState, TankState, TankType
     }, ControllerEntity, SensorData, COMMS_NETWORK_MAP_SIZE
 };
 
 use crate::{
-    engine_fsm::{self, EngineFsm}, igniter_fsm::{self, IgniterFsm}, silprintln, state_vector::StateVector, tank_fsm::{self, TankFsm, TankType}
+    engine_fsm::{self, EngineFsm}, igniter_fsm::{self, IgniterFsm}, pump_fsm::{self, PumpFsm}, silprintln, state_vector::StateVector, tank_fsm::{self, TankFsm}
 };
 
 use strum::IntoEnumIterator;
@@ -26,6 +26,8 @@ pub struct Ecu<'a> {
     pub igniter: Option<ControllerEntity<IgniterFsm, Ecu<'a>, IgniterState>>,
     pub fuel_tank: Option<ControllerEntity<TankFsm, Ecu<'a>, TankState>>,
     pub oxidizer_tank: Option<ControllerEntity<TankFsm, Ecu<'a>, TankState>>,
+    pub fuel_pump: Option<ControllerEntity<PumpFsm, Ecu<'a>, PumpState>>,
+    pub oxidizer_pump: Option<ControllerEntity<PumpFsm, Ecu<'a>, PumpState>>,
 
     pub last_telemetry_frame: Option<EcuTelemetryFrame>,
     time_since_last_telemetry: f32,
@@ -43,6 +45,8 @@ impl<'a> Ecu<'a> {
             igniter: None,
             fuel_tank: None,
             oxidizer_tank: None,
+            fuel_pump: None,
+            oxidizer_pump: None,
             last_telemetry_frame: None,
             time_since_last_telemetry: 1e3,
         };
@@ -55,6 +59,16 @@ impl<'a> Ecu<'a> {
         ecu.igniter = Some(ControllerEntity::new(
             &mut ecu,
             igniter_fsm::idle::Idle::new(),
+        ));
+
+        ecu.fuel_pump = Some(ControllerEntity::new(
+            &mut ecu,
+            pump_fsm::idle::Idle::new(EcuLinearOutput::FuelPump),
+        ));
+
+        ecu.oxidizer_pump = Some(ControllerEntity::new(
+            &mut ecu,
+            pump_fsm::idle::Idle::new(EcuLinearOutput::OxidizerPump),
         ));
 
         ecu
@@ -163,7 +177,7 @@ impl<'a> Ecu<'a> {
             self.fuel_tank = Some(ControllerEntity::new(
                 self,
                 tank_fsm::idle::Idle::new(
-                    TankType::Fuel,
+                    TankType::FuelMain,
                     EcuBinaryOutput::FuelPressValve,
                     EcuBinaryOutput::FuelVentValve,
                 ),
@@ -171,7 +185,7 @@ impl<'a> Ecu<'a> {
             self.oxidizer_tank = Some(ControllerEntity::new(
                 self,
                 tank_fsm::idle::Idle::new(
-                    TankType::Oxidizer,
+                    TankType::OxidizerMain,
                     EcuBinaryOutput::OxidizerPressValve,
                     EcuBinaryOutput::OxidizerVentValve,
                 ),

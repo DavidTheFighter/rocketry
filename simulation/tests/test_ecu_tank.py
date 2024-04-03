@@ -41,14 +41,6 @@ def test_tank_press_and_depress(config):
 
     sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
     sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
-    sim.advance_timestep()
-
-    assert sim.ecu['fuel_tank_state'] == 'Pressurized'
-    assert sim.ecu['oxidizer_tank_state'] == 'Pressurized'
-    assert sim.ecu['binary_valves']['FuelPressValve'] == True
-    assert sim.ecu['binary_valves']['OxidizerPressValve'] == True
-    assert sim.ecu['binary_valves']['FuelVentValve'] == False
-    assert sim.ecu['binary_valves']['OxidizerVentValve'] == False
 
     assert sim.simulate_until(lambda s: tanks_pressurized(s), 10.0)
 
@@ -64,14 +56,6 @@ def test_tank_press_and_depress(config):
 
     sim.mission_ctrl.send_set_fuel_tank_packet(0, False)
     sim.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
-    sim.advance_timestep()
-
-    assert sim.ecu['fuel_tank_state'] == 'Depressurized'
-    assert sim.ecu['oxidizer_tank_state'] == 'Depressurized'
-    assert sim.ecu['binary_valves']['FuelPressValve'] == False
-    assert sim.ecu['binary_valves']['OxidizerPressValve'] == False
-    assert sim.ecu['binary_valves']['FuelVentValve'] == True
-    assert sim.ecu['binary_valves']['OxidizerVentValve'] == True
 
     assert sim.simulate_until(lambda s: tanks_depressurized(s), 5.0)
 
@@ -84,3 +68,56 @@ def test_tank_press_and_depress(config):
 
     assert sim.fuel_tank_dynamics.tank_pressure_pa < config.ecu_tank_pressure_set_point_pa * 0.5
     assert sim.oxidizer_tank_dynamics.tank_pressure_pa < config.ecu_tank_pressure_set_point_pa * 0.5
+
+def test_fuel_tank_press_and_depress():
+    sim = IgniterSimulation(SimConfig())
+    sim.advance_timestep()
+
+    sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
+
+    assert sim.simulate_until(lambda s: s.fuel_tank_dynamics.tank_pressure_pa > s.config.ecu_tank_pressure_set_point_pa * 0.9, 5.0)
+
+    assert sim.ecu['fuel_tank_state'] == 'Pressurized'
+    assert sim.ecu['oxidizer_tank_state'] == 'Idle'
+    assert sim.ecu['binary_valves']['FuelPressValve'] == True
+    assert sim.ecu['binary_valves']['OxidizerPressValve'] == False
+    assert sim.ecu['binary_valves']['FuelVentValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerVentValve'] == False
+
+    sim.mission_ctrl.send_set_fuel_tank_packet(0, False)
+
+    assert sim.simulate_until(lambda s: s.fuel_tank_dynamics.tank_pressure_pa < s.config.ecu_tank_pressure_set_point_pa * 0.5, 5.0)
+
+    assert sim.ecu['fuel_tank_state'] == 'Depressurized'
+    assert sim.ecu['oxidizer_tank_state'] == 'Idle'
+    assert sim.ecu['binary_valves']['FuelPressValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerPressValve'] == False
+    assert sim.ecu['binary_valves']['FuelVentValve'] == True
+    assert sim.ecu['binary_valves']['OxidizerVentValve'] == False
+
+def test_oxidizer_tank_press_and_depress():
+    sim = IgniterSimulation(SimConfig())
+    sim.advance_timestep()
+
+    sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
+
+    assert sim.simulate_until(lambda s: s.oxidizer_tank_dynamics.tank_pressure_pa > s.config.ecu_tank_pressure_set_point_pa * 0.9, 5.0)
+
+    assert sim.ecu['fuel_tank_state'] == 'Idle'
+    assert sim.ecu['oxidizer_tank_state'] == 'Pressurized'
+    assert sim.ecu['binary_valves']['FuelPressValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerPressValve'] == True
+    assert sim.ecu['binary_valves']['FuelVentValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerVentValve'] == False
+
+    sim.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
+
+    assert sim.simulate_until(lambda s: s.oxidizer_tank_dynamics.tank_pressure_pa < s.config.ecu_tank_pressure_set_point_pa * 0.5, 5.0)
+
+    assert sim.ecu['fuel_tank_state'] == 'Idle'
+    assert sim.ecu['oxidizer_tank_state'] == 'Depressurized'
+    assert sim.ecu['binary_valves']['FuelPressValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerPressValve'] == False
+    assert sim.ecu['binary_valves']['FuelVentValve'] == False
+    assert sim.ecu['binary_valves']['OxidizerVentValve'] == True
+

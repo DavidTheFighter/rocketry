@@ -1,13 +1,13 @@
 use crate::Ecu;
 use shared::{
-    comms_hal::{NetworkAddress, Packet},
-    ControllerState,
+    comms_hal::{NetworkAddress, Packet}, ecu_hal::EcuLinearOutput, ControllerState
 };
 
 use super::PumpFsm;
 
 #[derive(Debug)]
 pub struct Pumping {
+    linear_output: EcuLinearOutput,
 }
 
 impl<'f> ControllerState<PumpFsm, Ecu<'f>> for Pumping {
@@ -30,7 +30,9 @@ impl<'f> ControllerState<PumpFsm, Ecu<'f>> for Pumping {
 }
 
 impl Pumping {
-    pub fn new() -> PumpFsm {
-        PumpFsm::Pumping(Self {})
+    pub fn new(linear_output: EcuLinearOutput) -> PumpFsm {
+        PumpFsm::Pumping(Self {
+            linear_output,
+        })
     }
 }

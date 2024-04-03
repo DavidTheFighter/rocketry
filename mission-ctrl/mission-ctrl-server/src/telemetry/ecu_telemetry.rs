@@ -231,21 +231,21 @@ impl TelemetryHandler {
             if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpOutletPressure) {
                 graph_data.insert(
                     String::from("fuel_pump_outlet_pressure_psi"),
-                    json!(pressure_pa),
+                    json!(pressure_pa / 6894.75729),
                 );
             }
 
             if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpInletPressure) {
                 graph_data.insert(
                     String::from("fuel_pump_inlet_pressure_psi"),
-                    json!(pressure_pa),
+                    json!(pressure_pa / 6894.75729),
                 );
             }
 
             if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpInducerPressure) {
                 graph_data.insert(
                     String::from("fuel_pump_inducer_pressure_psi"),
-                    json!(pressure_pa),
+                    json!(pressure_pa / 6894.75729),
                 );
             }
         }

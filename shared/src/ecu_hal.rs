@@ -31,6 +31,12 @@ pub enum PumpState {
     Pumping,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TankType {
+    FuelMain,
+    OxidizerMain,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter, Hash)]
 pub enum EcuSensor {
     FuelTankPressure,
@@ -62,8 +68,9 @@ pub enum EcuCommand {
     },
     SetSparking(bool),
     FireIgniter,
-    SetFuelTank(TankState),
-    SetOxidizerTank(TankState),
+    SetTankState((TankType, TankState)),
+    SetFuelPumpDuty(f32),
+    SetOxidizerPumpDuty(f32),
     ConfigureSensor {
         sensor: EcuSensor,
         config: SensorConfig,
@@ -197,6 +204,9 @@ pub trait EcuDriver {
 
     fn set_binary_valve(&mut self, valve: EcuBinaryOutput, state: bool);
     fn get_binary_valve(&self, valve: EcuBinaryOutput) -> bool;
+
+    fn set_linear_output(&mut self, output: EcuLinearOutput, value: f32);
+    fn get_linear_output(&self, output: EcuLinearOutput) -> f32;
 
     fn as_mut_any(&mut self) -> &mut dyn Any;
 }

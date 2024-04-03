@@ -92,7 +92,10 @@ impl SilTankDynamics {
         let tank_mass_kg = self.calc_tank_mass_kg();
 
         self.new_state.tank_pressure_pa *= (tank_mass_kg + mass_flow_kg) / tank_mass_kg;
-        self.outlet.borrow_mut(py).new_state.inlet_pressure_pa = self.new_state.tank_pressure_pa;
+        self.outlet
+            .borrow_mut(py)
+            .new_state
+            .applied_inlet_pressure_pa = self.state.tank_pressure_pa;
     }
 
     fn post_update(&mut self) {
@@ -107,7 +110,9 @@ impl SilTankDynamics {
 
 impl SilTankDynamics {
     fn calc_feed_mass_flow_kg(&self, dt: Scalar) -> Scalar {
-        if self.state.tank_pressure_pa >= self.feed_config.feed_setpoint_pa || !self.state.feed_valve_open {
+        if self.state.tank_pressure_pa >= self.feed_config.feed_setpoint_pa
+            || !self.state.feed_valve_open
+        {
             return 0.0;
         }
 
@@ -125,8 +130,8 @@ impl SilTankDynamics {
             * expansibility_factor
             * (2.0
                 * upstream_gas_density
-                * (self.feed_config.feed_pressure_pa - self.state.tank_pressure_pa)
-            ).sqrt();
+                * (self.feed_config.feed_pressure_pa - self.state.tank_pressure_pa))
+                .sqrt();
 
         mass_flow_rate_kg_s * dt
     }
@@ -147,14 +152,16 @@ impl SilTankDynamics {
             * expansibility_factor
             * (2.0
                 * upstream_gas_density
-                * (self.state.tank_pressure_pa - ATMOSPHERIC_PRESSURE_PA)
-            ).sqrt();
+                * (self.state.tank_pressure_pa - ATMOSPHERIC_PRESSURE_PA))
+                .sqrt();
 
         mass_flow_rate_kg_s * dt
     }
 
     fn calc_tank_mass_kg(&self) -> Scalar {
-        self.state.tank_pressure_pa * self.tank_volume_m3 * self.feed_config.feed_gas.molecular_weight_kg
+        self.state.tank_pressure_pa
+            * self.tank_volume_m3
+            * self.feed_config.feed_gas.molecular_weight_kg
             / (GAS_CONSTANT * self.feed_config.feed_gas_temp_k)
     }
 }

@@ -67,7 +67,7 @@ def test_unstable_pressure_no_ignition(config):
     def combustion_modifier(pressure_pa: float) -> float:
         nonlocal sim
 
-        return 0.0 # pressure_pa * (math.sin(sim.t * 1000.0) * 0.5 + 0.5)
+        return sil.ATMOSPHERIC_PRESSURE_PA # pressure_pa * (math.sin(sim.t * 1000.0) * 0.5 + 0.5)
 
     sim.igniter_dynamics.set_combustion_pressure_modifier(combustion_modifier)
 

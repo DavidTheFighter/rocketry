@@ -21,15 +21,16 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<mission_ctrl::MissionControl>()?;
 
     m.add_class::<dynamics::DynamicsManager>()?;
+    m.add_class::<logging::Logger>()?;
 
     m.add_class::<dynamics::SilTankDynamics>()?;
     m.add_class::<dynamics::SilTankFeedConfig>()?;
     m.add_class::<dynamics::SilVehicleDynamics>()?;
     m.add_class::<dynamics::combustion::CombustionData>()?;
     m.add_class::<dynamics::igniter::SilIgniterDynamics>()?;
-    m.add_class::<dynamics::igniter::InjectorConfig>()?;
-    m.add_class::<logging::Logger>()?;
+    m.add_class::<dynamics::pump::SilPumpDynamics>()?;
 
+    m.add_class::<dynamics::igniter::InjectorConfig>()?;
     m.add_class::<dynamics::pipe::FluidConnection>()?;
     m.add_class::<dynamics::fluid::GasDefinition>()?;
     m.add_class::<dynamics::fluid::LiquidDefinition>()?;
@@ -38,7 +39,10 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<network::SilNetworkPhy>()?;
     m.add_class::<network::SilNetworkIface>()?;
 
-    m.add_function(wrap_pyfunction!(simulation_manager::simulate_app_replay, m)?)?;
+    m.add_function(wrap_pyfunction!(
+        simulation_manager::simulate_app_replay,
+        m
+    )?)?;
     m.add_function(wrap_pyfunction!(logging::load_logs_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(fcu::convert_altitude_to_pressure, m)?)?;
     m.add_function(wrap_pyfunction!(fcu::convert_pressure_to_altitude, m)?)?;

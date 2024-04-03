@@ -54,13 +54,15 @@ impl Depressurized {
     fn should_transition_state(&self, packets: &[(NetworkAddress, Packet)]) -> Option<TankFsm> {
         for (_address, packet) in packets {
             if let Packet::EcuCommand(command) = packet {
-                if let EcuCommand::SetFuelTank(new_state) = command {
-                    return Some(new_state_from_command(
-                        *new_state,
-                        self.tank_type,
-                        self.press_valve,
-                        self.vent_valve,
-                    ));
+                if let EcuCommand::SetTankState((tank, new_state)) = command {
+                    if *tank == self.tank_type {
+                        return Some(new_state_from_command(
+                            *new_state,
+                            self.tank_type,
+                            self.press_valve,
+                            self.vent_valve,
+                        ));
+                    }
                 }
             }
         }

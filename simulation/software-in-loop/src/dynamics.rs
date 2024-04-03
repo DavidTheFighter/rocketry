@@ -2,6 +2,7 @@ pub mod combustion;
 pub mod fluid;
 pub mod igniter;
 pub mod pipe;
+pub mod pump;
 pub mod tank;
 pub mod vehicle;
 
@@ -35,16 +36,17 @@ impl DynamicsManager {
 
     pub fn update(&mut self, py: Python, dt: f64) {
         for component in self.components.iter_mut() {
-            component
-                .call_method1(py, "update", (dt,))
-                .expect(&format!("Failed to call update on {:?}", component.to_string()));
+            component.call_method1(py, "update", (dt,)).expect(&format!(
+                "Failed to call update on {:?}",
+                component.to_string()
+            ));
         }
 
         for component in self.components.iter_mut() {
-            component
-                .call_method0(py, "post_update")
-                .expect(&format!("Failed to call pre_update on {:?}", component.to_string()));
+            component.call_method0(py, "post_update").expect(&format!(
+                "Failed to call pre_update on {:?}",
+                component.to_string()
+            ));
         }
     }
 }
-

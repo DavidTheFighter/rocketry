@@ -1,7 +1,6 @@
 use rand_distr::Distribution;
 use shared::SensorData;
 
-
 pub trait SensorNoise {
     fn update(&mut self, value: f64, dt: f64) -> Option<SensorData>;
 }
@@ -53,10 +52,13 @@ impl SensorNoise for LinearVoltagePressureTranducer {
         let noisy_value = self.sensor_value + self.normal_distr.sample(&mut rand::thread_rng());
 
         self.time_since_last_update = 0.0;
-        let lerp = (noisy_value- self.pressure_min) / (self.pressure_max - self.pressure_min);
+        let lerp = (noisy_value - self.pressure_min) / (self.pressure_max - self.pressure_min);
         let raw = (lerp * ((self.raw_max - self.raw_min) as f64)) as u16 + self.raw_min;
 
-        Some(SensorData::Pressure { pressure_pa: noisy_value as f32, raw_data: raw })
+        Some(SensorData::Pressure {
+            pressure_pa: noisy_value as f32,
+            raw_data: raw,
+        })
     }
 }
 
@@ -103,9 +105,13 @@ impl SensorNoise for LinearVoltageTemperatureSensor {
         }
 
         self.time_since_last_update = 0.0;
-        let lerp = (self.sensor_value - self.temperature_min) / (self.temperature_max - self.temperature_min);
+        let lerp = (self.sensor_value - self.temperature_min)
+            / (self.temperature_max - self.temperature_min);
         let raw = (lerp * ((self.raw_max - self.raw_min) as f64)) as u16 + self.raw_min;
 
-        Some(SensorData::Temperature { temperature_k: self.sensor_value as f32, raw_data: raw })
+        Some(SensorData::Temperature {
+            temperature_k: self.sensor_value as f32,
+            raw_data: raw,
+        })
     }
 }

@@ -1,6 +1,11 @@
 use pyo3::prelude::*;
 
-use super::{combustion::{calc_chamber_pressure, CombustionData}, fluid::LiquidDefinition, pipe::FluidConnection, Scalar};
+use super::{
+    combustion::{calc_chamber_pressure, CombustionData},
+    fluid::LiquidDefinition,
+    pipe::FluidConnection,
+    Scalar, ATMOSPHERIC_PRESSURE_PA,
+};
 
 pub const MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA: Scalar = 206843.0; // 30 PSI
 
@@ -82,21 +87,26 @@ impl SilIgniterDynamics {
         let dt = dt as Scalar;
 
         let fuel_mass_flow_kg = self.calc_fuel_mass_flow_kg(dt, self.fuel_inlet.borrow(py));
-        let oxidizer_mass_flow_kg = self.calc_oxidizer_mass_flow_kg(dt, self.oxidizer_inlet.borrow(py));
+        let oxidizer_mass_flow_kg =
+            self.calc_oxidizer_mass_flow_kg(dt, self.oxidizer_inlet.borrow(py));
 
         let total_mass_flow_kg = fuel_mass_flow_kg + oxidizer_mass_flow_kg;
 
-        let mut target_combustion_pressure_pa = if self.can_support_combustion(fuel_mass_flow_kg, oxidizer_mass_flow_kg) {
-             calc_chamber_pressure(
-                total_mass_flow_kg / dt,
-                self.throat_area_m2,
-                &self.combustion_data,
-            )
-        } else {
-            0.0
-        };
+        let mut target_combustion_pressure_pa =
+            if self.can_support_combustion(fuel_mass_flow_kg, oxidizer_mass_flow_kg) {
+                calc_chamber_pressure(
+                    total_mass_flow_kg / dt,
+                    self.throat_area_m2,
+                    &self.combustion_data,
+                )
+            } else {
+                ATMOSPHERIC_PRESSURE_PA
+            };
 
-        if let Ok(result) = self.combustion_pressure_modifier.call1(py, (target_combustion_pressure_pa,)) {
+        if let Ok(result) = self
+            .combustion_pressure_modifier
+            .call1(py, (target_combustion_pressure_pa,))
+        {
             if let Ok(pressure) = result.extract::<Scalar>(py) {
                 target_combustion_pressure_pa = pressure;
             }
@@ -105,6 +115,14 @@ impl SilIgniterDynamics {
         let delta = target_combustion_pressure_pa - self.state.chamber_pressure_pa;
 
         self.new_state.chamber_pressure_pa += delta * 10.0 * dt;
+        self.fuel_inlet
+            .borrow_mut(py)
+            .new_state
+            .applied_outlet_pressure_pa = self.new_state.chamber_pressure_pa;
+        self.oxidizer_inlet
+            .borrow_mut(py)
+            .new_state
+            .applied_outlet_pressure_pa = self.new_state.chamber_pressure_pa;
     }
 
     pub fn set_combustion_pressure_modifier(&mut self, callback: PyObject) {
@@ -113,12 +131,12 @@ impl SilIgniterDynamics {
 
     #[getter]
     pub fn fuel_pressure_pa(&self, py: Python) -> f64 {
-        self.fuel_inlet.borrow(py).state.outlet_pressure_pa
+        self.fuel_inlet.borrow(py).outlet_pressure_pa()
     }
 
     #[getter]
     pub fn oxidizer_pressure_pa(&self, py: Python) -> f64 {
-        self.oxidizer_inlet.borrow(py).state.outlet_pressure_pa
+        self.oxidizer_inlet.borrow(py).outlet_pressure_pa()
     }
 
     #[getter]
@@ -152,7 +170,8 @@ impl SilIgniterDynamics {
             return false;
         }
 
-        if self.state.chamber_pressure_pa > MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA { // 30 PSI
+        if self.state.chamber_pressure_pa > MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA {
+            // 30 PSI
             return true;
         }
 
@@ -164,7 +183,7 @@ impl SilIgniterDynamics {
     }
 
     fn calc_fuel_mass_flow_kg(&self, dt: Scalar, inlet: PyRef<'_, FluidConnection>) -> Scalar {
-        if inlet.state.closed || inlet.state.outlet_pressure_pa <= self.state.chamber_pressure_pa {
+        if inlet.state.closed || inlet.outlet_pressure_pa() <= self.state.chamber_pressure_pa {
             return 0.0;
         }
 
@@ -172,14 +191,14 @@ impl SilIgniterDynamics {
             * self.fuel_injector.injector_orifice_cd
             * (2.0
                 * self.fuel_injector.liquid.density_kg_m3
-                * (inlet.state.outlet_pressure_pa - self.state.chamber_pressure_pa)
-            ).sqrt();
+                * (inlet.outlet_pressure_pa() - self.state.chamber_pressure_pa))
+                .sqrt();
 
         mass_flow_rate_kg_s * dt
     }
 
     fn calc_oxidizer_mass_flow_kg(&self, dt: Scalar, inlet: PyRef<'_, FluidConnection>) -> Scalar {
-        if inlet.state.closed || inlet.state.outlet_pressure_pa <= self.state.chamber_pressure_pa{
+        if inlet.state.closed || inlet.outlet_pressure_pa() <= self.state.chamber_pressure_pa {
             return 0.0;
         }
 
@@ -187,8 +206,8 @@ impl SilIgniterDynamics {
             * self.oxidizer_injector.injector_orifice_cd
             * (2.0
                 * self.oxidizer_injector.liquid.density_kg_m3
-                * (inlet.state.outlet_pressure_pa - self.state.chamber_pressure_pa)
-            ).sqrt();
+                * (inlet.outlet_pressure_pa() - self.state.chamber_pressure_pa))
+                .sqrt();
 
         mass_flow_rate_kg_s * dt
     }

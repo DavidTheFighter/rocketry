@@ -1,5 +1,5 @@
 use shared::{
-    ecu_hal::{EcuBinaryOutput, TankState},
+    ecu_hal::{EcuBinaryOutput, TankState, TankType},
     ControllerFsm, ControllerState,
 };
 
@@ -8,12 +8,6 @@ use crate::Ecu;
 pub mod depressurized;
 pub mod idle;
 pub mod pressurized;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TankType {
-    Fuel,
-    Oxidizer,
-}
 
 #[derive(Debug)]
 pub enum TankFsm {

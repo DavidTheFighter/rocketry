@@ -1,12 +1,13 @@
 use core::any::Any;
 
-use crate::ecu_hal::{EcuDriver, EcuSensor, EcuBinaryOutput};
+use crate::ecu_hal::{EcuBinaryOutput, EcuDriver, EcuLinearOutput, EcuSensor};
 use strum::EnumCount;
 
 pub struct EcuDriverMock {
     start_timestamp: f64,
     sparking: bool,
     binary_valves: [bool; EcuBinaryOutput::COUNT],
+    linear_outputs: [f32; EcuLinearOutput::COUNT],
     sensors: [(f32, f32, f32); EcuSensor::COUNT],
 }
 
@@ -27,6 +28,14 @@ impl EcuDriver for EcuDriverMock {
         self.binary_valves[valve.index()]
     }
 
+    fn set_linear_output(&mut self, output: EcuLinearOutput, value: f32) {
+        self.linear_outputs[output.index()] = value;
+    }
+
+    fn get_linear_output(&self, output: EcuLinearOutput) -> f32 {
+        self.linear_outputs[output.index()]
+    }
+
     fn get_sparking(&self) -> bool {
         self.sparking
     }
@@ -42,6 +51,7 @@ impl EcuDriverMock {
             start_timestamp: get_timestamp(),
             sparking: false,
             binary_valves: [false; EcuBinaryOutput::COUNT],
+            linear_outputs: [0.0; EcuLinearOutput::COUNT],
             sensors: [(0_f32, 0_f32, 0_f32); EcuSensor::COUNT],
         }
     }

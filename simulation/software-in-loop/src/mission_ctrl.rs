@@ -7,7 +7,8 @@ use big_brother::{
 use fcu_rs::FcuBigBrother;
 use pyo3::{prelude::*, types::PyList};
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal, fcu_hal
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal, fcu_hal,
 };
 
 use crate::network::SilNetworkIface;
@@ -99,8 +100,8 @@ impl MissionControl {
 
     pub fn send_set_fuel_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
         let command = match pressurized {
-            true => ecu_hal::EcuCommand::SetFuelTank(ecu_hal::TankState::Pressurized),
-            false => ecu_hal::EcuCommand::SetFuelTank(ecu_hal::TankState::Depressurized),
+            true => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::FuelMain, ecu_hal::TankState::Pressurized)),
+            false => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::FuelMain, ecu_hal::TankState::Depressurized)),
         };
 
         let packet = Packet::EcuCommand(command);
@@ -109,8 +110,8 @@ impl MissionControl {
 
     pub fn send_set_oxidizer_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
         let command = match pressurized {
-            true => ecu_hal::EcuCommand::SetOxidizerTank(ecu_hal::TankState::Pressurized),
-            false => ecu_hal::EcuCommand::SetOxidizerTank(ecu_hal::TankState::Depressurized),
+            true => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::OxidizerMain, ecu_hal::TankState::Pressurized)),
+            false => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::OxidizerMain, ecu_hal::TankState::Depressurized)),
         };
 
         let packet = Packet::EcuCommand(command);
