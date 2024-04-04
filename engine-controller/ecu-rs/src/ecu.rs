@@ -150,6 +150,8 @@ impl<'a> Ecu<'a> {
             engine_state: EngineState::Idle,
             igniter_state: self.igniter_state(),
             igniter_chamber_pressure_pa: self.state_vector.sensor_data.igniter_chamber_pressure_pa,
+            fuel_pump_state: self.fuel_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
+            oxidizer_pump_state: self.oxidizer_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
         }
     }
 

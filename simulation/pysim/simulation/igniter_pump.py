@@ -76,13 +76,13 @@ class IgniterPumpSimulation(SimulationBase):
         self.fuel_pump = sil.SilPumpDynamics(
             self.tank_fuel_pipe,
             self.pump_fuel_pipe,
-            200 * 6894.76, # Pump pressure rise in Pa
+            config.main_fuel_pump_pressure_setpoint_pa - config.ecu_tank_pressure_set_point_pa, # Pump pressure rise in Pa
         )
 
         self.oxidizer_pump = sil.SilPumpDynamics(
             self.tank_oxidizer_pipe,
             self.pump_oxidizer_pipe,
-            150 * 6894.76, # Pump pressure rise in Pa
+            config.main_oxidizer_pump_pressure_setpoint_pa - config.ecu_tank_pressure_set_point_pa, # Pump pressure rise in Pa
         )
 
         self.ecu = sil.EcuSil(

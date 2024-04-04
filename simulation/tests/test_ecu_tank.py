@@ -7,6 +7,7 @@ import pytest
 def config():
     config = SimConfig()
     config.ecu_tank_vent_diamter_m = 0.0075
+    config.ecu_tank_pressure_set_point_pa = 200 * 6894.75729 # PSI to pascals
 
     return config
 
@@ -69,8 +70,8 @@ def test_tank_press_and_depress(config):
     assert sim.fuel_tank_dynamics.tank_pressure_pa < config.ecu_tank_pressure_set_point_pa * 0.5
     assert sim.oxidizer_tank_dynamics.tank_pressure_pa < config.ecu_tank_pressure_set_point_pa * 0.5
 
-def test_fuel_tank_press_and_depress():
-    sim = IgniterSimulation(SimConfig())
+def test_fuel_tank_press_and_depress(config):
+    sim = IgniterSimulation(config)
     sim.advance_timestep()
 
     sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
@@ -95,8 +96,8 @@ def test_fuel_tank_press_and_depress():
     assert sim.ecu['binary_valves']['FuelVentValve'] == True
     assert sim.ecu['binary_valves']['OxidizerVentValve'] == False
 
-def test_oxidizer_tank_press_and_depress():
-    sim = IgniterSimulation(SimConfig())
+def test_oxidizer_tank_press_and_depress(config):
+    sim = IgniterSimulation(config)
     sim.advance_timestep()
 
     sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)

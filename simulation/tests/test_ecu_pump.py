@@ -1,0 +1,112 @@
+import software_in_loop as sil
+from simulation.pysim.config import SimConfig
+import pytest
+
+from simulation.pysim.simulation.igniter_pump import IgniterPumpSimulation
+
+THRESHOLD_PRESSURE = sil.ATMOSPHERIC_PRESSURE_PA * 2.0
+
+@pytest.fixture
+def config():
+    config = SimConfig()
+    config.ecu_tank_pressure_set_point_pa = 0.0
+
+    return config
+
+def test_pump_init_state(config):
+    sim = IgniterPumpSimulation(config)
+    sim.advance_timestep()
+
+    assert sim.ecu['fuel_pump_state'] == 'Idle'
+    assert sim.ecu['oxidizer_pump_state'] == 'Idle'
+
+    def assert_idle_state(sim: IgniterPumpSimulation):
+        assert sim.ecu['fuel_pump_state'] == 'Idle'
+        assert sim.ecu['oxidizer_pump_state'] == 'Idle'
+        assert sim.ecu['sensors']['FuelPumpOutletPressure'] < THRESHOLD_PRESSURE
+        assert sim.ecu['sensors']['OxidizerPumpOutletPressure'] < THRESHOLD_PRESSURE
+
+    sim.simulate_assert(assert_idle_state, 5.0)
+
+def test_pump_idle_after_zero_duty(config):
+    sim = IgniterPumpSimulation(config)
+    sim.advance_timestep()
+
+    sim.mission_ctrl.send_set_fuel_pump_packet(0, 0.0)
+    sim.mission_ctrl.send_set_oxidizer_pump_packet(0, 0.0)
+
+    def assert_idle_state(sim: IgniterPumpSimulation):
+        assert sim.ecu['fuel_pump_state'] == 'Idle'
+        assert sim.ecu['oxidizer_pump_state'] == 'Idle'
+        assert sim.ecu['sensors']['FuelPumpOutletPressure'] < THRESHOLD_PRESSURE
+        assert sim.ecu['sensors']['OxidizerPumpOutletPressure'] < THRESHOLD_PRESSURE
+
+    sim.simulate_assert(assert_idle_state, 2.5)
+
+def test_fuel_pump_startup(config):
+    sim = IgniterPumpSimulation(config)
+    sim.advance_timestep()
+
+    sim.mission_ctrl.send_set_fuel_pump_packet(0, 1.0)
+    sim.mission_ctrl.send_set_oxidizer_pump_packet(0, 0.0)
+
+    def assert_startup_state(sim: IgniterPumpSimulation):
+        assert sim.ecu['oxidizer_pump_state'] == 'Idle'
+        assert sim.ecu['sensors']['OxidizerPumpOutletPressure'] < THRESHOLD_PRESSURE
+
+        if sim.ecu['fuel_pump_state'] == 'Pumping' and sim.ecu['sensors']['FuelPumpOutletPressure'] > config.main_fuel_pump_pressure_setpoint_pa * 0.9:
+            return True
+
+        return False
+
+    assert sim.simulate_until(assert_startup_state, 5.0)
+
+def test_oxidizer_pump_startup(config):
+    sim = IgniterPumpSimulation(config)
+    sim.advance_timestep()
+
+    sim.mission_ctrl.send_set_fuel_pump_packet(0, 0.0)
+    sim.mission_ctrl.send_set_oxidizer_pump_packet(0, 1.0)
+
+    def assert_startup_state(sim: IgniterPumpSimulation):
+        assert sim.ecu['fuel_pump_state'] == 'Idle'
+        assert sim.ecu['sensors']['FuelPumpOutletPressure'] < THRESHOLD_PRESSURE
+
+        if sim.ecu['oxidizer_pump_state'] == 'Pumping' and sim.ecu['sensors']['OxidizerPumpOutletPressure'] > config.main_oxidizer_pump_pressure_setpoint_pa * 0.9:
+            return True
+
+        return False
+
+    assert sim.simulate_until(assert_startup_state, 5.0)
+
+def test_pump_shutdown(config):
+    sim = IgniterPumpSimulation(config)
+    sim.advance_timestep()
+
+    sim.mission_ctrl.send_set_fuel_pump_packet(0, 1.0)
+    sim.mission_ctrl.send_set_oxidizer_pump_packet(0, 1.0)
+
+    def detect_startup_state(sim: IgniterPumpSimulation):
+        if sim.ecu['fuel_pump_state'] == 'Pumping' \
+            and sim.ecu['oxidizer_pump_state'] == 'Pumping' \
+            and sim.ecu['sensors']['FuelPumpOutletPressure'] > config.main_fuel_pump_pressure_setpoint_pa * 0.9 \
+            and sim.ecu['sensors']['OxidizerPumpOutletPressure'] > config.main_oxidizer_pump_pressure_setpoint_pa * 0.9:
+            return True
+
+        return False
+
+    assert sim.simulate_until(detect_startup_state, 5.0)
+
+    sim.mission_ctrl.send_set_fuel_pump_packet(0, 0.0)
+    sim.mission_ctrl.send_set_oxidizer_pump_packet(0, 0.0)
+
+    def detect_shutdown_state(sim: IgniterPumpSimulation):
+        if sim.ecu['fuel_pump_state'] == 'Idle' \
+            and sim.ecu['oxidizer_pump_state'] == 'Idle' \
+            and sim.ecu['sensors']['FuelPumpOutletPressure'] < THRESHOLD_PRESSURE \
+            and sim.ecu['sensors']['OxidizerPumpOutletPressure'] < THRESHOLD_PRESSURE:
+            return True
+
+        return False
+
+    assert sim.simulate_until(detect_shutdown_state, 5.0)

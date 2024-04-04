@@ -18,8 +18,11 @@ class SimConfig:
 
     ecu_pressure_sensor_rate: float = 0.001 # Seconds
 
-    ecu_tank_vent_diamter_m: float = 0.005 # Meters
-    ecu_tank_pressure_set_point_pa: float = 200 * 6894.75729 # PSI to pascals
+    ecu_tank_vent_diamter_m: float = 0.0025 # Meters
+    ecu_tank_pressure_set_point_pa: float = 50 * 6894.75729 # PSI to pascals
+
+    main_fuel_pump_pressure_setpoint_pa: float = 300 * 6894.75729 # PSI to pascals
+    main_oxidizer_pump_pressure_setpoint_pa: float = 300 * 6894.75729 # PSI to pascals
 
     # Make sure to update the noises in fcu_config
     accel_noise: float = 0.01 # Meters per second squared

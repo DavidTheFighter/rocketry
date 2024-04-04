@@ -1,4 +1,4 @@
-use shared::ecu_hal::{EcuDebugInfo, EcuDebugInfoVariant, TankState};
+use shared::ecu_hal::{EcuDebugInfo, EcuDebugInfoVariant, PumpState, TankState};
 use strum::IntoEnumIterator;
 
 use crate::Ecu;
@@ -20,6 +20,11 @@ impl<'a> Ecu<'a> {
                 timestamp,
                 fuel_tank_state: self.fuel_tank_state().unwrap_or(TankState::Idle),
                 oxidizer_tank_state: self.oxidizer_tank_state().unwrap_or(TankState::Idle),
+            },
+            EcuDebugInfoVariant::PumpInfo => EcuDebugInfo::PumpInfo {
+                timestamp,
+                fuel_pump_state: self.fuel_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
+                oxidizer_pump_state: self.oxidizer_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
             },
             EcuDebugInfoVariant::SensorData => EcuDebugInfo::SensorData {
                 timestamp,

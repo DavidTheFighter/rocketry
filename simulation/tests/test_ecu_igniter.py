@@ -11,6 +11,7 @@ def config():
     config = SimConfig()
     config.sim_update_rate = 0.0005 # Seconds
     config.ecu_tank_vent_diamter_m = 0.0075
+    config.ecu_tank_pressure_set_point_pa = 200 * 6894.75729 # PSI to pascals
     return config
 
 def test_igniter_init_state(config):

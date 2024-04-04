@@ -119,6 +119,8 @@ pub struct EcuTelemetryFrame {
     pub timestamp: u64,
     pub engine_state: EngineState,
     pub igniter_state: IgniterState,
+    pub fuel_pump_state: PumpState,
+    pub oxidizer_pump_state: PumpState,
     pub igniter_chamber_pressure_pa: f32,
 }
 
@@ -147,6 +149,11 @@ pub enum EcuDebugInfo {
         timestamp: u64,
         fuel_tank_state: TankState,
         oxidizer_tank_state: TankState,
+    },
+    PumpInfo {
+        timestamp: u64,
+        fuel_pump_state: PumpState,
+        oxidizer_pump_state: PumpState,
     },
     SensorData {
         timestamp: u64,

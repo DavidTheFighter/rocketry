@@ -68,7 +68,7 @@ pub enum Packet {
 pub mod tests_data {
     use super::*;
     use crate::{
-        ecu_hal::{EngineState, IgniterState}, fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER
+        ecu_hal::{self, EngineState, IgniterState}, fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER
     };
     use mint::Vector3;
     use strum::EnumCount;
@@ -116,6 +116,8 @@ pub mod tests_data {
             engine_state: EngineState::Idle,
             igniter_state: IgniterState::Shutdown,
             igniter_chamber_pressure_pa: 1234.567,
+            fuel_pump_state: ecu_hal::PumpState::Idle,
+            oxidizer_pump_state: ecu_hal::PumpState::Idle,
         }),
         Packet::EcuTankTelemetry(EcuTankTelemetryFrame {
             timestamp: 0xABAD_1234_FEDC_DEAD,

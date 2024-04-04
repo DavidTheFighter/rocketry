@@ -195,6 +195,15 @@ impl EcuSil {
         }
         dict.set_item("binary_valves", binary_valves)?;
 
+        let sensors = PyDict::new(py);
+        for sensor in EcuSensor::iter() {
+            sensors.set_item(
+                format!("{:?}", sensor),
+                self.get_direct_sensor_value(py, sensor),
+            )?;
+        }
+        dict.set_item("sensors", sensors)?;
+
         dict.get_item_with_error(key)
             .map(|value| value.to_object(py))
     }
