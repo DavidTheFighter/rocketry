@@ -5,6 +5,7 @@ class SimConfig:
     fcu_update_rate: float = 0.02 # Seconds
     ecu_update_rate: float = 0.001 # Seconds
     sim_update_rate: float = 0.001 # Seconds
+    replay_update_rate: float = 0.01 # Seconds
 
     vehicle_mass: float = 1 # Kilograms
     thrust: float = 25 # Newtons

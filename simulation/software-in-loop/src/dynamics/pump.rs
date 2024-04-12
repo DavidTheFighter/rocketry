@@ -59,7 +59,7 @@ impl SilPumpDynamics {
         self.outlet
             .borrow_mut(py)
             .new_state
-            .applied_outlet_pressure_pa = self.new_state.pressure_pa;
+            .applied_inlet_pressure_pa = self.new_state.pressure_pa;
     }
 
     fn post_update(&mut self) {

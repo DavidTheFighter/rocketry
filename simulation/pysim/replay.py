@@ -24,7 +24,7 @@ class SimReplay():
 
             packet_accum += self.logger.get_network_packet_bytes(i)
 
-            if i % (int(self.config.fcu_update_rate / dt)) == 0:
+            if i % (int(self.config.replay_update_rate / dt)) == 0:
                 data = self.logger.grab_timestep_frame(i)
 
                 if i % (int(1.0 / dt)) == 0:
@@ -62,9 +62,9 @@ class SimReplay():
 
                 while len(packet_accum) > 0:
                     packet_data = bytearray(packet_accum.pop(0))
-                    udp_socket.sendto(packet_data, ("localhost", MISSION_CTRL_PORT))
+                    udp_socket.sendto(packet_data, ("127.0.0.1", MISSION_CTRL_PORT))
 
-                while time.time() < lt + self.config.fcu_update_rate:
+                while time.time() < lt + self.config.replay_update_rate:
                     pass
                 lt = time.time()
 

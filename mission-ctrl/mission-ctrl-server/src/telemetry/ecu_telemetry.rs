@@ -176,6 +176,13 @@ impl TelemetryHandler {
                 Value::Number(self.current_telemetry_rate_hz.into()),
             );
 
+            if let Some(last_tank_telemetry) = &self.last_tank_telemetry.get(&ecu_index) {
+                let mut tank_telemetry = rocket::serde::json::to_value(last_tank_telemetry)
+                    .expect("Failed to convert tank telemetry frame to serde value");
+
+                telemetry_frame_map.append(tank_telemetry.as_object_mut().unwrap());
+            }
+
             telemetry_frame
         } else {
             Value::Null
@@ -209,6 +216,16 @@ impl TelemetryHandler {
                 String::from("igniter_chamber_pressure_psi"),
                 json!(last_ecu_telemetry.igniter_chamber_pressure_pa / 6894.75729),
             );
+
+            graph_data.insert(
+                String::from("fuel_pump_outlet_pressure_psi"),
+                json!(last_ecu_telemetry.fuel_pump_outlet_pressure_pa / 6894.75729),
+            );
+
+            graph_data.insert(
+                String::from("oxidizer_pump_outlet_pressure_psi"),
+                json!(last_ecu_telemetry.oxidizer_pump_outlet_pressure_pa / 6894.75729),
+            );
         }
 
         if let Some(_values) = self.debug_info_values.get(&ecu_index) { }
@@ -228,13 +245,6 @@ impl TelemetryHandler {
                 );
             }
 
-            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpOutletPressure) {
-                graph_data.insert(
-                    String::from("fuel_pump_outlet_pressure_psi"),
-                    json!(pressure_pa / 6894.75729),
-                );
-            }
-
             if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpInletPressure) {
                 graph_data.insert(
                     String::from("fuel_pump_inlet_pressure_psi"),
@@ -245,13 +255,6 @@ impl TelemetryHandler {
             if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpInducerPressure) {
                 graph_data.insert(
                     String::from("fuel_pump_inducer_pressure_psi"),
-                    json!(pressure_pa / 6894.75729),
-                );
-            }
-
-            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::OxidizerPumpOutletPressure) {
-                graph_data.insert(
-                    String::from("oxidizer_pump_outlet_pressure_psi"),
                     json!(pressure_pa / 6894.75729),
                 );
             }
@@ -286,16 +289,31 @@ impl TelemetryHandler {
     }
 
     fn get_packet(&self) -> Option<(NetworkAddress, Packet)> {
-        let timeout = Duration::from_millis(1);
+        if cfg!(windows) {
+            if let Some((_, event)) = self.observer_handler.get_event() {
+                if let ObserverEvent::PacketReceived {
+                    address,
+                    ip: _,
+                    packet,
+                } = event
+                {
+                    return Some((address, packet));
+                }
+            }
 
-        if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
-            if let ObserverEvent::PacketReceived {
-                address,
-                ip: _,
-                packet,
-            } = event
-            {
-                return Some((address, packet));
+            std::thread::yield_now();
+        } else {
+            let timeout = Duration::from_millis(1);
+
+            if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
+                if let ObserverEvent::PacketReceived {
+                    address,
+                    ip: _,
+                    packet,
+                } = event
+                {
+                    return Some((address, packet));
+                }
             }
         }
 

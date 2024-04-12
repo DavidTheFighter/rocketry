@@ -118,6 +118,8 @@ pub mod tests_data {
             igniter_chamber_pressure_pa: 1234.567,
             fuel_pump_state: ecu_hal::PumpState::Idle,
             oxidizer_pump_state: ecu_hal::PumpState::Idle,
+            fuel_pump_outlet_pressure_pa: 19522.4,
+            oxidizer_pump_outlet_pressure_pa: 96420.425,
         }),
         Packet::EcuTankTelemetry(EcuTankTelemetryFrame {
             timestamp: 0xABAD_1234_FEDC_DEAD,

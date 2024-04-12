@@ -8,7 +8,7 @@ pub mod fcu_telemetry;
 use rocket::serde::json::serde_json::Map;
 
 const GRAPH_DISPLAY_TIME_S: f32 = 20.0;
-const VISUAL_UPDATES_PER_S: f32 = 20.0;
+const VISUAL_UPDATES_PER_S: f32 = 10.0;
 const GRAPH_MAX_DATA_POINTS: usize = (GRAPH_DISPLAY_TIME_S * VISUAL_UPDATES_PER_S) as usize;
 
 pub fn get_routes() -> Vec<rocket::Route> {

@@ -152,6 +152,8 @@ impl<'a> Ecu<'a> {
             igniter_chamber_pressure_pa: self.state_vector.sensor_data.igniter_chamber_pressure_pa,
             fuel_pump_state: self.fuel_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
             oxidizer_pump_state: self.oxidizer_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
+            fuel_pump_outlet_pressure_pa: self.state_vector.sensor_data.fuel_pump_outlet_pressure_pa,
+            oxidizer_pump_outlet_pressure_pa: self.state_vector.sensor_data.oxidizer_pump_outlet_pressure_pa,
         }
     }
 
@@ -166,8 +168,8 @@ impl<'a> Ecu<'a> {
             timestamp: (self.driver.timestamp() * 1e3) as u64,
             fuel_tank_state,
             oxidizer_tank_state,
-            fuel_tank_pressure_pa: self.state_vector.sensor_data.fuel_tank_pressure_pa,
-            oxidizer_tank_pressure_pa: self.state_vector.sensor_data.oxidizer_tank_pressure_pa,
+            fuel_tank_pressure_pa: self.state_vector.sensor_data.fuel_tank_pressure_pa.unwrap_or(0.0),
+            oxidizer_tank_pressure_pa: self.state_vector.sensor_data.oxidizer_tank_pressure_pa.unwrap_or(0.0),
         })
     }
 

@@ -146,7 +146,7 @@ if __name__ == "__main__":
                 sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
                 sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
 
-            if not pumped and pressurized and sim.t > 1.0:
+            if not pumped and pressurized and sim.t > 1.5:
                 pumped = True
                 sim.mission_ctrl.send_set_fuel_pump_packet(0, True)
                 sim.mission_ctrl.send_set_oxidizer_pump_packet(0, True)

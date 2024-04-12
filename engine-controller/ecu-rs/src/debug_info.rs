@@ -28,8 +28,8 @@ impl<'a> Ecu<'a> {
             },
             EcuDebugInfoVariant::SensorData => EcuDebugInfo::SensorData {
                 timestamp,
-                fuel_tank_pressure_pa: self.state_vector.sensor_data.fuel_tank_pressure_pa,
-                oxidizer_tank_pressure_pa: self.state_vector.sensor_data.oxidizer_tank_pressure_pa,
+                fuel_tank_pressure_pa: self.state_vector.sensor_data.fuel_tank_pressure_pa.unwrap_or(0.0),
+                oxidizer_tank_pressure_pa: self.state_vector.sensor_data.oxidizer_tank_pressure_pa.unwrap_or(0.0),
             },
         }
     }

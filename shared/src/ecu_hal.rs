@@ -122,6 +122,8 @@ pub struct EcuTelemetryFrame {
     pub fuel_pump_state: PumpState,
     pub oxidizer_pump_state: PumpState,
     pub igniter_chamber_pressure_pa: f32,
+    pub fuel_pump_outlet_pressure_pa: f32,
+    pub oxidizer_pump_outlet_pressure_pa: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
