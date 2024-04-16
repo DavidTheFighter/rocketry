@@ -52,6 +52,21 @@ class SimConfig:
     })
 
     ecu_config: dict = field(default_factory=lambda: {
+        'engine_config': {
+            'fuel_injector_pressure_setpoint_pa': 500 * 6894.75729, # PSI to pascals
+            'fuel_injector_startup_pressure_tolerance_pa': 25 * 6894.75729, # PSI to pascals
+            'fuel_injector_running_pressure_tolerance_pa': 100 * 6894.75729, # PSI to pascals
+            'oxidizer_injector_pressure_setpoint_pa': 500 * 6894.75729, # PSI to pascals
+            'oxidizer_injector_startup_pressure_tolerance_pa': 25 * 6894.75729, # PSI to pascals
+            'oxidizer_injector_running_pressure_tolerance_pa': 100 * 6894.75729, # PSI to pascals
+            'engine_target_combustion_pressure_pa': 300 * 6894.75729, # PSI to pascals
+            'engine_combustion_pressure_tolerance_pa': 200 * 6894.75729, # PSI to pascals
+            'pump_startup_timeout_s': 5.0,
+            'igniter_startup_timeout_s': 2.0,
+            'engine_startup_timeout_s': 1.0,
+            'engine_firing_duration_s': 5.0,
+            'engine_shutdown_duration_s': 0.5,
+        },
         'igniter_config': {
             'startup_timeout_s': 1.0,
             'startup_pressure_threshold_pa': 30 * 6894.75729, # PSI to pascals
@@ -100,19 +115,19 @@ class SimConfig:
         },
         'EngineChamberPressure': {
             'rate': 0.001, # Seconds
-            'std_dev': 3500, # Pascals
+            'std_dev': 10000, # Pascals
             'pressure_min': 0, # Pascals
             'pressure_max': 500 * 6894.75729, # PSI to pascals
         },
         'EngineFuelInjectorPressure': {
             'rate': 0.001, # Seconds
-            'std_dev': 3500, # Pascals
+            'std_dev': 10000, # Pascals
             'pressure_min': 0, # Pascals
             'pressure_max': 500 * 6894.75729, # PSI to pascals
         },
         'EngineOxidizerInjectorPressure': {
             'rate': 0.001, # Seconds
-            'std_dev': 3500, # Pascals
+            'std_dev': 10000, # Pascals
             'pressure_min': 0, # Pascals
             'pressure_max': 500 * 6894.75729, # PSI to pascals
         },

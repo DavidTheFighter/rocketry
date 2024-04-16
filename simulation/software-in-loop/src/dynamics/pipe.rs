@@ -1,6 +1,6 @@
 use pyo3::prelude::*;
 
-use super::{Scalar, ATMOSPHERIC_PRESSURE_PA};
+use super::Scalar;
 
 #[pyclass]
 #[derive(Debug, Clone, Default)]

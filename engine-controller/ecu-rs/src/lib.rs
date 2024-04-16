@@ -23,4 +23,17 @@ macro_rules! silprintln {
     ($($arg:tt)*) => {};
 }
 
+use shared::ecu_hal::TankState;
 pub(crate) use silprintln;
+
+pub(crate) fn fsm_tanks_pressurized(ecu: &Ecu) -> bool {
+    let fuel_tank_pressurized = ecu
+        .fuel_tank_state()
+        .map_or(true, |state| state == TankState::Pressurized);
+
+    let oxidizer_tank_pressurized = ecu
+        .oxidizer_tank_state()
+        .map_or(true, |state| state == TankState::Pressurized);
+
+    fuel_tank_pressurized && oxidizer_tank_pressurized
+}

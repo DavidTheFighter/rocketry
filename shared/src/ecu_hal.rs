@@ -8,6 +8,11 @@ use crate::SensorConfig;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum EngineState {
     Idle,
+    PumpStartup,
+    IgniterStartup,
+    EngineStartup,
+    Firing,
+    EngineShutdown,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
@@ -74,6 +79,8 @@ pub enum EcuCommand {
     },
     SetSparking(bool),
     FireIgniter,
+    FireEnginePumpFed,
+    ShutdownEngine,
     SetTankState((TankType, TankState)),
     SetPumpDuty((PumpType, f32)),
     ConfigureSensor {
@@ -121,6 +128,9 @@ pub struct EcuTelemetryFrame {
     pub igniter_state: IgniterState,
     pub fuel_pump_state: PumpState,
     pub oxidizer_pump_state: PumpState,
+    pub engine_chamber_pressure_pa: f32,
+    pub engine_fuel_injector_pressure_pa: f32,
+    pub engine_oxidizer_injector_pressure_pa: f32,
     pub igniter_chamber_pressure_pa: f32,
     pub fuel_pump_outlet_pressure_pa: f32,
     pub oxidizer_pump_outlet_pressure_pa: f32,
@@ -166,9 +176,27 @@ pub enum EcuDebugInfo {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EcuConfig {
+    pub engine_config: EngineConfig,
     pub igniter_config: IgniterConfig,
     pub tanks_config: Option<TanksConfig>,
     pub telemetry_rate_s: f32,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct EngineConfig {
+    pub fuel_injector_pressure_setpoint_pa: f32,
+    pub fuel_injector_startup_pressure_tolerance_pa: f32,
+    pub fuel_injector_running_pressure_tolerance_pa: f32,
+    pub oxidizer_injector_pressure_setpoint_pa: f32,
+    pub oxidizer_injector_startup_pressure_tolerance_pa: f32,
+    pub oxidizer_injector_running_pressure_tolerance_pa: f32,
+    pub engine_target_combustion_pressure_pa: f32,
+    pub engine_combustion_pressure_tolerance_pa: f32,
+    pub pump_startup_timeout_s: f32,
+    pub igniter_startup_timeout_s: f32,
+    pub engine_startup_timeout_s: f32,
+    pub engine_firing_duration_s: Option<f32>,
+    pub engine_shutdown_duration_s: f32,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -190,9 +218,30 @@ pub struct TanksConfig {
 impl EcuConfig {
     pub fn default() -> Self {
         Self {
+            engine_config: EngineConfig::default(),
             igniter_config: IgniterConfig::default(),
             tanks_config: None,
             telemetry_rate_s: 0.02,
+        }
+    }
+}
+
+impl EngineConfig {
+    pub fn default() -> Self {
+        Self {
+            fuel_injector_pressure_setpoint_pa: 500.0 * 6894.76, // 1000 PSI to Pascals
+            fuel_injector_startup_pressure_tolerance_pa: 25.0 * 6894.76, // 50 PSI to Pascals
+            fuel_injector_running_pressure_tolerance_pa: 100.0 * 6894.76, // 10 PSI to Pascals
+            oxidizer_injector_pressure_setpoint_pa: 500.0 * 6894.76, // 1000 PSI to Pascals
+            oxidizer_injector_startup_pressure_tolerance_pa: 25.0 * 6894.76, // 50 PSI to Pascals
+            oxidizer_injector_running_pressure_tolerance_pa: 100.0 * 6894.76, // 10 PSI to Pascals
+            engine_target_combustion_pressure_pa: 300.0 * 6894.76, // 1000 PSI to Pascals
+            engine_combustion_pressure_tolerance_pa: 200.0 * 6894.76, // 100 PSI to Pascals
+            pump_startup_timeout_s: 1.0,
+            igniter_startup_timeout_s: 1.0,
+            engine_startup_timeout_s: 1.0,
+            engine_firing_duration_s: None,
+            engine_shutdown_duration_s: 0.5,
         }
     }
 }

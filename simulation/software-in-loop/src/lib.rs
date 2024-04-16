@@ -28,10 +28,12 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<dynamics::SilVehicleDynamics>()?;
     m.add_class::<dynamics::combustion::CombustionData>()?;
     m.add_class::<dynamics::igniter::SilIgniterDynamics>()?;
+    m.add_class::<dynamics::engine::SilEngineDynamics>()?;
     m.add_class::<dynamics::pump::SilPumpDynamics>()?;
 
-    m.add_class::<dynamics::igniter::InjectorConfig>()?;
+    m.add_class::<dynamics::InjectorConfig>()?;
     m.add_class::<dynamics::pipe::FluidConnection>()?;
+    m.add_class::<dynamics::pipe_splitter::FluidSplitter>()?;
     m.add_class::<dynamics::fluid::GasDefinition>()?;
     m.add_class::<dynamics::fluid::LiquidDefinition>()?;
 

@@ -10,6 +10,9 @@ pub struct SensorDataVector {
     pub igniter_oxidizer_injector_pressure_pa: Option<f32>, // Pa
     pub fuel_pump_outlet_pressure_pa: f32, // Pa
     pub oxidizer_pump_outlet_pressure_pa: f32, // Pa
+    pub engine_chamber_pressure_pa: f32, // Pa
+    pub engine_fuel_injector_pressure_pa: f32, // Pa
+    pub engine_oxidizer_injector_pressure_pa: f32, // Pa
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -28,6 +31,9 @@ impl StateVector {
                 igniter_oxidizer_injector_pressure_pa: None,
                 fuel_pump_outlet_pressure_pa: 0.0,
                 oxidizer_pump_outlet_pressure_pa: 0.0,
+                engine_chamber_pressure_pa: 0.0,
+                engine_fuel_injector_pressure_pa: 0.0,
+                engine_oxidizer_injector_pressure_pa: 0.0,
             },
         }
     }
@@ -67,6 +73,21 @@ impl StateVector {
             EcuSensor::OxidizerPumpOutletPressure => {
                 if let SensorData::Pressure { pressure_pa, .. } = data {
                     self.sensor_data.oxidizer_pump_outlet_pressure_pa = *pressure_pa;
+                }
+            },
+            EcuSensor::EngineChamberPressure => {
+                if let SensorData::Pressure { pressure_pa, .. } = data {
+                    self.sensor_data.engine_chamber_pressure_pa = *pressure_pa;
+                }
+            },
+            EcuSensor::EngineFuelInjectorPressure => {
+                if let SensorData::Pressure { pressure_pa, .. } = data {
+                    self.sensor_data.engine_fuel_injector_pressure_pa = *pressure_pa;
+                }
+            },
+            EcuSensor::EngineOxidizerInjectorPressure => {
+                if let SensorData::Pressure { pressure_pa, .. } = data {
+                    self.sensor_data.engine_oxidizer_injector_pressure_pa = *pressure_pa;
                 }
             },
             _ => {},

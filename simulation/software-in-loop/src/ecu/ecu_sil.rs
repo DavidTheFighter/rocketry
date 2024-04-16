@@ -16,7 +16,7 @@ use shared::{
 use strum::IntoEnumIterator;
 
 use crate::{
-    dynamics::{igniter::SilIgniterDynamics, pump::SilPumpDynamics, SilTankDynamics},
+    dynamics::{engine::SilEngineDynamics, igniter::SilIgniterDynamics, pump::SilPumpDynamics, SilTankDynamics, ATMOSPHERIC_PRESSURE_PA},
     network::SilNetworkIface,
     sensors::SensorNoise,
     ser::{dict_from_obj, obj_from_dict},
@@ -33,6 +33,7 @@ pub struct EcuSil {
     pub(crate) sensors: HashMap<EcuSensor, Box<dyn SensorNoise>>,
     fuel_tank: Option<Py<SilTankDynamics>>,
     oxidizer_tank: Option<Py<SilTankDynamics>>,
+    engine: Option<Py<SilEngineDynamics>>,
     igniter: Option<Py<SilIgniterDynamics>>,
     fuel_pump: Option<Py<SilPumpDynamics>>,
     oxidizer_pump: Option<Py<SilPumpDynamics>>,
@@ -47,6 +48,7 @@ impl EcuSil {
         sensor_configuration: &PyDict,
         fuel_tank: Option<Py<SilTankDynamics>>,
         oxidizer_tank: Option<Py<SilTankDynamics>>,
+        engine: Option<Py<SilEngineDynamics>>,
         igniter: Option<Py<SilIgniterDynamics>>,
         fuel_pump: Option<Py<SilPumpDynamics>>,
         oxidizer_pump: Option<Py<SilPumpDynamics>>,
@@ -94,6 +96,7 @@ impl EcuSil {
             sensors: initialize_sensors(sensor_configuration),
             fuel_tank,
             oxidizer_tank,
+            engine,
             igniter,
             fuel_pump,
             oxidizer_pump,
@@ -103,6 +106,23 @@ impl EcuSil {
     pub fn update(&mut self, py: Python, dt: f64) {
         self.ecu.update(dt as f32);
         self.update_sensors(py, dt);
+
+        if let Some(engine) = self.engine.as_ref() {
+            let mut engine = engine.borrow_mut(py);
+            engine.fuel_inlet.borrow_mut(py).new_state.closed = !self
+                .ecu
+                .driver
+                .get_binary_valve(EcuBinaryOutput::EngineFuelValve);
+            engine.oxidizer_inlet.borrow_mut(py).new_state.closed = !self
+                .ecu
+                .driver
+                .get_binary_valve(EcuBinaryOutput::EngineOxidizerValve);
+
+            if let Some(igniter) = self.igniter.as_ref() {
+                let igniter = igniter.borrow_mut(py);
+                engine.new_state.has_ignition_source = igniter.chamber_pressure_pa() > ATMOSPHERIC_PRESSURE_PA;
+            }
+        }
 
         if let Some(igniter) = self.igniter.as_ref() {
             let mut igniter = igniter.borrow_mut(py);
@@ -247,9 +267,27 @@ impl EcuSil {
                     .unwrap_or(0.0)
             }
             EcuSensor::IgniterThroatTemperature => 0.0,
-            EcuSensor::EngineChamberPressure => 0.0,
-            EcuSensor::EngineFuelInjectorPressure => 0.0,
-            EcuSensor::EngineOxidizerInjectorPressure => 0.0,
+            EcuSensor::EngineChamberPressure => {
+                self
+                    .engine
+                    .as_ref()
+                    .map(|engine| engine.borrow(py).chamber_pressure_pa() as f64)
+                    .unwrap_or(0.0)
+            },
+            EcuSensor::EngineFuelInjectorPressure => {
+                self
+                    .engine
+                    .as_ref()
+                    .map(|engine| engine.borrow(py).fuel_inlet.borrow(py).outlet_pressure_pa() as f64)
+                    .unwrap_or(0.0)
+            },
+            EcuSensor::EngineOxidizerInjectorPressure => {
+                self
+                    .engine
+                    .as_ref()
+                    .map(|engine| engine.borrow(py).oxidizer_inlet.borrow(py).outlet_pressure_pa() as f64)
+                    .unwrap_or(0.0)
+            },
             EcuSensor::EngineThroatTemperature => 0.0,
             EcuSensor::FuelPumpOutletPressure => {
                 self

@@ -59,6 +59,12 @@ def main(design: EngineDesign):
 
     contraction_ratio = chamber_diameter / throat_diameter
 
+    example_cd = 0.75
+    fuel_orifice_area = fuel_mass_flow / (example_cd * math.sqrt(2.0 * (design.injector_pressure - design.chamber_pressure) * 6894.76 * 846))
+    oxid_orifice_area = oxid_mass_flow / (example_cd * math.sqrt(2.0 * (design.injector_pressure - design.chamber_pressure) * 6894.76 * 1141))
+    single_fuel_orifice_diameter = 2.0 * math.sqrt(fuel_orifice_area / math.pi)
+    single_oxid_orifice_diameter = 2.0 * math.sqrt(oxid_orifice_area / math.pi)
+
     print("Thrust {:.2f} N".format(design.thrust))
     print("Cp {:.2f} psi @ {:.2f} MR".format(design.chamber_pressure, design.mix_ratio))
     print("C* {:.2f} m/s, Isp {:.2f} s, Cf {:.2f}".format(c_star, isp, cf))
@@ -85,6 +91,10 @@ def main(design: EngineDesign):
     print("Minimum fuel fluid power\t{:.3f} W".format(fuel_mass_flow * 9.81 * 0.00010199773339984 * design.injector_pressure * 6894.75729))
 
     print()
+
+    print("Example injector CD\t{:.2f}".format(example_cd))
+    print("Fuel orifice area\t{:.3f} mm2 ({:.3f} mm single orifice)".format(fuel_orifice_area * 1e6, single_fuel_orifice_diameter * 1e3))
+    print("Oxidizer orifice area\t{:.3f} mm2  ({:.3f} mm single orifice)".format(oxid_orifice_area * 1e6, single_oxid_orifice_diameter * 1e3))
 
 def calc_chamber_length(throat_diameter):
     # From http://www.braeunig.us/space/propuls.htm, Figure 1.7

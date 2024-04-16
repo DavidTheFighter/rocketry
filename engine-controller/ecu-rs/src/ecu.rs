@@ -1,7 +1,7 @@
 use big_brother::BigBrother;
 use shared::{
     comms_hal::{NetworkAddress, Packet}, ecu_hal::{
-        EcuBinaryOutput, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, PumpState, PumpType, TankState, TankType
+        EcuBinaryOutput, EcuCommand, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, PumpState, PumpType, TankState, TankType
     }, ControllerEntity, SensorData, COMMS_NETWORK_MAP_SIZE
 };
 
@@ -12,6 +12,7 @@ use crate::{
 use strum::IntoEnumIterator;
 
 pub const PACKET_QUEUE_SIZE: usize = 16;
+pub const LOCAL_COMMAND_QUEUE_SIZE: usize = 8;
 
 pub type EcuBigBrother<'a> = BigBrother<'a, COMMS_NETWORK_MAP_SIZE, Packet, NetworkAddress>;
 
@@ -31,6 +32,8 @@ pub struct Ecu<'a> {
 
     pub last_telemetry_frame: Option<EcuTelemetryFrame>,
     time_since_last_telemetry: f32,
+
+    pub local_command_queue: [Option<EcuCommand>; LOCAL_COMMAND_QUEUE_SIZE],
 }
 
 impl<'a> Ecu<'a> {
@@ -49,6 +52,7 @@ impl<'a> Ecu<'a> {
             oxidizer_pump: None,
             last_telemetry_frame: None,
             time_since_last_telemetry: 1e3,
+            local_command_queue: empty_command_array(),
         };
 
         ecu.engine = Some(ControllerEntity::new(
@@ -77,14 +81,38 @@ impl<'a> Ecu<'a> {
     pub fn update(&mut self, dt: f32) {
         self.poll_interfaces();
 
-        let mut packets = empty_packet_array();
         let mut num_packets = 0;
+        let mut packet_queue = empty_packet_array();
         while let Some((packet, source)) = self.comms.recv_packet().ok().flatten() {
             silprintln!("Received from {:?} got {:?}", source, packet);
-            packets[num_packets] = (source, packet);
+            packet_queue[num_packets] = (source, packet);
             num_packets += 1;
+
+            if num_packets >= PACKET_QUEUE_SIZE {
+                silprintln!("Packet queue full?!");
+                break;
+            }
         }
-        let packets = &packets[..num_packets];
+
+        for command in &mut self.local_command_queue {
+            if let Some(command) = command.take() {
+                packet_queue[num_packets] = (NetworkAddress::MissionControl, Packet::EcuCommand(command));
+                num_packets += 1;
+
+                if num_packets >= PACKET_QUEUE_SIZE {
+                    silprintln!("Packet queue full?! (from commands");
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        let packets = &packet_queue[..num_packets];
+
+        if let Some(mut engine) = self.engine.take() {
+            engine.update(self, dt, packets);
+            self.engine = Some(engine);
+        }
 
         if let Some(mut igniter) = self.igniter.take() {
             igniter.update(self, dt, packets);
@@ -147,8 +175,11 @@ impl<'a> Ecu<'a> {
     pub fn generate_telemetry_frame(&self) -> EcuTelemetryFrame {
         EcuTelemetryFrame {
             timestamp: (self.driver.timestamp() * 1e3) as u64,
-            engine_state: EngineState::Idle,
+            engine_state: self.engine_state(),
             igniter_state: self.igniter_state(),
+            engine_chamber_pressure_pa: self.state_vector.sensor_data.engine_chamber_pressure_pa,
+            engine_fuel_injector_pressure_pa: self.state_vector.sensor_data.engine_fuel_injector_pressure_pa,
+            engine_oxidizer_injector_pressure_pa: self.state_vector.sensor_data.engine_oxidizer_injector_pressure_pa,
             igniter_chamber_pressure_pa: self.state_vector.sensor_data.igniter_chamber_pressure_pa,
             fuel_pump_state: self.fuel_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
             oxidizer_pump_state: self.oxidizer_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
@@ -214,6 +245,10 @@ impl<'a> Ecu<'a> {
         let _ = self.comms.send_packet(packet, destination);
     }
 
+    pub(crate) fn engine_state(&self) -> EngineState {
+        self.engine.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(EngineState::Idle)
+    }
+
     pub(crate) fn igniter_state(&self) -> IgniterState {
         self.igniter.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(IgniterState::Idle)
     }
@@ -224,6 +259,17 @@ impl<'a> Ecu<'a> {
 
     pub(crate) fn oxidizer_tank_state(&self) -> Option<TankState> {
         self.oxidizer_tank.as_ref().map(|fsm| fsm.hal_state())
+    }
+
+    pub(crate) fn enqueue_command(&mut self, command: EcuCommand) -> bool {
+        for element in &mut self.local_command_queue {
+            if element.is_none() {
+                *element = Some(command);
+                return true;
+            }
+        }
+
+        return false;
     }
 }
 
@@ -250,3 +296,9 @@ fn empty_packet_array() -> [(NetworkAddress, Packet); PACKET_QUEUE_SIZE] {
         (NetworkAddress::Unknown, Packet::DoNothing),
     ]
 }
+
+fn empty_command_array() -> [Option<EcuCommand>; LOCAL_COMMAND_QUEUE_SIZE] {
+    [None, None, None, None, None, None, None, None]
+}
+
+

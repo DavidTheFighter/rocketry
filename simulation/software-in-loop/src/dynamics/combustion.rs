@@ -36,11 +36,14 @@ pub fn calc_chamber_pressure(
     mass_flow_kg_s: Scalar,
     throat_area_m2: Scalar,
     combustion_data: &CombustionData,
+    exit_pressure_pa: Scalar,
 ) -> Scalar {
+    let mach_number = 1.0;
+
     let throat_temp_k = combustion_data.chamber_temperature_k
         / (1.0
             + combustion_data.specific_heat_ratio * (combustion_data.specific_heat_ratio - 1.0)
-                / 2.0);
+                * mach_number / 2.0);
 
     let throat_pressure_pa = mass_flow_kg_s
         * (GAS_CONSTANT * throat_temp_k

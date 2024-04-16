@@ -91,6 +91,7 @@ class IgniterPumpSimulation(SimulationBase):
             config.ecu_sensor_config,
             self.fuel_tank_dynamics,
             self.oxidizer_tank_dynamics,
+            None,
             self.igniter_dynamics,
             self.fuel_pump,
             self.oxidizer_pump,
@@ -111,7 +112,7 @@ class IgniterPumpSimulation(SimulationBase):
         self.logger.dt = self.config.sim_update_rate
 
         self.ecu.update_ecu_config(self.config.ecu_config)
-        self.test_t = 0.0
+        self.time_since_last_ecu_update = 0.0
 
     def advance_timestep(self):
         self.ecu.update_timestamp(self.t)
@@ -119,8 +120,10 @@ class IgniterPumpSimulation(SimulationBase):
         self.mission_ctrl.update(self.dt)
         self.dynamics_manager.update(self.dt)
 
-        if math.fmod(self.t, self.config.ecu_update_rate) <= self.dt + self.config.sim_update_rate * 0.1:
+        self.time_since_last_ecu_update += self.dt
+        if self.time_since_last_ecu_update >= self.config.ecu_update_rate:
             self.ecu.update(self.config.ecu_update_rate)
+            self.time_since_last_ecu_update -= self.config.ecu_update_rate
 
         self.logger.log_common_data()
         self.logger.log_ecu_data(self.ecu)

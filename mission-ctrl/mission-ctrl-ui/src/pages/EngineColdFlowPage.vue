@@ -4,7 +4,7 @@
       <RealtimeLineGraphChartjs
         :data-description="igniterDataset"
         :dataset="graph_data"
-        :yrange="[0, 300]"
+        :yrange="[0, 800]"
         :xTitle="'Time (sec)'"
         :yTitle="'Pressure (PSI)'"
         :displayTimeSeconds="20.0"
@@ -14,31 +14,28 @@
       <RealtimeLineGraphChartjs
         :data-description="tankDataset"
         :dataset="graph_data"
-        :yrange="[0, 300]"
+        :yrange="[0, 100]"
         :xTitle="'Time (sec)'"
         :displayTimeSeconds="20.0"
         :displayTickInterval="2.0"
-        :justifyLegend="'left'"
         class="columnFourths"
       />
       <RealtimeLineGraphChartjs
         :data-description="pumpDataset"
         :dataset="graph_data"
-        :yrange="[0, 300]"
+        :yrange="[0, 800]"
         :xTitle="'Time (sec)'"
         :displayTimeSeconds="20.0"
         :displayTickInterval="2.0"
-        :justifyLegend="'left'"
         class="columnFourths"
       />
       <RealtimeLineGraphChartjs
         :data-description="engineDataset"
         :dataset="graph_data"
-        :yrange="[0, 300]"
+        :yrange="[0, 800]"
         :xTitle="'Time (sec)'"
         :displayTimeSeconds="20.0"
         :displayTickInterval="2.0"
-        :justifyLegend="'left'"
         class="columnFourths"
       />
     </div>
@@ -114,29 +111,35 @@ export default {
           name: 'Fl Pump',
           color: 'orange',
           dataName: 'fuel_pump_outlet_pressure_psi',
-          units: "PSI",
+          units: "PSIA",
         },
         {
           name: 'Ox Pump',
           color: 'cyan',
           dataName: 'oxidizer_pump_outlet_pressure_psi',
-          units: "PSI",
+          units: "PSIA",
         },
       ];
     },
     engineDataset() {
       return [
         {
-          name: 'Fl Pump',
+          name: 'Fl Inj',
           color: 'orange',
-          dataName: 'fuel_pump_outlet_pressure_psi',
-          units: "PSI",
+          dataName: 'engine_fuel_injector_pressure_psi',
+          units: "PSIA",
         },
         {
-          name: 'Ox Pump',
+          name: 'Ox Inj',
           color: 'cyan',
-          dataName: 'oxidizer_pump_outlet_pressure_psi',
-          units: "PSI",
+          dataName: 'engine_oxidizer_injector_pressure_psi',
+          units: "PSIA",
+        },
+        {
+          name: 'Eng Chamb',
+          color: 'red',
+          dataName: 'engine_chamber_pressure_psi',
+          units: "PSIA",
         },
       ];
     },
@@ -181,6 +184,14 @@ export default {
         {
           name: 'Ox Tank State',
           value: this.dataset.oxidizer_tank_state,
+        },
+        {
+          name: 'Fuel Pump State',
+          value: this.dataset.fuel_pump_state,
+        },
+        {
+          name: 'Ox Pump State',
+          value: this.dataset.oxidizer_pump_state,
         },
         {
           name: 'Telemetry Rate',
@@ -248,7 +259,7 @@ export default {
 }
 
 #terminal {
-  height: 25rem;
+  height: 20rem;
 }
 
 .row {

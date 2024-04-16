@@ -1,6 +1,8 @@
 pub mod combustion;
+pub mod engine;
 pub mod fluid;
 pub mod igniter;
+pub mod pipe_splitter;
 pub mod pipe;
 pub mod pump;
 pub mod tank;
@@ -15,6 +17,41 @@ pub use tank::SilTankFeedConfig;
 pub use vehicle::SilVehicleDynamics;
 
 use pyo3::prelude::*;
+
+use self::fluid::LiquidDefinition;
+
+#[pyclass]
+#[derive(Debug, Clone)]
+pub struct InjectorConfig {
+    #[pyo3(get, set)]
+    pub injector_orifice_diameter_m: Scalar,
+    #[pyo3(get, set)]
+    pub injector_orifice_cd: Scalar,
+    #[pyo3(get, set)]
+    pub liquid: LiquidDefinition,
+}
+
+#[pymethods]
+impl InjectorConfig {
+    #[new]
+    pub fn new(
+        injector_orifice_diameter_m: Scalar,
+        injector_orifice_cd: Scalar,
+        liquid: LiquidDefinition,
+    ) -> Self {
+        Self {
+            injector_orifice_diameter_m,
+            injector_orifice_cd,
+            liquid,
+        }
+    }
+}
+
+impl InjectorConfig {
+    fn injector_area_m2(&self) -> Scalar {
+        self.injector_orifice_diameter_m.powi(2) * std::f64::consts::PI / 4.0
+    }
+}
 
 #[pyclass]
 pub struct DynamicsManager {

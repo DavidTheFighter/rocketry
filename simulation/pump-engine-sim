@@ -1,0 +1,2 @@
+./build-sil \
+    && python -m pysim.simulation.engine_pump

@@ -213,6 +213,21 @@ impl TelemetryHandler {
 
         if let Some(last_ecu_telemetry) = &self.last_ecu_telemetry.get(&ecu_index) {
             graph_data.insert(
+                String::from("engine_chamber_pressure_psi"),
+                json!(last_ecu_telemetry.engine_chamber_pressure_pa / 6894.75729),
+            );
+
+            graph_data.insert(
+                String::from("engine_fuel_injector_pressure_psi"),
+                json!(last_ecu_telemetry.engine_fuel_injector_pressure_pa / 6894.75729),
+            );
+
+            graph_data.insert(
+                String::from("engine_oxidizer_injector_pressure_psi"),
+                json!(last_ecu_telemetry.engine_oxidizer_injector_pressure_pa / 6894.75729),
+            );
+
+            graph_data.insert(
                 String::from("igniter_chamber_pressure_psi"),
                 json!(last_ecu_telemetry.igniter_chamber_pressure_pa / 6894.75729),
             );

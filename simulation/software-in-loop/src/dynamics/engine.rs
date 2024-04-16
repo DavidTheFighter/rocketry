@@ -8,7 +8,7 @@ pub const MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA: Scalar = 206843.0; // 30 PSI
 
 #[pyclass]
 #[derive(Debug, Clone, Default)]
-pub struct IgniterState {
+pub struct EngineState {
     #[pyo3(get)]
     pub chamber_pressure_pa: Scalar,
     #[pyo3(get, set)]
@@ -17,11 +17,11 @@ pub struct IgniterState {
 
 #[pyclass]
 #[derive(Debug, Clone)]
-pub struct SilIgniterDynamics {
+pub struct SilEngineDynamics {
     #[pyo3(get, set)]
-    pub state: IgniterState,
+    pub state: EngineState,
     #[pyo3(get, set)]
-    pub new_state: IgniterState,
+    pub new_state: EngineState,
 
     #[pyo3(get, set)]
     pub fuel_inlet: Py<FluidConnection>,
@@ -37,10 +37,12 @@ pub struct SilIgniterDynamics {
     pub throat_area_m2: Scalar,
 
     pub combustion_pressure_modifier: PyObject,
+
+    test_t: f64,
 }
 
 #[pymethods]
-impl SilIgniterDynamics {
+impl SilEngineDynamics {
     #[new]
     pub fn new(
         py: Python,
@@ -52,8 +54,8 @@ impl SilIgniterDynamics {
         throat_diameter_m: Scalar,
     ) -> Self {
         Self {
-            state: IgniterState::default(),
-            new_state: IgniterState::default(),
+            state: EngineState::default(),
+            new_state: EngineState::default(),
             fuel_inlet,
             oxidizer_inlet,
             fuel_injector: fuel_injector.clone(),
@@ -62,6 +64,7 @@ impl SilIgniterDynamics {
             combustion_data: combustion_data.clone(),
             combustion_pressure_modifier: py.None(),
             throat_area_m2: throat_diameter_m.powi(2) * std::f64::consts::PI / 4.0,
+            test_t: 0.0,
         }
     }
 
@@ -71,6 +74,7 @@ impl SilIgniterDynamics {
 
     fn update(&mut self, py: Python, dt: f64) {
         let dt = dt as Scalar;
+        self.test_t += dt;
 
         let fuel_mass_flow_kg = self.calc_fuel_mass_flow_kg(dt, self.fuel_inlet.borrow(py));
         let oxidizer_mass_flow_kg =
@@ -100,6 +104,12 @@ impl SilIgniterDynamics {
         }
 
         let delta = target_combustion_pressure_pa - self.state.chamber_pressure_pa;
+
+        // if self.test_t % 0.1 < dt {
+        //     println!("Target pressure: {}, Current pressure: {}", target_combustion_pressure_pa, self.state.chamber_pressure_pa);
+        //     println!("\tFuel mass flow: {}, Oxidizer mass flow: {}", fuel_mass_flow_kg, oxidizer_mass_flow_kg);
+        //     println!("\tFuel pressure: {}, Oxidizer pressure: {}", self.fuel_inlet.borrow(py).outlet_pressure_pa(), self.oxidizer_inlet.borrow(py).outlet_pressure_pa());
+        // }
 
         self.new_state.chamber_pressure_pa += delta * 10.0 * dt;
         self.fuel_inlet
@@ -132,7 +142,7 @@ impl SilIgniterDynamics {
     }
 }
 
-impl SilIgniterDynamics {
+impl SilEngineDynamics {
     fn can_support_combustion(
         &self,
         fuel_mass_flow_kg: Scalar,
