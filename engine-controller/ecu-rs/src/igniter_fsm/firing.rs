@@ -1,6 +1,6 @@
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuBinaryOutput, TankState},
+    ecu_hal::{EcuAlert, EcuBinaryOutput, TankState},
     ControllerState,
 };
 
@@ -21,7 +21,17 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Firing {
     ) -> Option<IgniterFsm> {
         self.elapsed_time += dt;
 
-        if !self.tanks_pressurized(ecu) || self.firing_ended(ecu) || self.throat_too_hot(ecu) {
+        if !self.tanks_pressurized(ecu) {
+            ecu.alert_manager.set_condition(EcuAlert::IgniterTankOffNominal);
+            return Some(Shutdown::new());
+        }
+
+        if self.throat_too_hot(ecu) {
+            ecu.alert_manager.set_condition(EcuAlert::IgniterThroatOverheat);
+            return Some(Shutdown::new());
+        }
+
+        if self.firing_ended(ecu) {
             return Some(Shutdown::new());
         }
 

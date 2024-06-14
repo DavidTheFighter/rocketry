@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use big_brother::interface::{
     mock_interface::MockInterface,
-    mock_topology::{MockPhysicalInterface, MockPhysicalNet},
+    mock_topology::{MockPhysicalInterface, MockPhysicalNet}, std_interface::StdInterface,
 };
 use pyo3::{prelude::*, types::PyList};
 
@@ -19,6 +19,11 @@ pub struct SilNetworkPhy {
 #[pyclass]
 pub struct SilNetworkIface {
     pub(crate) iface: Option<MockInterface>,
+}
+
+#[pyclass]
+pub struct SimBridgeIface {
+    pub(crate) iface: Option<StdInterface>,
 }
 
 #[pymethods]
@@ -68,6 +73,16 @@ impl SilNetworkIface {
     pub fn new(phy: PyRef<'_, SilNetworkPhy>) -> Self {
         Self {
             iface: Some(MockInterface::new_networked(phy.phy.clone())),
+        }
+    }
+}
+
+#[pymethods]
+impl SimBridgeIface {
+    #[new]
+    pub fn new() -> Self {
+        Self {
+            iface: Some(StdInterface::new([127, 0, 0, 1]).expect("Failed to create std interface")),
         }
     }
 }

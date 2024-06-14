@@ -6,45 +6,34 @@ use super::BigBrotherInterface;
 
 pub const MAX_CHAIN_LENGTH: usize = 5;
 
-pub struct StdInterface {
+pub struct BridgeInterface {
     udp_socket: UdpSocket,
-    chain_port: Option<u16>,
-    broadcast_ip: [u8; 4],
+    target_port: u16,
 }
 
-impl StdInterface {
-    pub fn new(broadcast_ip: [u8; 4]) -> Result<Self, BigBrotherError> {
-        let mut chain_port = None;
+impl BridgeInterface {
+    pub fn new(bind_port: u16, target_port: u16) -> Result<Self, BigBrotherError> {
+        let udp_socket = UdpSocket::bind(format!("127.0.0.1:{}", bind_port));
+        if let Ok(udp_socket) = udp_socket {
+            print!("BBound to port {}\n", bind_port);
+            udp_socket
+                .set_nonblocking(true)
+                .map_err(|_| BigBrotherError::SocketConfigFailure)?;
+            udp_socket
+                .set_broadcast(true)
+                .map_err(|_| BigBrotherError::SocketConfigFailure)?;
 
-        for attempt in 0..MAX_CHAIN_LENGTH {
-            let port = UDP_PORT + attempt as u16;
-            let udp_socket = UdpSocket::bind(format!("0.0.0.0:{}", port));
-            if let Ok(udp_socket) = udp_socket {
-                print!("Bound to port {}\n", port);
-                udp_socket
-                    .set_nonblocking(true)
-                    .map_err(|_| BigBrotherError::SocketConfigFailure)?;
-                udp_socket
-                    .set_broadcast(true)
-                    .map_err(|_| BigBrotherError::SocketConfigFailure)?;
-
-                if attempt > 0 {
-                    chain_port = Some(port);
-                }
-
-                return Ok(Self {
-                    udp_socket,
-                    chain_port,
-                    broadcast_ip,
-                });
-            }
+            return Ok(Self {
+                udp_socket,
+                target_port,
+            });
         }
 
         Err(BigBrotherError::SocketBindFailure)
     }
 }
 
-impl BigBrotherInterface for StdInterface {
+impl BigBrotherInterface for BridgeInterface {
     fn poll(&mut self, _timestamp: u32) {}
 
     fn send_udp(
@@ -53,12 +42,8 @@ impl BigBrotherInterface for StdInterface {
         data: &mut [u8],
     ) -> Result<(), BigBrotherError> {
         let destination = format!(
-            "{}.{}.{}.{}:{}",
-            destination.ip[0],
-            destination.ip[1],
-            destination.ip[2],
-            destination.ip[3],
-            destination.port,
+            "127.0.0.1:{}",
+            self.target_port,
         );
 
         self.udp_socket
@@ -80,16 +65,19 @@ impl BigBrotherInterface for StdInterface {
 
         let (size, remote) = recv.map_err(|e| BigBrotherError::from(e))?;
 
-        let (ip, port) =
+        let (_, port) =
             parse_remote(&remote.to_string()).map_err(|_| BigBrotherError::SocketConfigFailure)?;
 
-        let remote = BigBrotherEndpoint { ip, port };
+        let remote = BigBrotherEndpoint {
+            ip: [127, 0, 0, 1],
+            port,
+        };
 
         Ok(Some((size, remote)))
     }
 
     fn broadcast_ip(&self) -> [u8; 4] {
-        self.broadcast_ip
+        [127, 0, 0, 1]
     }
 
     fn as_mut_any(&mut self) -> Option<&mut dyn core::any::Any> {
@@ -124,17 +112,6 @@ fn parse_remote(remote: &str) -> Result<([u8; 4], u16), BigBrotherError> {
     ];
 
     Ok((ip, port))
-}
-
-impl From<std::io::Error> for BigBrotherError {
-    fn from(error: std::io::Error) -> Self {
-        match error.kind() {
-            std::io::ErrorKind::AddrNotAvailable => BigBrotherError::SendUnnaddressable,
-            std::io::ErrorKind::AddrInUse => BigBrotherError::SocketBindFailure,
-            std::io::ErrorKind::OutOfMemory => BigBrotherError::SmoltcpSendBufferFull,
-            _ => BigBrotherError::SendFailure,
-        }
-    }
 }
 
 #[cfg(test)]

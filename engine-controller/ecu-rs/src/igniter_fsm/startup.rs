@@ -2,7 +2,7 @@ use core::borrow::BorrowMut;
 
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuBinaryOutput, TankState},
+    ecu_hal::{EcuAlert, EcuBinaryOutput, TankState},
     ControllerState,
 };
 
@@ -25,7 +25,18 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Startup {
         self.update_stable_pressure_timer(ecu, dt);
         self.startup_elapsed_time += dt;
 
-        if !self.tanks_pressurized(ecu) || self.startup_timed_out(ecu) || self.throat_too_hot(ecu) {
+        if !self.tanks_pressurized(ecu) {
+            ecu.alert_manager.set_condition(EcuAlert::IgniterTankOffNominal);
+            return Some(Shutdown::new());
+        }
+
+        if self.startup_timed_out(ecu) {
+            ecu.alert_manager.set_condition(EcuAlert::IgniterStartupTimeOut);
+            return Some(Shutdown::new());
+        }
+
+        if self.throat_too_hot(ecu) {
+            ecu.alert_manager.set_condition(EcuAlert::IgniterThroatOverheat);
             return Some(Shutdown::new());
         }
 

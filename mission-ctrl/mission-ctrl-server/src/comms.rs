@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{net::UdpSocket, sync::Arc};
 
-use big_brother::{interface::std_interface::StdInterface, BigBrother};
-use shared::comms_hal::{NetworkAddress, Packet};
+use big_brother::{big_brother::WORKING_BUFFER_SIZE, interface::{bridge_interface::BridgeInterface, std_interface::StdInterface}, serdes::PacketMetadata, BigBrother};
+use shared::{comms_hal::{NetworkAddress, Packet}, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT};
 
 use crate::{
     observer::{ObserverEvent, ObserverHandler, ObserverResponse},
@@ -26,18 +26,20 @@ impl CommsThread {
     pub fn run(&mut self) {
         let mut std_interface = StdInterface::new([169, 254, 255, 255])
             .expect("Failed to create std interface for comms thread");
+
+        let mut simulation_interface = BridgeInterface::new(REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT)
+            .expect("Failed to create simulation interface for comms thread");
         let mut bb: BigBrother<'_, NETWORK_MAP_SIZE, Packet, NetworkAddress> = BigBrother::new(
             NetworkAddress::MissionControl,
             rand::random(),
             NetworkAddress::Broadcast,
-            [Some(&mut std_interface), None],
+            [Some(&mut std_interface), Some(&mut simulation_interface)],
         );
 
         let mut last_poll_time = timestamp();
 
         while process_is_running() {
             if let Some((event_id, address, packet)) = self.get_send_packet_event() {
-
                 if let Err(err) = bb.send_packet(&packet, address) {
                     eprintln!(
                         "comms_thread: Failed to send packet: {:?} ({:?})",

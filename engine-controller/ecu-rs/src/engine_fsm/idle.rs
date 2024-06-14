@@ -1,10 +1,10 @@
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::EcuCommand, ControllerState
+    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuAlert, EcuCommand}, ControllerState
 };
 
 use crate::{fsm_tanks_pressurized, silprintln, Ecu};
 
-use super::{pump_startup::PumpStartup, EngineFsm};
+use super::{igniter_startup::IgniterStartup, pump_startup::PumpStartup, EngineFsm};
 
 pub struct Idle;
 
@@ -15,8 +15,18 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for Idle {
         _dt: f32,
         packets: &[(NetworkAddress, Packet)],
     ) -> Option<EngineFsm> {
-        if self.received_fire_pump_fed(packets) && fsm_tanks_pressurized(ecu) {
-            return Some(PumpStartup::new());
+        if self.received_fire_pump_fed(packets) {
+            if fsm_tanks_pressurized(ecu) {
+                ecu.alert_manager.clear_condition(EcuAlert::EngineTankOffNominal);
+
+                if ecu.config.engine_config.use_pumps {
+                    return Some(PumpStartup::new());
+                } else {
+                    return Some(IgniterStartup::new());
+                }
+            } else {
+                ecu.alert_manager.set_condition(EcuAlert::EngineTankOffNominal);
+            }
         }
 
         None

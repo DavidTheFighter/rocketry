@@ -1,16 +1,7 @@
 <template>
   <div>
     <div class="row">
-      <RealtimeLineGraphChartjs
-        :data-description="igniterDataset"
-        :dataset="graph_data"
-        :yrange="[0, 800]"
-        :xTitle="'Time (sec)'"
-        :yTitle="'Pressure (PSI)'"
-        :displayTimeSeconds="20.0"
-        :displayTickInterval="2.0"
-        class="columnFourths"
-      />
+
       <RealtimeLineGraphChartjs
         :data-description="tankDataset"
         :dataset="graph_data"
@@ -30,6 +21,16 @@
         class="columnFourths"
       />
       <RealtimeLineGraphChartjs
+        :data-description="igniterDataset"
+        :dataset="graph_data"
+        :yrange="[0, 800]"
+        :xTitle="'Time (sec)'"
+        :yTitle="'Pressure (PSI)'"
+        :displayTimeSeconds="20.0"
+        :displayTickInterval="2.0"
+        class="columnFourths"
+      />
+      <RealtimeLineGraphChartjs
         :data-description="engineDataset"
         :dataset="graph_data"
         :yrange="[0, 800]"
@@ -44,6 +45,15 @@
       <RocketTerminal class="columnThirds" id="terminal"/>
       <DatasetDisplay class="columnThirds" :states="softwareDataset"/>
     </div>
+    <div class="row">
+      <EmptyComponent class="columnThirds" />
+      <AlertDisplay
+        :alerts="dataset.alert_conditions"
+        :title="'Alerts'"
+        class="columnThirds"
+      />
+      <EmptyComponent class="columnThirds" />
+    </div>
   </div>
 </template>
 
@@ -51,6 +61,7 @@
 import RealtimeLineGraphChartjs from '../components/RealtimeLineGraphChartjs.vue';
 import RocketTerminal from '../components/RocketTerminal.vue';
 import DatasetDisplay from '../components/DatasetDisplay.vue';
+import AlertDisplay from '../components/AlertDisplay.vue';
 import * as util from '../util/data.js';
 
 export default {
@@ -59,6 +70,7 @@ export default {
     RealtimeLineGraphChartjs,
     RocketTerminal,
     DatasetDisplay,
+    AlertDisplay,
   },
   props: {
     refreshTimeMillis: {
@@ -123,16 +135,16 @@ export default {
     },
     engineDataset() {
       return [
+      {
+          name: 'Ox Inj',
+          color: 'cyan',
+          dataName: 'engine_oxidizer_injector_pressure_psi',
+          units: "PSIA",
+        },
         {
           name: 'Fl Inj',
           color: 'orange',
           dataName: 'engine_fuel_injector_pressure_psi',
-          units: "PSIA",
-        },
-        {
-          name: 'Ox Inj',
-          color: 'cyan',
-          dataName: 'engine_oxidizer_injector_pressure_psi',
           units: "PSIA",
         },
         {

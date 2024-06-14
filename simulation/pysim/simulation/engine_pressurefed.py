@@ -20,26 +20,21 @@ class EnginePumpSimulation(SimulationBase):
         self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface])
 
         self.tank_fuel_pipe = sil.FluidConnection()
-        self.pump_fuel_pipe = sil.FluidConnection()
         self.engine_fuel_pipe = sil.FluidConnection()
         self.igniter_fuel_pipe = sil.FluidConnection()
 
         self.tank_oxidizer_pipe = sil.FluidConnection()
-        self.pump_oxidizer_pipe = sil.FluidConnection()
         self.engine_oxidizer_pipe = sil.FluidConnection()
         self.igniter_oxidizer_pipe = sil.FluidConnection()
 
-        self.pump_fuel_splitter = sil.FluidSplitter(self.pump_fuel_pipe, [self.engine_fuel_pipe, self.igniter_fuel_pipe])
-        self.pump_oxidizer_splitter = sil.FluidSplitter(self.pump_oxidizer_pipe, [self.engine_oxidizer_pipe, self.igniter_oxidizer_pipe])
+        self.fuel_splitter = sil.FluidSplitter(self.tank_fuel_pipe, [self.engine_fuel_pipe, self.igniter_fuel_pipe])
+        self.oxidizer_splitter = sil.FluidSplitter(self.tank_oxidizer_pipe, [self.engine_oxidizer_pipe, self.igniter_oxidizer_pipe])
 
         self.fuel_tank_dynamics = cb.build_fuel_tank(equip_config, self.tank_fuel_pipe, sil.ATMOSPHERIC_PRESSURE_PA)
         self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(equip_config, self.tank_oxidizer_pipe, sil.ATMOSPHERIC_PRESSURE_PA)
 
         self.igniter_dynamics = cb.build_igniter(equip_config, self.igniter_fuel_pipe, self.igniter_oxidizer_pipe)
         self.engine_dynamics = cb.build_engine(equip_config, self.engine_fuel_pipe, self.engine_oxidizer_pipe)
-
-        self.fuel_pump = cb.build_fuel_pump(equip_config, self.tank_fuel_pipe, self.pump_fuel_pipe)
-        self.oxidizer_pump = cb.build_oxidizer_pump(equip_config, self.tank_oxidizer_pipe, self.pump_oxidizer_pipe)
 
         self.ecu = sil.EcuSil(
             [self.ecu_eth_iface],
@@ -49,8 +44,8 @@ class EnginePumpSimulation(SimulationBase):
             self.oxidizer_tank_dynamics,
             self.engine_dynamics,
             self.igniter_dynamics,
-            self.fuel_pump,
-            self.oxidizer_pump,
+            None, # self.fuel_pump,
+            None, # self.oxidizer_pump,
         )
 
         self.dynamics_manager = sil.DynamicsManager()
@@ -59,17 +54,13 @@ class EnginePumpSimulation(SimulationBase):
         self.dynamics_manager.add_dynamics_component(self.igniter_dynamics)
         self.dynamics_manager.add_dynamics_component(self.engine_dynamics)
         self.dynamics_manager.add_dynamics_component(self.tank_fuel_pipe)
-        self.dynamics_manager.add_dynamics_component(self.pump_fuel_pipe)
         self.dynamics_manager.add_dynamics_component(self.engine_fuel_pipe)
         self.dynamics_manager.add_dynamics_component(self.igniter_fuel_pipe)
         self.dynamics_manager.add_dynamics_component(self.tank_oxidizer_pipe)
-        self.dynamics_manager.add_dynamics_component(self.pump_oxidizer_pipe)
         self.dynamics_manager.add_dynamics_component(self.engine_oxidizer_pipe)
         self.dynamics_manager.add_dynamics_component(self.igniter_oxidizer_pipe)
-        self.dynamics_manager.add_dynamics_component(self.pump_fuel_splitter)
-        self.dynamics_manager.add_dynamics_component(self.pump_oxidizer_splitter)
-        self.dynamics_manager.add_dynamics_component(self.fuel_pump)
-        self.dynamics_manager.add_dynamics_component(self.oxidizer_pump)
+        self.dynamics_manager.add_dynamics_component(self.fuel_splitter)
+        self.dynamics_manager.add_dynamics_component(self.oxidizer_splitter)
 
         self.logger = sil.Logger([self.eth_network])
         self.logger.dt = self.config.sim_update_rate
@@ -103,6 +94,7 @@ if __name__ == "__main__":
         config.sim_update_rate = 0.0005 # Seconds
         config.main_fuel_pump_pressure_setpoint_pa = 500 * 6894.75729 # PSI to pascals
         config.main_oxidizer_pump_pressure_setpoint_pa = 500 * 6894.75729 # PSI to pascals
+        config.ecu_config['engine_config']['use_pumps'] = False
 
         if len(sys.argv) > 1:
             with open(sys.argv[1], 'r') as f:
@@ -122,11 +114,11 @@ if __name__ == "__main__":
                 sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
                 sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
 
-            if not ignited and sim.t > 2.0:
+            if not ignited and sim.t > 3.0:
                 ignited = True
                 sim.mission_ctrl.send_fire_engine_packet(0)
 
-            if ignited and sim.t > 15.0:
+            if ignited and sim.t > 10.0:
                 return False
 
             return True

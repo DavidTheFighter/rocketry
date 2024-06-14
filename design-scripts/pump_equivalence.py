@@ -1,7 +1,8 @@
 test_upstream = 80 # PSI
 test_downstream = 0.0 # PSI
-test_wattage = 360 # W
+test_wattage = 400 # W
 esc_efficiency = 0.8
+motor_efficiency = 0.8
 
 desired_downstream = 300 # PSI
 desired_massflow = 0.22 # kg/s
@@ -33,7 +34,7 @@ test_flow_power = flow_power(test_flow_rate, test_upstream - test_downstream) # 
 print("Test flow rate: {:.4f} kg/s".format(test_flow_rate))
 print("Test flow power: {:.4f} W".format(test_flow_power))
 print("System efficiency: {:.1f}%".format(100.0 * test_flow_power / test_wattage))
-print("Pump efficiency: {:.1f}%".format(100.0 * test_flow_power / test_wattage / esc_efficiency))
+print("Pump efficiency: {:.1f}%".format(100.0 * test_flow_power / test_wattage / esc_efficiency / motor_efficiency))
 
 desired_upstream = test_flow_power / (desired_massflow * 9.81 * 0.00010199773339984)
 

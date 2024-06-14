@@ -1,5 +1,5 @@
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::EcuCommand, ControllerState
+    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuAlert, EcuCommand}, ControllerState
 };
 
 use crate::{silprintln, Ecu};
@@ -17,7 +17,19 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for Firing {
         dt: f32,
         packets: &[(NetworkAddress, Packet)],
     ) -> Option<EngineFsm> {
-        if self.engine_firing_timer_expired(ecu) || self.chamber_pressure_degraded(ecu) || self.received_shutdown_command(packets) {
+        if self.chamber_pressure_degraded(ecu) {
+            ecu.alert_manager.set_condition(EcuAlert::EngineChamberPressureOffNominal);
+
+            return Some(EngineShutdown::new());
+        }
+
+        if self.engine_firing_timer_expired(ecu) {
+            ecu.alert_manager.set_condition(EcuAlert::EngineShutdownTimerExpired);
+
+            return Some(EngineShutdown::new());
+        }
+
+        if self.received_shutdown_command(packets) {
             return Some(EngineShutdown::new());
         }
 

@@ -1,7 +1,7 @@
 use big_brother::BigBrother;
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{
-        EcuBinaryOutput, EcuCommand, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, PumpState, PumpType, TankState, TankType
+    alerts::AlertManager, comms_hal::{NetworkAddress, Packet}, ecu_hal::{
+        EcuAlert, EcuBinaryOutput, EcuCommand, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, PumpState, PumpType, TankState, TankType
     }, ControllerEntity, SensorData, COMMS_NETWORK_MAP_SIZE
 };
 
@@ -22,6 +22,7 @@ pub struct Ecu<'a> {
     pub driver: &'a mut dyn EcuDriver,
     pub comms: &'a mut EcuBigBrother<'a>,
     pub state_vector: StateVector,
+    pub alert_manager: AlertManager<EcuAlert>,
 
     pub engine: Option<ControllerEntity<EngineFsm, Ecu<'a>, EngineState>>,
     pub igniter: Option<ControllerEntity<IgniterFsm, Ecu<'a>, IgniterState>>,
@@ -44,6 +45,7 @@ impl<'a> Ecu<'a> {
             driver,
             comms,
             state_vector: StateVector::new(),
+            alert_manager: AlertManager::new(0.1),
             engine: None,
             igniter: None,
             fuel_tank: None,
@@ -155,6 +157,13 @@ impl<'a> Ecu<'a> {
                     NetworkAddress::MissionControl,
                 );
             }
+        }
+
+        self.update_alert_watchdog();
+
+        let alert_packets = self.alert_manager.update(dt);
+        for packet in alert_packets.iter().flatten() {
+            self.send_packet(&packet, NetworkAddress::MissionControl);
         }
 
         if self.debug_info_enabled {

@@ -20,12 +20,16 @@ where
     // packets will be above MAX/2, new packets will be below MAX/2
     let diff = metadata.counter.wrapping_sub(compare_counter);
 
+    // print!("\tDedupe: {} - {} = {} < {}", metadata.counter, compare_counter, diff, CounterType::MAX / 2);
+
     if diff < CounterType::MAX / 2 {
         let missed_packets = metadata.counter.wrapping_sub(compare_counter);
 
         if metadata.to_addr.is_broadcast() {
+            // println!(" (broadcast {} -> {})", mapping.broadcast_counter, metadata.counter.wrapping_add(1));
             mapping.broadcast_counter = metadata.counter.wrapping_add(1);
         } else {
+            // println!(" (from {} -> {})", mapping.from_counter, metadata.counter.wrapping_add(1));
             mapping.from_counter = metadata.counter.wrapping_add(1);
         }
 

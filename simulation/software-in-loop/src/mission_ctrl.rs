@@ -1,22 +1,22 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, net::UdpSocket, rc::Rc};
 
 use big_brother::{
-    big_brother::{BigBrotherError, MAX_INTERFACE_COUNT},
-    interface::{mock_interface::MockInterface, BigBrotherInterface},
+    big_brother::{BigBrotherError, MAX_INTERFACE_COUNT, WORKING_BUFFER_SIZE},
+    interface::{bridge_interface::BridgeInterface, mock_interface::MockInterface, BigBrotherInterface},
 };
 use fcu_rs::FcuBigBrother;
 use pyo3::{prelude::*, types::PyList};
 use shared::{
-    comms_hal::{NetworkAddress, Packet},
-    ecu_hal, fcu_hal,
+    comms_hal::{NetworkAddress, Packet}, ecu_hal, fcu_hal, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT
 };
 
-use crate::network::SilNetworkIface;
+use crate::network::{SilNetworkIface, SimBridgeIface};
 
 #[pyclass(unsendable)]
 pub struct MissionControl {
     pub(crate) _big_brother_ifaces: [Option<Rc<RefCell<MockInterface>>>; 2],
     pub(crate) _big_brother: Rc<RefCell<FcuBigBrother<'static>>>,
+    _simulation_bridge_iface: Option<Rc<RefCell<BridgeInterface>>>,
     time_since_last_1ms: f32,
     timestamp: f32,
 }
@@ -24,10 +24,11 @@ pub struct MissionControl {
 #[pymethods]
 impl MissionControl {
     #[new]
-    pub fn new(network_ifaces: &PyList) -> Self {
+    pub fn new(py: Python, network_ifaces: &PyList, realtime: Option<bool>) -> Self {
         let mut big_brother_ifaces = [None, None];
         let mut big_brother_ifaces_ref: [Option<&'static mut dyn BigBrotherInterface>;
             MAX_INTERFACE_COUNT] = [None, None];
+        let mut simulation_bridge_iface = None;
 
         for (i, sil_iface) in network_ifaces.iter().enumerate().take(2) {
             let mut sil_iface = sil_iface
@@ -45,8 +46,35 @@ impl MissionControl {
             big_brother_ifaces_ref[i] = Some(bb_iface_ref);
         }
 
+        if realtime.unwrap_or(false) {
+            if network_ifaces.len() == 2 {
+                panic!("Cannot have both network interfaces and simulation bridge");
+            }
+
+            println!("Doing simulation bridge");
+
+            let simulation_interface = BridgeInterface::new(REALTIME_SIMULATION_SIM_PORT, REALTIME_SIMULATION_CTRL_PORT)
+                .expect("Failed to create simulation interface for comms thread");
+
+            simulation_bridge_iface.replace(Rc::new(RefCell::new(simulation_interface)));
+
+            let bb_iface_ref: &'static mut BridgeInterface = unsafe {
+                std::mem::transmute(&mut *simulation_bridge_iface.as_ref().unwrap().borrow_mut())
+            };
+
+            big_brother_ifaces_ref[1] = Some(bb_iface_ref);
+        }
+
+        let network_address = if realtime.unwrap_or(false) {
+            NetworkAddress::MissionControlSimBridge
+        } else {
+            NetworkAddress::MissionControl
+        };
+
+        println!("MissionControl: {:?}", network_address);
+
         let big_brother = Rc::new(RefCell::new(FcuBigBrother::new(
-            NetworkAddress::MissionControl,
+            network_address,
             rand::random(),
             NetworkAddress::Broadcast,
             big_brother_ifaces_ref,
@@ -55,6 +83,7 @@ impl MissionControl {
         Self {
             _big_brother_ifaces: big_brother_ifaces,
             _big_brother: big_brother,
+            _simulation_bridge_iface: simulation_bridge_iface,
             time_since_last_1ms: 0.0,
             timestamp: 0.0,
         }
@@ -72,7 +101,7 @@ impl MissionControl {
         self.time_since_last_1ms += dt;
 
         loop {
-            if let Ok(packet) = comms.recv_packet() {
+            if let Ok(packet) = comms.recv_packet_raw() {
                 if packet.is_none() {
                     break;
                 }

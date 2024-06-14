@@ -1,4 +1,4 @@
-import time, math
+import time, sys
 
 import software_in_loop as sil
 from pysim.config import SimConfig
@@ -6,7 +6,7 @@ from pysim.replay import SimReplay
 from pysim.simulation.simulation import SimulationBase
 
 class IgniterPumpSimulation(SimulationBase):
-    def __init__(self, config: SimConfig, loggingQueue=None, log_to_file=False):
+    def __init__(self, config: SimConfig, loggingQueue=None, log_to_file=False, realtime=False):
         super().__init__(config, loggingQueue, log_to_file)
         self.eth_network = sil.SilNetwork([10, 0, 0, 0])
 
@@ -16,7 +16,7 @@ class IgniterPumpSimulation(SimulationBase):
         self.mission_ctrl_eth_phy = sil.SilNetworkPhy(self.eth_network)
         self.mission_ctrl_eth_iface = sil.SilNetworkIface(self.mission_ctrl_eth_phy)
 
-        self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface])
+        self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface], realtime)
 
         self.tank_fuel_pipe = sil.FluidConnection()
         self.pump_fuel_pipe = sil.FluidConnection()
@@ -114,7 +114,13 @@ class IgniterPumpSimulation(SimulationBase):
         self.ecu.update_ecu_config(self.config.ecu_config)
         self.time_since_last_ecu_update = 0.0
 
+        self.realtime = realtime
+        self.time_since_last_realtime_wait = 0
+        self.last_realtime_wait_time = time.time()
+
     def advance_timestep(self):
+        start_time = time.time()
+
         self.ecu.update_timestamp(self.t)
 
         self.mission_ctrl.update(self.dt)
@@ -125,17 +131,26 @@ class IgniterPumpSimulation(SimulationBase):
             self.ecu.update(self.config.ecu_update_rate)
             self.time_since_last_ecu_update -= self.config.ecu_update_rate
 
-        self.logger.log_common_data()
-        self.logger.log_ecu_data(self.ecu)
+        if not self.realtime:
+            self.logger.log_common_data()
+            self.logger.log_ecu_data(self.ecu)
+        elif self.time_since_last_realtime_wait >= 0.01:
+            while time.time() - self.last_realtime_wait_time < 0.01:
+                pass
+            self.last_realtime_wait_time = time.time()
+            self.time_since_last_realtime_wait -= 0.01
 
         self.t += self.dt
+        self.time_since_last_realtime_wait += self.dt
 
         return True
 
 if __name__ == "__main__":
+    realtime = len(sys.argv) > 1 and sys.argv[1] == "-r"
+
     def igniter_app():
         config = SimConfig()
-        config.sim_update_rate = 0.0005 # Seconds
+        config.sim_update_rate = 0.001 # Seconds
 
         ignited = False
         pressurized = False
@@ -170,6 +185,6 @@ if __name__ == "__main__":
 
             return True
 
-        sil.simulate_app_replay(IgniterPumpSimulation(config), tick_callback)
+        sil.simulate_app_replay(IgniterPumpSimulation(config, realtime=realtime), None if realtime else tick_callback)
 
     igniter_app()

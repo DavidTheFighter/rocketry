@@ -1,0 +1,53 @@
+{
+    "feedConfig": {
+        "pressurePsi": 2000.0,
+        "setPointPsi": 50.0,
+        "orificeDiameterMeters": 0.004,
+        "orificeCd": 0.6,
+        "temperatureKelvin": 293.15,
+        "feedGas": {
+            "name": "GN2",
+            "molecularWeightKg": 0.028,
+            "specificHeatRatio": 1.039
+        }
+    },
+    "fuelConfig": {
+        "ventDiameterMeters": 0.0025,
+        "ventCd": 0.65,
+        "tankVolumeMeters3": 0.005,
+        "fuelLiquid": {
+            "name": "75% IPA",
+            "densityKgPerM3": 846.0
+        }
+    },
+    "oxidizerConfig": {
+        "ventDiameterMeters": 0.0025,
+        "ventCd": 0.65,
+        "tankVolumeMeters3": 0.01,
+        "oxidizerLiquid": {
+            "name": "LOX",
+            "densityKgPerM3": 1141.0
+        }
+    },
+    "igniterConfig": {
+        "fuelInjectorDiameterMeters": 0.0003302,
+        "fuelInjectorCd": 0.75,
+        "oxidizerInjectorDiameterMeters": 0.0003302,
+        "oxidizerInjectorCd": 0.75,
+        "throatDiameterMeters": 0.004
+    },
+    "fuelPumpConfig": {
+        "setPointPsi": 500.0
+    },
+    "oxidizerPumpConfig": {
+        "setPointPsi": 500.0
+    },
+    "engineConfig": {
+        "usePump": true,
+        "fuelInjectorDiameterMeters": 0.00373,
+        "fuelInjectorCd": 0.75,
+        "oxidizerInjectorDiameterMeters": 0.003792,
+        "oxidizerInjectorCd": 0.75,
+        "throatDiameterMeters": 0.03
+    }
+}

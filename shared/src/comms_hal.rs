@@ -13,6 +13,7 @@ pub enum NetworkAddress {
     EngineController(u8),
     FlightController,
     MissionControl,
+    MissionControlSimBridge,
     EthbootProgrammer,
     Camera(u8),
     Unknown,

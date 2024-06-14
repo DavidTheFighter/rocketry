@@ -40,6 +40,7 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<network::SilNetwork>()?;
     m.add_class::<network::SilNetworkPhy>()?;
     m.add_class::<network::SilNetworkIface>()?;
+    m.add_class::<network::SimBridgeIface>()?;
 
     m.add_function(wrap_pyfunction!(
         simulation_manager::simulate_app_replay,

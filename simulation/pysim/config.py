@@ -53,6 +53,7 @@ class SimConfig:
 
     ecu_config: dict = field(default_factory=lambda: {
         'engine_config': {
+            'use_pumps': True,
             'fuel_injector_pressure_setpoint_pa': 500 * 6894.75729, # PSI to pascals
             'fuel_injector_startup_pressure_tolerance_pa': 25 * 6894.75729, # PSI to pascals
             'fuel_injector_running_pressure_tolerance_pa': 100 * 6894.75729, # PSI to pascals

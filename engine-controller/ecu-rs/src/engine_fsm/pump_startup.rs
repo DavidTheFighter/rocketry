@@ -1,5 +1,5 @@
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuCommand, PumpState, PumpType}, ControllerState
+    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuAlert, EcuCommand, PumpState, PumpType}, ControllerState
 };
 
 use crate::{engine_fsm::idle::Idle, silprintln, Ecu};
@@ -25,6 +25,8 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for PumpStartup {
         if self.startup_timed_out(ecu) {
             ecu.enqueue_command(EcuCommand::SetPumpDuty((PumpType::FuelMain, 0.0)));
             ecu.enqueue_command(EcuCommand::SetPumpDuty((PumpType::OxidizerMain, 0.0)));
+
+            ecu.alert_manager.set_condition(EcuAlert::EngineStartupPumpTimeout);
 
             return Some(Idle::new());
         }

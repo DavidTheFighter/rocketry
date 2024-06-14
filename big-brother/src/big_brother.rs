@@ -117,11 +117,19 @@ where
     }
 
     pub fn recv_packet(&mut self) -> Result<Option<(P, A)>, BigBrotherError> {
+        self.recv_packet_raw().map(|packet| packet.map(|(packet, addr, _)| (packet, addr)))
+    }
+
+    pub fn recv_packet_raw(&mut self) -> Result<Option<(P, A, &[u8])>, BigBrotherError> {
         loop {
             if let Some((size, source_interface_index, remote)) = self.recv_next_udp()? {
                 self.recv_byte_counter += size;
 
-                let metadata = deserialize_metadata(&mut self.working_buffer)?;
+                let metadata = deserialize_metadata(&self.working_buffer)?;
+
+                if metadata.from_addr != self.host_addr {
+                    // println!("{:?} Received packet from {:?} to {:?} ({:?}:{} @i{})", self.host_addr, metadata.from_addr, metadata.to_addr, remote.ip, remote.port, source_interface_index);
+                }
 
                 let mapping = self.network_map.map_network_address(
                     metadata.from_addr,
@@ -137,12 +145,15 @@ where
                     Ok(0)
                 };
 
+                // println!("\t{} - {:?}", metadata.to_addr.is_broadcast(), dedupe);
+
                 if !metadata.to_addr.is_broadcast() || dedupe.is_ok() {
                     self.try_forward_udp(source_interface_index, &remote, metadata.to_addr, size)?;
 
                     // Only update the mapping if it's a valid packet and (at least for now)
                     // don't map our own network address
                     if metadata.from_addr != self.host_addr {
+                        // print!("Updating mapping: ");
                         let _ = self.network_map.map_network_address(
                             metadata.from_addr,
                             remote.ip,
@@ -157,19 +168,27 @@ where
                     self.missed_packets += missed_packets as u32;
                 }
 
+                // println!("");
+
                 if metadata.to_addr == self.host_addr || metadata.to_addr.is_broadcast() {
-                    let packet: BigBrotherPacket<P> = deserialize_packet(&mut self.working_buffer)?;
+                    let packet: BigBrotherPacket<P> = deserialize_packet(&self.working_buffer)?;
 
                     match packet {
                         BigBrotherPacket::MetaPacket(metapacket) => match metapacket {
                             BigBrotherMetapacket::Heartbeat { session_id } => {
+                                let broadcast_counter = if metadata.to_addr.is_broadcast() {
+                                    Some(metadata.counter.wrapping_add(1))
+                                } else {
+                                    None
+                                };
+
                                 self.network_map
-                                    .update_session_id(metadata.from_addr, session_id)?;
+                                    .update_session_id(metadata.from_addr, session_id, broadcast_counter)?;
                             }
                         },
                         BigBrotherPacket::UserPacket(packet) => {
                             if dedupe.is_ok() {
-                                return Ok(Some((packet, metadata.from_addr)));
+                                return Ok(Some((packet, metadata.from_addr, &self.working_buffer[..size])));
                             }
                         }
                     }

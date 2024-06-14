@@ -4,6 +4,9 @@ use crate::big_brother::{BigBrotherEndpoint, BigBrotherError};
 pub mod smoltcp_interface;
 
 #[cfg(not(feature = "no_std"))]
+pub mod bridge_interface;
+
+#[cfg(not(feature = "no_std"))]
 pub mod std_interface;
 
 // #[cfg(not(feature = "no_std"))]

@@ -60,6 +60,11 @@ pub fn dict_from_obj<T: Serialize>(py: Python, obj: T) -> &PyDict {
 }
 
 pub fn obj_from_dict<T: serde::de::DeserializeOwned>(dict: &PyDict) -> T {
-    let json_str = dict.to_string().replace("'", "\"");
+    let json_str = dict.to_string()
+        .replace("'", "\"")
+        .replace(": True", ": true")
+        .replace(": False", ": false");
+
+    println!("{:?}", dict);
     serde_json::from_str(&json_str).expect("Failed to deserialize object")
 }

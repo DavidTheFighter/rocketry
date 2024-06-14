@@ -4,10 +4,12 @@ use std::time::Duration;
 
 use rocket::serde::json::Value;
 use rocket::serde::{json::{json, Json, serde_json::Map}, Serialize};
+use shared::alerts::{self, AlertBitmaskType};
 use shared::comms_hal::{NetworkAddress, Packet};
-use shared::ecu_hal::{EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame};
+use shared::ecu_hal::{EcuAlert, EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame};
 
 use once_cell::sync::Lazy;
+use strum::{IntoEnumIterator, EnumProperty};
 
 use crate::observer::{ObserverEvent, ObserverHandler};
 use crate::{process_is_running, timestamp};
@@ -51,6 +53,7 @@ struct TelemetryHandler {
     last_ecu_telemetry: HashMap<u8, EcuTelemetryFrame>,
     last_tank_telemetry: HashMap<u8, EcuTankTelemetryFrame>,
     last_debug_info: HashMap<u8, EcuDebugInfo>,
+    last_alert_bitmask: HashMap<u8, AlertBitmaskType>,
     debug_info_values: HashMap<u8, Map<String, Value>>,
     debug_sensor_values: HashMap<u8, HashMap<EcuSensor, f32>>,
     telemetry_rate_record_time: f64,
@@ -64,6 +67,7 @@ impl TelemetryHandler {
             last_ecu_telemetry: HashMap::new(),
             last_tank_telemetry: HashMap::new(),
             last_debug_info: HashMap::new(),
+            last_alert_bitmask: HashMap::new(),
             debug_info_values: HashMap::new(),
             debug_sensor_values: HashMap::new(),
             telemetry_rate_record_time: 0.5,
@@ -120,6 +124,11 @@ impl TelemetryHandler {
                             shared::SensorData::Temperature { temperature_k, raw_data: _ } => {
                                 sensor_values.insert(sensor, temperature_k + 273.15);
                             },
+                        }
+                    },
+                    Packet::AlertBitmask(bitmask) => {
+                        if let NetworkAddress::EngineController(index) = remote {
+                            self.last_alert_bitmask.insert(index, bitmask);
                         }
                     },
                     _ => {}
@@ -182,6 +191,27 @@ impl TelemetryHandler {
 
                 telemetry_frame_map.append(tank_telemetry.as_object_mut().unwrap());
             }
+
+            let mut alert_conditions = Vec::new();
+            let alert_bitmask = self.last_alert_bitmask.get(&ecu_index).unwrap_or(&0);
+            for condition in EcuAlert::iter() {
+                if alerts::is_condition_set(*alert_bitmask, condition as AlertBitmaskType) {
+                    let mut alert_value = rocket::serde::json::serde_json::Map::new();
+                    alert_value.insert(
+                        String::from("alert"),
+                        json!(format!("{:?}", condition)),
+                    );
+                    alert_value.insert(
+                        String::from("severity"),
+                        json!(condition.get_str("severity").unwrap()),
+                    );
+                    alert_conditions.push(Value::Object(alert_value));
+                }
+            }
+            telemetry_frame_map.insert(
+                String::from("alert_conditions"),
+                Value::Array(alert_conditions),
+            );
 
             telemetry_frame
         } else {

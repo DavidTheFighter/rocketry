@@ -1,5 +1,5 @@
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuBinaryOutput, EcuCommand, PumpType}, ControllerState
+    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuAlert, EcuBinaryOutput, EcuCommand, PumpType}, ControllerState
 };
 
 use crate::{silprintln, Ecu};
@@ -27,6 +27,8 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for EngineStartup {
             ecu.driver.set_binary_valve(EcuBinaryOutput::EngineOxidizerValve, false);
             ecu.enqueue_command(EcuCommand::SetPumpDuty((PumpType::FuelMain, 0.0)));
             ecu.enqueue_command(EcuCommand::SetPumpDuty((PumpType::OxidizerMain, 0.0)));
+
+            ecu.alert_manager.set_condition(EcuAlert::EngineStartupTimeout);
 
             return Some(Idle::new());
         }

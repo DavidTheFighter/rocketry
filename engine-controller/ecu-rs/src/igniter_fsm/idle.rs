@@ -1,6 +1,6 @@
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, EcuBinaryOutput, TankState},
+    ecu_hal::{EcuAlert, EcuBinaryOutput, EcuCommand, TankState},
     ControllerState,
 };
 
@@ -17,8 +17,14 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Idle {
         _dt: f32,
         packets: &[(NetworkAddress, Packet)],
     ) -> Option<IgniterFsm> {
-        if self.received_fire_igniter(packets) && self.tanks_pressurized(ecu) {
-            return Some(Startup::new());
+        if self.received_fire_igniter(packets) {
+            if self.tanks_pressurized(ecu) {
+                ecu.alert_manager.clear_condition(EcuAlert::IgniterTankOffNominal);
+
+                return Some(Startup::new());
+            } else {
+                ecu.alert_manager.set_condition(EcuAlert::IgniterTankOffNominal);
+            }
         }
 
         None

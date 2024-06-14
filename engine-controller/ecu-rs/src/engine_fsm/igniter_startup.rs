@@ -1,5 +1,5 @@
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuCommand, IgniterState}, ControllerState
+    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuAlert, EcuCommand, IgniterState}, ControllerState
 };
 
 use crate::{silprintln, Ecu};
@@ -24,14 +24,18 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for IgniterStartup {
             },
             IgniterState::Shutdown => {
                 silprintln!("Aborting due to {:?} state", ecu.igniter_state());
+                ecu.alert_manager.set_condition(EcuAlert::EngineStartupIgniterAnomaly);
                 return Some(EngineShutdown::new());
             }
             _ => {},
         }
 
         if self.startup_timed_out(ecu) {
+            ecu.alert_manager.set_condition(EcuAlert::EngineStartupPumpTimeout);
             return Some(EngineShutdown::new());
         }
+
+        // TODO Check stable pump/feed pressure
 
         self.startup_elapsed_time += dt;
 

@@ -18,6 +18,8 @@ use serde::{Deserialize, Serialize};
 pub use logger::{DataPointLogger, FlashDataLogger};
 
 pub const COMMS_NETWORK_MAP_SIZE: usize = 16;
+pub const REALTIME_SIMULATION_SIM_PORT: u16 = 8010;
+pub const REALTIME_SIMULATION_CTRL_PORT: u16 = 8011;
 
 pub const GRAVITY: f32 = 9.80665; // In m/s^2
 pub const RESET_MAGIC_NUMBER: u64 = 0xabcd1234_5678ef90;

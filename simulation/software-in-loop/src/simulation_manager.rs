@@ -22,6 +22,12 @@ pub fn simulate_app_replay(py: Python, simulation: PyObject, timestep_callback: 
                 break;
             }
         }
+
+        // Check for KeyboardInterrupt
+        if let Some(err) = PyErr::take(py) {
+            err.print(py);
+            break;
+        }
     }
 
     let elapsed = start_time.elapsed().as_secs_f64();

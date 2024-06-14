@@ -46,7 +46,7 @@ where
         interface_index: u8,
         update: bool,
     ) -> Result<&mut NetworkMapEntry<T>, BigBrotherError> {
-        for mapping in self.network_map.iter_mut() {
+        for (i, mapping) in self.network_map.iter_mut().enumerate() {
             match mapping {
                 Some(mapping) => {
                     if mapping.network_address == from_address {
@@ -62,6 +62,8 @@ where
                                 }
                             }
 
+                            // print!("bc {} -> ", mapping.broadcast_counter);
+
                             *mapping = NetworkMapEntry {
                                 network_address: from_address,
                                 ip,
@@ -72,7 +74,11 @@ where
                                 broadcast_counter: mapping.broadcast_counter,
                                 from_session_id: mapping.from_session_id,
                             };
+
+                            // print!("{} (i{})", mapping.broadcast_counter, interface_index);
                         }
+
+                        // println!(" (existing {:?} mapping at {} - {})", from_address, i, mapping.broadcast_counter);
 
                         return Ok(mapping);
                     }
@@ -100,7 +106,7 @@ where
                         }
                     }
 
-                    // println!("{:?}: Mapped {:?} to {:?}:{}", self.host_addr, from_address, ip, port);
+                    // println!("{:?}: Mapped {:?} to {:?}:{} @i{} (index {})", self.host_addr, from_address, ip, port, interface_index, i);
                     // defmt::info!("Mapped new address from {}:{}", ip, port);
 
                     return Ok(mapping.as_mut().unwrap());
@@ -133,12 +139,13 @@ where
         &mut self,
         address: T,
         session_id: u32,
+        broadcast_counter: Option<dedupe::CounterType>,
     ) -> Result<(), BigBrotherError> {
         let mapping = self.get_address_mapping(address)?;
 
         if session_id != mapping.from_session_id {
             mapping.from_counter = 0;
-            mapping.broadcast_counter = 0;
+            mapping.broadcast_counter = broadcast_counter.unwrap_or(0);
             mapping.from_session_id = session_id;
         }
 
