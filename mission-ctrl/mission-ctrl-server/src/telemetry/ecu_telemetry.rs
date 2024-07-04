@@ -1,336 +1,217 @@
-use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
+use rocket::futures::stream::FusedStream;
+use rocket::futures::SinkExt;
 use rocket::serde::json::Value;
-use rocket::serde::{json::{json, Json, serde_json::Map}, Serialize};
+use rocket::serde::json::{json, serde_json::Map};
+use rocket::State;
 use shared::alerts::{self, AlertBitmaskType};
 use shared::comms_hal::{NetworkAddress, Packet};
-use shared::ecu_hal::{EcuAlert, EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame};
+use shared::ecu_hal::EcuAlert;
 
-use once_cell::sync::Lazy;
-use strum::{IntoEnumIterator, EnumProperty};
+use strum::{EnumProperty, IntoEnumIterator};
 
 use crate::observer::{ObserverEvent, ObserverHandler};
 use crate::{process_is_running, timestamp};
 
-use super::{populate_graph_data, VISUAL_UPDATES_PER_S};
-
-#[derive(Debug, Serialize, Default, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct HardwareState {
-    state: String,
-    in_default_state: bool,
-}
-
-#[derive(Debug, Serialize, Default, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct DatasetEntry<'a> {
-    name: &'a str,
-    value: &'a str,
-}
-
-#[derive(Debug, Serialize, Default, Clone)]
-#[serde(crate = "rocket::serde")]
-pub struct EcuGraphData {
-    fuel_tank_pressure: VecDeque<f32>,
-    oxygen_tank_pressure: VecDeque<f32>,
-    igniter_chamber_pressure: VecDeque<f32>,
-}
-
-static TELEMETRY_ENDPOINT_DATA: Lazy<Mutex<HashMap<u8, Value>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
-});
-static DEBUG_INFO_ENDPOINT_DATA: Lazy<Mutex<HashMap<u8, Value>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
-});
-static GRAPH_ENDPOINT_DATA: Lazy<Mutex<HashMap<u8, Value>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
-});
-
-struct TelemetryHandler {
+struct EcuTelemetryHandler {
     observer_handler: Arc<ObserverHandler>,
-    last_ecu_telemetry: HashMap<u8, EcuTelemetryFrame>,
-    last_tank_telemetry: HashMap<u8, EcuTankTelemetryFrame>,
-    last_debug_info: HashMap<u8, EcuDebugInfo>,
-    last_alert_bitmask: HashMap<u8, AlertBitmaskType>,
-    debug_info_values: HashMap<u8, Map<String, Value>>,
-    debug_sensor_values: HashMap<u8, HashMap<EcuSensor, f32>>,
+    telemetry_publish_rate_s: f64,
     telemetry_rate_record_time: f64,
     current_telemetry_rate_hz: u32,
+    telemetry_counter: u32,
 }
 
-impl TelemetryHandler {
+impl EcuTelemetryHandler {
     pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
         Self {
             observer_handler,
-            last_ecu_telemetry: HashMap::new(),
-            last_tank_telemetry: HashMap::new(),
-            last_debug_info: HashMap::new(),
-            last_alert_bitmask: HashMap::new(),
-            debug_info_values: HashMap::new(),
-            debug_sensor_values: HashMap::new(),
+            telemetry_publish_rate_s: 0.033,
             telemetry_rate_record_time: 0.5,
             current_telemetry_rate_hz: 0,
+            telemetry_counter: 0,
         }
     }
 
     pub fn run(&mut self) {
-        let mut telemetry_counter = 0;
-        let mut last_graph_update_time = timestamp();
         let mut last_rate_record_time = timestamp();
 
+        let mut current_telemetry_data = HashMap::new();
+
         while process_is_running() {
-            // Delay to prevent busy-waiting comes from self.get_packet()
-            if let Some((remote, packet)) = self.get_packet() {
-                let ecu_index = if let NetworkAddress::EngineController(index) = remote {
-                    index
-                } else {
-                    continue;
-                };
-
-                match packet {
-                    Packet::EcuTelemetry(frame) => {
-                        telemetry_counter += 1;
-                        self.last_ecu_telemetry.insert(ecu_index, frame);
-                    },
-                    Packet::EcuTankTelemetry(frame) => {
-                        self.last_tank_telemetry.insert(ecu_index, frame);
-                    },
-                    Packet::EcuDebugInfo(debug_info) => {
-                        self.last_debug_info.insert(ecu_index, debug_info);
-
-                        let mut endpoint_data = DEBUG_INFO_ENDPOINT_DATA
-                            .lock()
-                            .expect("Failed to lock debug info");
-
-                        if !endpoint_data.contains_key(&ecu_index) {
-                            endpoint_data.insert(ecu_index, Value::Object(
-                                rocket::serde::json::serde_json::Map::new(),
-                            ));
-                        }
-
-                        self.populate_debug_info(endpoint_data.get_mut(&ecu_index).unwrap(), ecu_index);
-                    },
-                    Packet::EcuDebugSensorMeasurement((sensor, data)) => {
-                        let sensor_values = self.debug_sensor_values
-                            .entry(ecu_index)
-                            .or_insert(HashMap::new());
-
-                        match data {
-                            shared::SensorData::Pressure { pressure_pa, raw_data: _ } => {
-                                sensor_values.insert(sensor, pressure_pa);
-                            },
-                            shared::SensorData::Temperature { temperature_k, raw_data: _ } => {
-                                sensor_values.insert(sensor, temperature_k + 273.15);
-                            },
-                        }
-                    },
-                    Packet::AlertBitmask(bitmask) => {
-                        if let NetworkAddress::EngineController(index) = remote {
-                            self.last_alert_bitmask.insert(index, bitmask);
-                        }
-                    },
-                    _ => {}
-                }
-            }
-
             let now = timestamp();
-            if now - last_graph_update_time >= (1.0 / VISUAL_UPDATES_PER_S) as f64 {
-                last_graph_update_time = now;
-
-                for ecu_index in self.last_ecu_telemetry.keys()
-                {
-                    TELEMETRY_ENDPOINT_DATA
-                        .lock()
-                        .expect("Failed to lock ECU telemetry data")
-                        .insert(*ecu_index, self.populate_telemetry_endpoint(*ecu_index));
-
-                    let mut graph_data = GRAPH_ENDPOINT_DATA
-                        .lock()
-                        .expect("Failed to lock ECU telemetry graph data");
-
-                    if !graph_data.contains_key(&ecu_index) {
-                        graph_data.insert(*ecu_index, Value::Object(
-                            rocket::serde::json::serde_json::Map::new(),
-                        ));
-                    }
-
-                    populate_graph_data(graph_data.get_mut(&ecu_index).unwrap(), self.populate_graph_frame(*ecu_index));
-                }
-            }
-
             if now - last_rate_record_time >= self.telemetry_rate_record_time {
                 last_rate_record_time = now;
 
-                let telem_rate = (telemetry_counter as f64) / self.telemetry_rate_record_time;
+                let telem_rate = (self.telemetry_counter as f64) / self.telemetry_rate_record_time;
 
                 self.current_telemetry_rate_hz = telem_rate as u32;
-                telemetry_counter = 0;
-            }
-        }
-    }
-
-    fn populate_telemetry_endpoint(&self, ecu_index: u8) -> Value {
-        if let Some(last_ecu_telemetry) = &self.last_ecu_telemetry.get(&ecu_index) {
-            let mut telemetry_frame = rocket::serde::json::to_value(last_ecu_telemetry)
-                .expect("Failed to convert telemetry frame to serde value");
-
-            let telemetry_frame_map = telemetry_frame
-                .as_object_mut()
-                .expect("Failed to convert serde value to serde object");
-
-            telemetry_frame_map.insert(
-                String::from("telemetry_rate"),
-                Value::Number(self.current_telemetry_rate_hz.into()),
-            );
-
-            if let Some(last_tank_telemetry) = &self.last_tank_telemetry.get(&ecu_index) {
-                let mut tank_telemetry = rocket::serde::json::to_value(last_tank_telemetry)
-                    .expect("Failed to convert tank telemetry frame to serde value");
-
-                telemetry_frame_map.append(tank_telemetry.as_object_mut().unwrap());
+                self.telemetry_counter = 0;
             }
 
-            let mut alert_conditions = Vec::new();
-            let alert_bitmask = self.last_alert_bitmask.get(&ecu_index).unwrap_or(&0);
-            for condition in EcuAlert::iter() {
-                if alerts::is_condition_set(*alert_bitmask, condition as AlertBitmaskType) {
-                    let mut alert_value = rocket::serde::json::serde_json::Map::new();
-                    alert_value.insert(
-                        String::from("alert"),
-                        json!(format!("{:?}", condition)),
-                    );
-                    alert_value.insert(
-                        String::from("severity"),
-                        json!(condition.get_str("severity").unwrap()),
-                    );
-                    alert_conditions.push(Value::Object(alert_value));
+            let display_fields = json!({
+                "telemetry_rate_hz": self.current_telemetry_rate_hz,
+            });
+
+            let telemetry = match self.gather_telemetry(
+                Duration::from_secs_f64(self.telemetry_publish_rate_s),
+                &mut current_telemetry_data,
+                &display_fields,
+            ) {
+                Ok(telemetry) => telemetry,
+                Err(err) => {
+                    eprintln!("Failed to gather telemetry data: {}", err);
+                    continue;
                 }
-            }
-            telemetry_frame_map.insert(
-                String::from("alert_conditions"),
-                Value::Array(alert_conditions),
-            );
+            };
 
-            telemetry_frame
-        } else {
-            Value::Null
+            current_telemetry_data = telemetry.clone();
+
+            for (ecu_index, telemetry_data) in telemetry {
+                let json_str = rocket::serde::json::to_string(&telemetry_data)
+                    .expect("Failed to convert telemetry data to JSON string");
+
+                self.observer_handler
+                    .notify(ObserverEvent::AggregateTelemetry {
+                        controller: NetworkAddress::EngineController(ecu_index),
+                        json: json_str,
+                    });
+            }
         }
     }
 
-    fn populate_debug_info(&mut self, existing_data: &mut Value, ecu_index: u8) {
-        if let Some(last_debug_info) = &self.last_debug_info.get(&ecu_index) {
-            let debug_info = rocket::serde::json::to_value(last_debug_info)
-                .expect("Failed to convert debug info to serde value");
+    fn gather_telemetry(
+        &mut self,
+        duration: Duration,
+        previous_telemetry_data: &mut HashMap<u8, Map<String, Value>>,
+        display_fields: &Value,
+    ) -> Result<HashMap<u8, Map<String, Value>>, String> {
+        let mut telemetry_data = previous_telemetry_data.clone();
+        let mut ecu_sensor_datas = HashMap::new();
+        let mut received_data = false;
 
-            let existing_data = existing_data
-                .as_object_mut()
-                .expect("Failed to convert serde value to serde object");
+        self.observer_handler.register_observer_thread();
 
-            for value in debug_info.as_object().unwrap().values() {
-                for (key, value) in value.as_object().unwrap() {
-                    existing_data.insert(key.clone(), value.clone());
+        let start_time = std::time::Instant::now();
+
+        // Run loop for duration of time
+        while start_time.elapsed() < duration {
+            if let Some((remote, packet)) = self.get_packet() {
+                let recv_ecu_index = if let NetworkAddress::EngineController(index) = remote {
+                    index
+                } else {
+                    return Err(String::from("Received packet from non-ECU address"));
+                };
+
+                let ecu_data: &mut Map<String, Value> = telemetry_data
+                    .entry(recv_ecu_index)
+                    .or_insert(rocket::serde::json::serde_json::Map::new());
+
+                let sensor_data: &mut Map<String, Value> = ecu_sensor_datas
+                    .entry(recv_ecu_index)
+                    .or_insert(rocket::serde::json::serde_json::Map::new());
+
+                match packet {
+                    Packet::EcuTelemetry(frame) => {
+                        let telemetry_value = rocket::serde::json::to_value(&frame)
+                            .expect("Failed to convert telemetry frame to serde value");
+
+                        ecu_data.insert(String::from("telemetry"), telemetry_value);
+
+                        self.telemetry_counter += 1;
+                    }
+                    Packet::EcuTankTelemetry(frame) => {
+                        let telemetry_value = rocket::serde::json::to_value(&frame)
+                            .expect("Failed to convert telemetry frame to serde value");
+
+                        ecu_data.insert(String::from("tank_telemetry"), telemetry_value);
+                    }
+                    Packet::EcuDebugInfo(debug_info) => {
+                        let debug_info_value = rocket::serde::json::to_value(&debug_info)
+                            .expect("Failed to convert telemetry frame to serde value");
+
+                        ecu_data.insert(String::from("debug_info"), debug_info_value);
+                    }
+                    Packet::EcuDebugSensorMeasurement((sensor, data)) => match data {
+                        shared::SensorData::Pressure {
+                            pressure_pa,
+                            raw_data: _,
+                        } => {
+                            sensor_data.insert(format!("{:?}", sensor), json!(pressure_pa));
+                        }
+                        shared::SensorData::Temperature {
+                            temperature_k,
+                            raw_data: _,
+                        } => {
+                            sensor_data
+                                .insert(format!("{:?}", sensor), json!(temperature_k + 273.15));
+                        }
+                    },
+                    Packet::AlertBitmask(bitmask) => {
+                        let alert_conditions = ecu_data
+                            .entry(String::from("alert_conditions"))
+                            .or_insert(Value::Array(Vec::new()))
+                            .as_array_mut()
+                            .expect("Failed to get alert conditions as array");
+
+                        alert_conditions.clear();
+
+                        for condition in EcuAlert::iter() {
+                            if alerts::is_condition_set(bitmask, condition as AlertBitmaskType) {
+                                let mut alert_value = rocket::serde::json::serde_json::Map::new();
+                                alert_value.insert(
+                                    String::from("alert"),
+                                    json!(format!("{:?}", condition)),
+                                );
+                                alert_value.insert(
+                                    String::from("severity"),
+                                    json!(condition.get_str("severity").unwrap()),
+                                );
+                                alert_conditions.push(Value::Object(alert_value));
+                            }
+                        }
+                    }
+                    _ => continue,
                 }
-            }
 
-            self.debug_info_values.insert(ecu_index, existing_data.clone());
-        }
-    }
-
-    fn populate_graph_frame(&self, ecu_index: u8) -> Map<String, Value> {
-        let mut graph_data = rocket::serde::json::serde_json::Map::new();
-
-        if let Some(last_ecu_telemetry) = &self.last_ecu_telemetry.get(&ecu_index) {
-            graph_data.insert(
-                String::from("engine_chamber_pressure_psi"),
-                json!(last_ecu_telemetry.engine_chamber_pressure_pa / 6894.75729),
-            );
-
-            graph_data.insert(
-                String::from("engine_fuel_injector_pressure_psi"),
-                json!(last_ecu_telemetry.engine_fuel_injector_pressure_pa / 6894.75729),
-            );
-
-            graph_data.insert(
-                String::from("engine_oxidizer_injector_pressure_psi"),
-                json!(last_ecu_telemetry.engine_oxidizer_injector_pressure_pa / 6894.75729),
-            );
-
-            graph_data.insert(
-                String::from("igniter_chamber_pressure_psi"),
-                json!(last_ecu_telemetry.igniter_chamber_pressure_pa / 6894.75729),
-            );
-
-            graph_data.insert(
-                String::from("fuel_pump_outlet_pressure_psi"),
-                json!(last_ecu_telemetry.fuel_pump_outlet_pressure_pa / 6894.75729),
-            );
-
-            graph_data.insert(
-                String::from("oxidizer_pump_outlet_pressure_psi"),
-                json!(last_ecu_telemetry.oxidizer_pump_outlet_pressure_pa / 6894.75729),
-            );
-        }
-
-        if let Some(_values) = self.debug_info_values.get(&ecu_index) { }
-
-        if let Some(sensor_data) = &self.debug_sensor_values.get(&ecu_index) {
-            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::IgniterFuelInjectorPressure) {
-                graph_data.insert(
-                    String::from("igniter_fuel_pressure_psi"),
-                    json!(pressure_pa / 6894.75729),
-                );
-            }
-
-            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::IgniterOxidizerInjectorPressure) {
-                graph_data.insert(
-                    String::from("igniter_oxidizer_pressure_psi"),
-                    json!(pressure_pa / 6894.75729),
-                );
-            }
-
-            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpInletPressure) {
-                graph_data.insert(
-                    String::from("fuel_pump_inlet_pressure_psi"),
-                    json!(pressure_pa / 6894.75729),
-                );
-            }
-
-            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::FuelPumpInducerPressure) {
-                graph_data.insert(
-                    String::from("fuel_pump_inducer_pressure_psi"),
-                    json!(pressure_pa / 6894.75729),
-                );
-            }
-
-            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::OxidizerPumpInletPressure) {
-                graph_data.insert(
-                    String::from("oxidizer_pump_inlet_pressure_psi"),
-                    json!(pressure_pa / 6894.75729),
-                );
-            }
-
-            if let Some(pressure_pa) = sensor_data.get(&EcuSensor::OxidizerPumpInducerPressure) {
-                graph_data.insert(
-                    String::from("oxidizer_pump_inducer_pressure_psi"),
-                    json!(pressure_pa / 6894.75729),
-                );
+                received_data = true;
             }
         }
 
-        if let Some(last_tank_telemetry) = &self.last_tank_telemetry.get(&ecu_index) {
-            graph_data.insert(
-                String::from("fuel_tank_pressure_psi"),
-                json!(last_tank_telemetry.fuel_tank_pressure_pa / 6894.75729),
+        if !received_data {
+            telemetry_data.clear();
+            let ecu_data = telemetry_data
+                .entry(0)
+                .or_insert(rocket::serde::json::serde_json::Map::new());
+
+            ecu_data.insert(String::from("display_fields"), display_fields.clone());
+            ecu_data.insert(
+                String::from("noHistoryFields"),
+                json!(vec![
+                    String::from("display_fields"),
+                ]),
             );
-            graph_data.insert(
-                String::from("oxidizer_tank_pressure_psi"),
-                json!(last_tank_telemetry.oxidizer_tank_pressure_pa / 6894.75729),
+
+            return Ok(telemetry_data);
+        }
+
+        for (ecu_index, sensor_data) in ecu_sensor_datas {
+            let ecu_data = telemetry_data.get_mut(&ecu_index).unwrap();
+
+            ecu_data.insert(String::from("sensors"), Value::Object(sensor_data));
+            ecu_data.insert(String::from("display_fields"), display_fields.clone());
+            ecu_data.insert(
+                String::from("noHistoryFields"),
+                json!(vec![
+                    String::from("alert_conditions"),
+                    String::from("display_fields"),
+                ]),
             );
         }
 
-        graph_data
+        Ok(telemetry_data)
     }
 
     fn get_packet(&self) -> Option<(NetworkAddress, Packet)> {
@@ -369,44 +250,41 @@ impl TelemetryHandler {
 pub fn telemetry_thread(observer_handler: Arc<ObserverHandler>) {
     observer_handler.register_observer_thread();
 
-    TelemetryHandler::new(observer_handler).run();
+    EcuTelemetryHandler::new(observer_handler).run();
 }
 
-#[get("/ecu-telemetry/<ecu_id>")]
-pub fn ecu_telemetry_endpoint(ecu_id: u8) -> Json<Value> {
-    let telemetry = TELEMETRY_ENDPOINT_DATA
-        .lock()
-        .expect("Failed to lock telemetry state");
+#[get("/ecu-telemetry-stream/<ecu_id>")]
+pub fn ecu_telemetry_stream(
+    ws: ws::WebSocket,
+    ecu_id: u8,
+    observer_handler: &State<Arc<ObserverHandler>>,
+) -> ws::Channel<'static> {
+    let observer_handler = observer_handler.inner().clone();
 
-    if let Some(telemetry) = telemetry.get(&ecu_id).as_ref() {
-        Json((*telemetry).clone())
-    } else {
-        Json(Value::String(String::from("No telemetry data")))
-    }
-}
+    ws.channel(move |mut stream| {
+        Box::pin(async move {
+            while process_is_running() {
+                observer_handler.register_observer_thread();
+                if let Some((_, event)) = observer_handler.wait_event(Duration::from_millis(1)) {
+                    if let ObserverEvent::AggregateTelemetry { controller, json } = event {
+                        if let NetworkAddress::EngineController(ecu_index) = controller {
+                            if ecu_index != ecu_id {
+                                continue;
+                            }
+                        } else {
+                            continue;
+                        }
 
-#[get("/ecu-telemetry/<ecu_id>/graph")]
-pub fn ecu_telemetry_graph(ecu_id: u8) -> Json<Value> {
-    let latest_graph = GRAPH_ENDPOINT_DATA
-        .lock()
-        .expect("Failed to lock FCU telemetry graph data");
+                        let result = stream.send(ws::Message::Text(json)).await;
 
-    if let Some(latest_graph) = latest_graph.get(&ecu_id).as_ref() {
-        Json((*latest_graph).clone())
-    } else {
-        Json(Value::Null)
-    }
-}
+                        if result.is_err() || stream.is_terminated() {
+                            return Ok(());
+                        }
+                    }
+                }
+            }
 
-#[get("/ecu-telemetry/<ecu_id>/debug-data")]
-pub fn ecu_debug_data(ecu_id: u8) -> Json<Value> {
-    let latest_debug_info = DEBUG_INFO_ENDPOINT_DATA
-        .lock()
-        .expect("Failed to lock debug info");
-
-    if let Some(debug_info) = latest_debug_info.get(&ecu_id).as_ref() {
-        Json((*debug_info).clone())
-    } else {
-        Json(Value::Null)
-    }
+            Ok(())
+        })
+    })
 }

@@ -1,4 +1,5 @@
 <script>
+import HomePage from './pages/HomePage.vue';
 import EcuDebugPage from './pages/EcuDebugPage.vue';
 import FcuDebugPage from './pages/FcuDebugPage.vue';
 import IgniterPage from './pages/IgniterPage.vue';
@@ -9,8 +10,8 @@ import StreamTestPage from './pages/StreamTestPage.vue';
 import PumpTestPage from './pages/PumpTestPage.vue';
 import EngineColdFlowPage from './pages/EngineColdFlowPage.vue';
 
-const routes = {
-  '/': IgniterPage,
+export const routes = {
+  '/': HomePage,
   '/fcudebug': FcuDebugPage,
   '/ecudebug': EcuDebugPage,
   '/notfound': NotFound,
@@ -23,15 +24,17 @@ const routes = {
 };
 
 export default {
+  routes: routes,
   data() {
     return {
       currentPath: window.location.pathname,
+      routes: routes,
     }
   },
   computed: {
     currentView() {
-      return routes[this.currentPath] || NotFound;
-    }
+      return this.routes[this.currentPath] || NotFound;
+    },
   },
   mounted() {
     window.addEventListener('hashchange', () => {

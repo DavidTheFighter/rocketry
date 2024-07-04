@@ -28,6 +28,10 @@ pub enum ObserverEvent {
         source_address: NetworkAddress,
         bitrate: u32,
     },
+    AggregateTelemetry {
+        controller: NetworkAddress,
+        json: String,
+    },
 }
 
 #[derive(Debug, Clone)]

@@ -13,9 +13,7 @@ const GRAPH_MAX_DATA_POINTS: usize = (GRAPH_DISPLAY_TIME_S * VISUAL_UPDATES_PER_
 
 pub fn get_routes() -> Vec<rocket::Route> {
     routes![
-        ecu_telemetry::ecu_telemetry_endpoint,
-        ecu_telemetry::ecu_telemetry_graph,
-        ecu_telemetry::ecu_debug_data,
+        ecu_telemetry::ecu_telemetry_stream,
         fcu_telemetry::fcu_telemetry_endpoint,
         fcu_telemetry::fcu_telemetry_graph,
         fcu_telemetry::fcu_debug_data,

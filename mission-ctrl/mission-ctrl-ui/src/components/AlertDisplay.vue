@@ -20,7 +20,7 @@
 export default {
   name: "AlertDisplay",
   props: {
-    alerts: {
+    dataset: {
       type: Object,
       required: true,
     },
@@ -31,18 +31,16 @@ export default {
   },
   computed: {
     splitColumnsAlerts() {
-      if (this.alerts == null || this.alerts == undefined) {
-        return [];
-      }
+      const alerts = this.dataset.alert_conditions ?? [];
 
       let arr = [];
-      for (let i = 0; i < this.alerts.length; i += 2) {
-        if (i >= this.alerts.length - 1) {
-          arr.push([this.alerts[i], null]);
+      for (let i = 0; i < alerts.length; i += 2) {
+        if (i >= alerts.length - 1) {
+          arr.push([alerts[i], null]);
           break;
         }
 
-        arr.push([this.alerts[i], this.alerts[i + 1]]);
+        arr.push([alerts[i], alerts[i + 1]]);
       }
 
       return arr;
@@ -50,7 +48,9 @@ export default {
   },
   methods: {
     severityBox(severity) {
-      if (severity == 0) {
+      if (severity == null || severity == undefined) {
+        return "⬜";
+      } else if (severity == 0) {
         return "🟨";
       } else if (severity == 1) {
         return "🟥";

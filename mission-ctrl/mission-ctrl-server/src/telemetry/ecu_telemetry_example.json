@@ -1,0 +1,58 @@
+{
+    "alert_conditions": [
+        {
+            "alert": "DebugModeEnabled",
+            "severity": "-1"
+        },
+        {
+            "alert": "EngineChamberPressureOffNominal",
+            "severity": "1"
+        }
+    ],
+    "debug_info": {
+        "SensorData": {
+            "fuel_tank_pressure_pa": 350051.03125,
+            "oxidizer_tank_pressure_pa": 342771.875,
+            "timestamp": 770
+        }
+    },
+    "display_fields": {
+        "telemetry_rate_hz": 0
+    },
+    "noHistoryFields": [
+        "alert_conditions",
+        "display_fields"
+    ],
+    "sensors": {
+        "EngineChamberPressure": 104216.9296875,
+        "EngineFuelInjectorPressure": 89438.8203125,
+        "EngineOxidizerInjectorPressure": 104423.859375,
+        "FuelPumpOutletPressure": 367882.4375,
+        "FuelTankPressure": 341420.625,
+        "IgniterChamberPressure": 102920.5234375,
+        "IgniterFuelInjectorPressure": 101923.171875,
+        "IgniterOxidizerInjectorPressure": 371846.71875,
+        "OxidizerPumpOutletPressure": 369837.1875,
+        "OxidizerTankPressure": 342771.875
+    },
+    "tank_telemetry": {
+        "fuel_tank_pressure_pa": 344281.21875,
+        "fuel_tank_state": "Pressurized",
+        "oxidizer_tank_pressure_pa": 348329.75,
+        "oxidizer_tank_state": "Pressurized",
+        "timestamp": 769
+    },
+    "telemetry": {
+        "engine_chamber_pressure_pa": 90844.5390625,
+        "engine_fuel_injector_pressure_pa": 100606.2421875,
+        "engine_oxidizer_injector_pressure_pa": 88085.1015625,
+        "engine_state": "Idle",
+        "fuel_pump_outlet_pressure_pa": 376845.46875,
+        "fuel_pump_state": "Idle",
+        "igniter_chamber_pressure_pa": 107109.046875,
+        "igniter_state": "Shutdown",
+        "oxidizer_pump_outlet_pressure_pa": 376284.75,
+        "oxidizer_pump_state": "Idle",
+        "timestamp": 769
+    }
+}

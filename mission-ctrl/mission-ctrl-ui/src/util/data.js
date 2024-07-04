@@ -1,6 +1,93 @@
 
 export const RAD_TO_DEG = 180.0 / Math.PI;
 
+export class DataHandler {
+    // websocket_urls: list of websocket URLs to connect to
+    // data: initial data to store, intended to be a vue-reactive object
+    constructor(websocket_url, data, data_retention_s = 30) {
+        this.websocket_url = websocket_url;
+        this.websocket = null;
+        this.data = data;
+        this.data_retention_s = data_retention_s;
+        this.last_update = new Date();
+
+        this._connect();
+        this._heartbeat();
+    }
+
+    _heartbeat() {
+        if (this.websocket == null || this.websocket.readyState == WebSocket.CLOSED) {
+            console.log("Connection lost, reconnecting to websocket");
+            this._connect();
+        } else if (this.last_update < (new Date() - 10000)) {
+            console.log("No data received in 10 seconds, reconnecting to websocket");
+            this.websocket.close();
+            this._connect();
+        }
+
+        this._cullOldData();
+
+        setTimeout(this._heartbeat.bind(this), 1000);
+    }
+
+    _cullOldData() {
+        let now = new Date();
+
+        for (let group_name in this.data) {
+            for (let field_name in this.data[group_name]) {
+                if (!Array.isArray(this.data[group_name][field_name])) {
+                    continue;
+                }
+
+                this.data[group_name][field_name] = this.data[group_name][field_name].filter((elem) => {
+                    return (now - elem.timestamp) < (this.data_retention_s * 1000.0);
+                });
+            }
+        }
+    }
+
+    _connect() {
+        let ws = new WebSocket(this.websocket_url);
+        ws.onmessage = this._onmessage.bind(this);
+        this.websocket = ws;
+    }
+
+    _onmessage(event) {
+        this.last_update = new Date();
+
+        let json_data = JSON.parse(event.data);
+
+        let now = new Date();
+
+        // Add new data to history arrays
+        for (let group_name in json_data) {
+            if (group_name == 'noHistoryFields') {
+                continue;
+            } else if (json_data['noHistoryFields'].includes(group_name)) {
+                this.data[group_name] = json_data[group_name];
+                continue;
+            }
+
+            if (!(group_name in this.data)) {
+                this.data[group_name] = {};
+            }
+
+            let group_data = json_data[group_name];
+            for (let field_name in group_data) {
+                let field_value = group_data[field_name];
+                if (!(field_name in this.data[group_name])) {
+                    this.data[group_name][field_name] = [];
+                }
+
+                this.data[group_name][field_name].push({
+                    value: field_value,
+                    timestamp: now
+                });
+            }
+        }
+    }
+}
+
 export class DataFetcher {
     constructor(timeout) {
         this.timeout = timeout;

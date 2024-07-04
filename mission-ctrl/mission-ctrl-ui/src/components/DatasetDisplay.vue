@@ -85,20 +85,34 @@ export default {
   },
   methods: {
     stateValueText(state) {
-      if (state.units) {
-        return (state.value ?? "??") + " " + state.units;
+      let value = "??";
+      if (state?.value != null && state?.value != undefined) {
+        value = state.value;
+      } else if (state?.lastValue != null && state?.lastValue != undefined) {
+        value = state.lastValue[state.lastValue.length - 1]['value'];
+      }
+
+      if (state?.units) {
+        return value + " " + state.units;
       } else {
-        return state.value ?? "??";
+        return value;
       }
     },
     stateStyleClass(state) {
-      if (state.badValue != null && state.badValue != undefined) {
+      let value = null;
+      if (state?.value != null && state?.value != undefined) {
+        value = state.value;
+      } else if (state?.lastValue != null && state?.lastValue != undefined) {
+        value = state.lastValue[state.lastValue.length - 1]['value'];
+      }
+
+      if (state?.badValue != null && state?.badValue != undefined) {
         if (state.badValue) {
           return "stateValue bad";
         } else {
           return "stateValue";
         }
-      } else if (state.value == 0 || state.value == undefined ) {
+      } else if (value == 0 || value == undefined || value == null) {
         return "stateValue bad";
       } else {
         return "stateValue";

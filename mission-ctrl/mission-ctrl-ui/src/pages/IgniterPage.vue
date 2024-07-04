@@ -1,43 +1,37 @@
 <template>
   <div>
     <div class="row">
-      <RealtimeLineGraphChartjs
+      <RealtimeLineGraph
         :data-description="igniterDataset"
-        :dataset="graph_data"
+        :dataset="dataset"
         :yrange="[0, 300]"
         :xTitle="'Time (sec)'"
-        :yTitle="'Pressure (PSI)'"
-        :displayTimeSeconds="20.0"
-        :displayTickInterval="2.0"
-        :paddingFigs="3"
+        :displayTimeSeconds="30.0"
+        :displayTickInterval="5.0"
         class="columnLeft"
       />
-      <RealtimeLineGraphChartjs
+      <RealtimeLineGraph
         :data-description="tankDataset"
-        :dataset="graph_data"
+        :dataset="dataset"
         :yrange="[0, 300]"
         :xTitle="'Time (sec)'"
-        :yTitle="'Pressure (PSI)'"
-        :displayTimeSeconds="20.0"
-        :displayTickInterval="2.0"
-        :paddingFigs="3"
+        :displayTimeSeconds="30.0"
+        :displayTickInterval="5.0"
         :justifyLegend="'left'"
         class="columnMiddle"
       />
-      <RealtimeLineGraphChartjs
-        :data-description="tempDataset"
-        :dataset="graph_data"
+      <RealtimeLineGraph
+        :data-description="tankDataset"
+        :dataset="dataset"
         :xTitle="'Time (sec)'"
-        :yTitle="'Temperature (°C)'"
-        :displayTimeSeconds="20.0"
-        :displayTickInterval="2.0"
-        :paddingFigs="3"
+        :displayTimeSeconds="30.0"
+        :displayTickInterval="5.0"
         :justifyLegend="'left'"
         class="columnLeft"
       />
     </div>
     <div class="row">
-      <HardwareDisplay class="columnLeft" :valves="valveDataset"/>
+      <DatasetDisplay class="columnLeft" :states="valveDataset"/>
       <RocketTerminal class="columnMiddle" id="terminal"/>
       <DatasetDisplay class="columnRight" :states="softwareDataset"/>
     </div>
@@ -45,25 +39,17 @@
 </template>
 
 <script>
-import RealtimeLineGraphChartjs from '../components/RealtimeLineGraphChartjs.vue';
+import RealtimeLineGraph from '../components/RealtimeLineGraph.vue';
 import RocketTerminal from '../components/RocketTerminal.vue';
-import HardwareDisplay from '../components/HardwareDisplay.vue';
 import DatasetDisplay from '../components/DatasetDisplay.vue';
 import * as util from '../util/data.js';
 
 export default {
   name: 'IgniterPage',
   components: {
-    RealtimeLineGraphChartjs,
+    RealtimeLineGraph,
     RocketTerminal,
-    HardwareDisplay,
     DatasetDisplay,
-  },
-  props: {
-    refreshTimeMillis: {
-      type: Number,
-      default: 33
-    },
   },
   computed: {
     igniterDataset() {
@@ -71,20 +57,23 @@ export default {
         {
           name: 'IG GOx',
           color: 'cyan',
-          dataName: 'igniter_oxidizer_pressure_psi',
+          fieldName: 'sensors.IgniterOxidizerInjectorPressure',
           units: "PSIA",
+          scale: 0.00014503773773020923,
         },
         {
           name: 'IG Fuel',
           color: 'orange',
-          dataName: 'igniter_fuel_pressure_psi',
+          fieldName: 'sensors.IgniterFuelInjectorPressure',
           units: "PSIA",
+          scale: 0.00014503773773020923,
         },
         {
           name: 'IG Chamber',
           color: 'red',
-          dataName: 'igniter_chamber_pressure_psi',
+          fieldName: 'telemetry.igniter_chamber_pressure_pa',
           units: "PSIA",
+          scale: 0.00014503773773020923,
         },
       ];
     },
@@ -93,14 +82,16 @@ export default {
         {
           name: 'Fuel Tank',
           color: 'orange',
-          dataName: "fuel_tank_pressure_psi",
+          fieldName: "tank_telemetry.fuel_tank_pressure_pa",
           units: "PSIA",
+          scale: 0.00014503773773020923,
         },
         {
           name: 'Oxidizer Tank',
           color: 'cyan',
-          dataName: "oxidizer_tank_pressure_psi",
+          fieldName: "tank_telemetry.oxidizer_tank_pressure_pa",
           units: "PSIA",
+          scale: 0.00014503773773020923,
         },
       ];
     },
@@ -109,13 +100,13 @@ export default {
         {
           name: 'ECU Board',
           color: '#7FFFD4',
-          data: this.dataset.ecu_board_temp,
+          value: this.dataset?.ecu_board_temp,
           units: "°C",
         },
         {
           name: 'IG Throat',
           color: '#A9A9A9',
-          data: this.dataset.igniter_throat_temp,
+          value: this.dataset?.igniter_throat_temp,
           units: "°C",
         },
       ];
@@ -124,98 +115,54 @@ export default {
       return [
         {
           name: 'IG Fuel Valve',
-          data: this.dataset.igniter_fuel_valve,
+          value: this.dataset?.igniter_fuel_valve,
         },
         {
           name: 'IG GOx Valve',
-          data: this.dataset.igniter_gox_valve,
+          value: this.dataset?.igniter_gox_valve,
         },
         {
           name: 'Fuel Press Valve',
-          data: this.dataset.fuel_press_valve,
+          value: this.dataset?.fuel_press_valve,
         },
         {
           name: 'Fuel Vent Valve',
-          data: this.dataset.fuel_vent_valve,
+          value: this.dataset?.fuel_vent_valve,
         },
         {
           name: 'IG Spark Plug',
-          data: this.dataset.sparking,
+          value: this.dataset?.sparking,
         },
       ];
     },
     softwareDataset() {
       return [
+      {
+          name: 'Telemetry Rate',
+          value: this.dataset?.display_fields?.telemetry_rate_hz,
+          units: "Hz",
+        },
         {
           name: 'Igniter State',
-          value: this.dataset.igniter_state,
+          lastValue: this.dataset?.telemetry?.igniter_state,
         },
         {
           name: 'Fuel Tank State',
-          value: this.dataset.tank_state,
+          lastValue: this.dataset?.tank_telemetry?.fuel_tank_state,
         },
         {
-          name: 'Telemetry Rate',
-          value: this.dataset.telemetry_rate,
-          units: "Hz",
-        },
-        {
-          name: 'DAQ Rate',
-          value: this.dataset.daq_rate,
-          units: "Hz",
-        },
-        {
-          name: 'CPU Usage',
-          value: this.dataset.cpu_utilization,
-          units: "%",
+          name: 'Ox Tank State',
+          lastValue: this.dataset?.tank_telemetry?.fuel_tank_state,
         },
       ];
     },
   },
-  watch: {
-    timer: {
-      async handler() {
-        this.generateData();
-      },
-      immediate: true,
-    }
-  },
-  methods: {
-    async generateData() {
-      let debug_data = undefined;
-
-      try {
-        debug_data = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/0/debug-data');
-      } catch (error) {
-        console.log(error);
-      }
-
-      try {
-        let dataset = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/0');
-        dataset.debug_data = debug_data;
-
-        this.dataset = dataset;
-      } catch (error) {
-        console.log(error);
-      }
-
-      try {
-        this.graph_data = await this.fetcher.fetch('http://localhost:8000/ecu-telemetry/0/graph');
-      } catch (error) {
-        console.log(error);
-      }
-
-      this.timer += 1;
-    },
-  },
-  created() {
-    this.fetcher = new util.DataFetcher(this.refreshTimeMillis - 1);
+  mounted() {
+    this.data_handler = new util.DataHandler(`http://${window.location.hostname}:8000/ecu-telemetry-stream/0`, this.dataset);
   },
   data() {
     return {
-      timer: 0,
       dataset: {},
-      graph_data: {},
     }
   },
 }
