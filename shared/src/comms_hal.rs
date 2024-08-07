@@ -2,7 +2,7 @@ use big_brother::big_brother::Broadcastable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    alerts, ecu_hal::{EcuCommand, EcuDebugInfo, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, TankState}, fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand}, streamish_hal::StreamishCommand, SensorConfig, SensorData
+    alerts, ecu_hal::{EcuCommand, EcuTelemetry, EcuResponse, EcuTelemetryFrame}, fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand}, streamish_hal::StreamishCommand, SensorConfig,
 };
 
 use strum_macros::EnumCount as EnumCountMacro;
@@ -50,14 +50,12 @@ pub enum Packet {
     StreamishCommand(StreamishCommand),
 
     // -- Data -- //
+    EcuTelemetry(EcuTelemetry),
+    EcuResponse(EcuResponse),
     FcuTelemetry(FcuTelemetryFrame),
-    EcuTelemetry(EcuTelemetryFrame),
-    EcuTankTelemetry(EcuTankTelemetryFrame),
     EnableDebugInfo(bool),
     FcuDebugInfo(FcuDebugInfo),
-    EcuDebugInfo(EcuDebugInfo),
     FcuDebugSensorMeasurement(FcuSensorData),
-    EcuDebugSensorMeasurement((EcuSensor, SensorData)),
     AlertBitmask(alerts::AlertBitmaskType),
 
     // -- Misc -- //
@@ -66,10 +64,16 @@ pub enum Packet {
     DoNothing,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PacketWithAddress {
+    pub address: NetworkAddress,
+    pub packet: Packet,
+}
+
 pub mod tests_data {
     use super::*;
     use crate::{
-        ecu_hal::{self, EngineState, IgniterState}, fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER
+        ecu_hal::{self, EcuConfig, EngineConfig, EngineState, IgniterConfig, IgniterState, TanksConfig}, fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER
     };
     use mint::Vector3;
     use strum::EnumCount;
@@ -112,7 +116,7 @@ pub mod tests_data {
         Packet::EcuCommand(EcuCommand::SetSparking(true)),
         Packet::StreamishCommand(StreamishCommand::StartCameraStream { port: 25565 }),
         Packet::FcuTelemetry(FcuTelemetryFrame::default()),
-        Packet::EcuTelemetry(EcuTelemetryFrame {
+        Packet::EcuTelemetry(EcuTelemetry::Telemetry(EcuTelemetryFrame {
             timestamp: 0xABAD_1234_FEDC_DEAD,
             engine_state: EngineState::Idle,
             igniter_state: IgniterState::Shutdown,
@@ -124,25 +128,41 @@ pub mod tests_data {
             oxidizer_pump_state: ecu_hal::PumpState::Idle,
             fuel_pump_outlet_pressure_pa: 19522.4,
             oxidizer_pump_outlet_pressure_pa: 96420.425,
-        }),
-        Packet::EcuTankTelemetry(EcuTankTelemetryFrame {
-            timestamp: 0xABAD_1234_FEDC_DEAD,
-            fuel_tank_state: TankState::Pressurized,
-            oxidizer_tank_state: TankState::Depressurized,
-            fuel_tank_pressure_pa: 19522.4,
-            oxidizer_tank_pressure_pa: 96420.425,
-        }),
+        })),
+        Packet::EcuResponse(EcuResponse::Config(EcuConfig {
+            engine_config: EngineConfig {
+                use_pumps: true,
+                fuel_injector_pressure_setpoint_pa: 1234.567,
+                fuel_injector_startup_pressure_tolerance_pa: 0.14962,
+                fuel_injector_running_pressure_tolerance_pa: 0.14962,
+                oxidizer_injector_pressure_setpoint_pa: 0.14962,
+                oxidizer_injector_startup_pressure_tolerance_pa: 0.14962,
+                oxidizer_injector_running_pressure_tolerance_pa: 0.14962,
+                engine_target_combustion_pressure_pa: 0.14962,
+                engine_combustion_pressure_tolerance_pa: 0.14962,
+                pump_startup_timeout_s: 0.14962,
+                igniter_startup_timeout_s: 0.14962,
+                engine_startup_timeout_s: 0.14962,
+                engine_firing_duration_s: Some(79.21968),
+                engine_shutdown_duration_s: 0.14962,
+            },
+            igniter_config: IgniterConfig {
+                startup_timeout_s: 749.248,
+                startup_pressure_threshold_pa: 749.248,
+                startup_stable_time_s: 749.248,
+                test_firing_duration_s: 749.248,
+                shutdown_duration_s: 749.248,
+                max_throat_temp_k: 749.248,
+            },
+            tanks_config: Some(TanksConfig {
+                target_fuel_pressure_pa: 9315.1,
+                target_oxidizer_pressure_pa: 9315.1,
+            }),
+            telemetry_rate_s: 0.945218,
+        })),
         Packet::AlertBitmask(0xAAAA_AAAA),
         Packet::EnableDebugInfo(true),
         Packet::FcuDebugInfo(FcuDebugInfo::default()),
-        Packet::EcuDebugInfo(EcuDebugInfo::IgniterInfo {
-            timestamp: 0xABAD_1234_FEDC_DEAD,
-            igniter_state: IgniterState::Shutdown,
-            sparking: true,
-            igniter_chamber_pressure_pa: 1234.567,
-            igniter_fuel_injector_pressure_pa: Some(19522.4),
-            igniter_oxidizer_injector_pressure_pa: Some(96420.425),
-        }),
         Packet::FcuDebugSensorMeasurement(FcuSensorData::Accelerometer {
             acceleration: Vector3 {
                 x: 0.1,
@@ -155,13 +175,6 @@ pub mod tests_data {
                 z: 19852,
             },
         }),
-        Packet::EcuDebugSensorMeasurement((
-            EcuSensor::FuelTankPressure,
-            SensorData::Pressure {
-                pressure_pa: 19522.4,
-                raw_data: 0x1234,
-            },
-        )),
         Packet::Heartbeat,
         Packet::DoNothing,
     ];

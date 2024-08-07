@@ -148,7 +148,7 @@ impl MissionControl {
     }
 
     pub fn send_fire_engine_packet(&mut self, ecu_index: u8) {
-        let command = ecu_hal::EcuCommand::FireEnginePumpFed;
+        let command = ecu_hal::EcuCommand::FireEngine;
         let packet = Packet::EcuCommand(command);
         self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
     }

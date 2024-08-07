@@ -1,6 +1,6 @@
-use std::{net::UdpSocket, sync::Arc};
+use std:: sync::Arc;
 
-use big_brother::{big_brother::WORKING_BUFFER_SIZE, interface::{bridge_interface::BridgeInterface, std_interface::StdInterface}, serdes::PacketMetadata, BigBrother};
+use big_brother::{interface::{bridge_interface::BridgeInterface, std_interface::StdInterface}, BigBrother};
 use shared::{comms_hal::{NetworkAddress, Packet}, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT};
 
 use crate::{
@@ -17,6 +17,12 @@ struct CommsThread {
 
 impl CommsThread {
     pub fn new(observer_handler: Arc<ObserverHandler>) -> Self {
+        if observer_handler.register_observer_thread() {
+            observer_handler.register_subscription_filter("comms_thread", |event| {
+                matches!(event, ObserverEvent::SendPacket { .. })
+            });
+        }
+
         Self {
             observer_handler,
             start_timestamp: timestamp(),
@@ -47,13 +53,15 @@ impl CommsThread {
                     );
                 }
 
+                println!("comms_thread: Sent packet: {:?} to {:?}", packet, address);
+
                 self.observer_handler.notify(ObserverEvent::EventResponse(
                     event_id,
                     Ok(ObserverResponse::Empty),
                 ));
             }
 
-            loop {
+            for _ in 0..16 {
                 match bb.recv_packet() {
                     Ok(recv) => {
                         if let Some((packet, remote)) = recv {
@@ -109,6 +117,5 @@ impl CommsThread {
 }
 
 pub fn comms_thread(observer_handler: Arc<ObserverHandler>) {
-    observer_handler.register_observer_thread();
     CommsThread::new(observer_handler).run();
 }

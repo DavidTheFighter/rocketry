@@ -15,7 +15,7 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for Idle {
         _dt: f32,
         packets: &[(NetworkAddress, Packet)],
     ) -> Option<EngineFsm> {
-        if self.received_fire_pump_fed(packets) {
+        if self.received_fire_command(packets) {
             if fsm_tanks_pressurized(ecu) {
                 ecu.alert_manager.clear_condition(EcuAlert::EngineTankOffNominal);
 
@@ -47,10 +47,10 @@ impl Idle {
         EngineFsm::Idle(Self {})
     }
 
-    fn received_fire_pump_fed(&self, packets: &[(NetworkAddress, Packet)]) -> bool {
+    fn received_fire_command(&self, packets: &[(NetworkAddress, Packet)]) -> bool {
         for (_address, packet) in packets {
             if let Packet::EcuCommand(command) = packet {
-                if let EcuCommand::FireEnginePumpFed = command {
+                if let EcuCommand::FireEngine = command {
                     return true;
                 }
             }

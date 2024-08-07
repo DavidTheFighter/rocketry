@@ -41,7 +41,7 @@
     </div>
     <div class="row">
       <DatasetDisplay class="columnThirds" :states="valveDataset"/>
-      <RocketTerminal class="columnThirds" id="terminal"/>
+      <TtydTerminal class="columnThirds"/>
       <DatasetDisplay class="columnThirds" :states="softwareDataset"/>
     </div>
     <div class="row">
@@ -58,7 +58,7 @@
 
 <script>
 import RealtimeLineGraph from '../components/RealtimeLineGraph.vue';
-import RocketTerminal from '../components/RocketTerminal.vue';
+import TtydTerminal from '../components/TtydTerminal.vue';
 import DatasetDisplay from '../components/DatasetDisplay.vue';
 import AlertDisplay from '../components/AlertDisplay.vue';
 import EmptyComponent from '../components/EmptyComponent.vue';
@@ -68,7 +68,7 @@ export default {
   name: 'EngineColdFlow',
   components: {
     RealtimeLineGraph,
-    RocketTerminal,
+    TtydTerminal,
     DatasetDisplay,
     AlertDisplay,
     EmptyComponent,

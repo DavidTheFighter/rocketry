@@ -1,7 +1,7 @@
 use big_brother::BigBrother;
 use shared::{
     alerts::AlertManager, comms_hal::{NetworkAddress, Packet}, ecu_hal::{
-        EcuAlert, EcuBinaryOutput, EcuCommand, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuSensor, EcuTankTelemetryFrame, EcuTelemetryFrame, EngineState, IgniterState, PumpState, PumpType, TankState, TankType
+        EcuAlert, EcuBinaryOutput, EcuCommand, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuResponse, EcuSensor, EcuTankTelemetryFrame, EcuTelemetry, EcuTelemetryFrame, EngineState, IgniterState, PumpState, PumpType, TankState, TankType
     }, ControllerEntity, SensorData, COMMS_NETWORK_MAP_SIZE
 };
 
@@ -111,6 +111,8 @@ impl<'a> Ecu<'a> {
         }
         let packets = &packet_queue[..num_packets];
 
+        self.handle_non_fsm_commands(packets);
+
         if let Some(mut engine) = self.engine.take() {
             engine.update(self, dt, packets);
             self.engine = Some(engine);
@@ -146,14 +148,14 @@ impl<'a> Ecu<'a> {
             self.time_since_last_telemetry = 0.0;
             let telemetry_frame = self.generate_telemetry_frame();
             self.last_telemetry_frame = Some(telemetry_frame.clone());
-            self.send_packet(
-                &Packet::EcuTelemetry(telemetry_frame),
+            self.send_telemetry_packet(
+                EcuTelemetry::Telemetry(telemetry_frame),
                 NetworkAddress::MissionControl,
             );
 
             if let Some(tank_telemetry_frame) = self.generate_tank_telemetry_frame() {
-                self.send_packet(
-                    &Packet::EcuTankTelemetry(tank_telemetry_frame),
+                self.send_telemetry_packet(
+                    EcuTelemetry::TankTelemetry(tank_telemetry_frame),
                     NetworkAddress::MissionControl,
                 );
             }
@@ -169,8 +171,8 @@ impl<'a> Ecu<'a> {
         if self.debug_info_enabled {
             for variant in EcuDebugInfoVariant::iter() {
                 let variant_data = self.generate_debug_info(variant);
-                self.send_packet(
-                    &Packet::EcuDebugInfo(variant_data),
+                self.send_telemetry_packet(
+                    EcuTelemetry::DebugInfo(variant_data),
                     NetworkAddress::MissionControl,
                 );
             }
@@ -179,6 +181,18 @@ impl<'a> Ecu<'a> {
 
     pub fn poll_interfaces(&mut self) {
         self.comms.poll_1ms((self.driver.timestamp() * 1e3) as u32);
+    }
+
+    pub fn handle_non_fsm_commands(&mut self, packets: &[(NetworkAddress, Packet)]) {
+        for (remote, packet) in packets {
+            match packet {
+                Packet::EcuCommand(EcuCommand::GetConfig) => {
+                    silprintln!("Received get config command");
+                    self.send_response_packet(EcuResponse::Config(self.config.clone()), *remote);
+                },
+                _ => {},
+            }
+        }
     }
 
     pub fn generate_telemetry_frame(&self) -> EcuTelemetryFrame {
@@ -217,8 +231,8 @@ impl<'a> Ecu<'a> {
         self.state_vector.update_sensor_data(sensor, data);
 
         if self.debug_info_enabled {
-            self.send_packet(
-                &Packet::EcuDebugSensorMeasurement((sensor, data.clone())),
+            self.send_telemetry_packet(
+                EcuTelemetry::DebugSensorMeasurement((sensor, data.clone())),
                 NetworkAddress::MissionControl,
             );
         }
@@ -252,6 +266,14 @@ impl<'a> Ecu<'a> {
 
     pub(crate) fn send_packet(&mut self, packet: &Packet, destination: NetworkAddress) {
         let _ = self.comms.send_packet(packet, destination);
+    }
+
+    pub(crate) fn send_telemetry_packet(&mut self, telemetry: EcuTelemetry, destination: NetworkAddress) {
+        self.send_packet(&Packet::EcuTelemetry(telemetry), destination);
+    }
+
+    pub(crate) fn send_response_packet(&mut self, response: EcuResponse, destination: NetworkAddress) {
+        self.send_packet(&Packet::EcuResponse(response), destination);
     }
 
     pub(crate) fn engine_state(&self) -> EngineState {

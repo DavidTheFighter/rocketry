@@ -7,6 +7,7 @@ members = [
     "bootloader/ethboot-shared",
     "engine-controller/ecu-rs",
     "flight-controller/fcu-rs",
+    "mission-ctrl/mission-ctrl-api",
     "mission-ctrl/mission-ctrl-server",
     "shared",
     "simulation/software-in-loop",

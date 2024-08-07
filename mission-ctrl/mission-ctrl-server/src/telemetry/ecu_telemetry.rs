@@ -9,7 +9,7 @@ use rocket::serde::json::{json, serde_json::Map};
 use rocket::State;
 use shared::alerts::{self, AlertBitmaskType};
 use shared::comms_hal::{NetworkAddress, Packet};
-use shared::ecu_hal::EcuAlert;
+use shared::ecu_hal::{EcuAlert, EcuTelemetry};
 
 use strum::{EnumProperty, IntoEnumIterator};
 
@@ -114,7 +114,7 @@ impl EcuTelemetryHandler {
                     .or_insert(rocket::serde::json::serde_json::Map::new());
 
                 match packet {
-                    Packet::EcuTelemetry(frame) => {
+                    Packet::EcuTelemetry(EcuTelemetry::Telemetry(frame)) => {
                         let telemetry_value = rocket::serde::json::to_value(&frame)
                             .expect("Failed to convert telemetry frame to serde value");
 
@@ -122,19 +122,19 @@ impl EcuTelemetryHandler {
 
                         self.telemetry_counter += 1;
                     }
-                    Packet::EcuTankTelemetry(frame) => {
+                    Packet::EcuTelemetry(EcuTelemetry::TankTelemetry(frame)) => {
                         let telemetry_value = rocket::serde::json::to_value(&frame)
                             .expect("Failed to convert telemetry frame to serde value");
 
                         ecu_data.insert(String::from("tank_telemetry"), telemetry_value);
                     }
-                    Packet::EcuDebugInfo(debug_info) => {
+                    Packet::EcuTelemetry(EcuTelemetry::DebugInfo(debug_info)) => {
                         let debug_info_value = rocket::serde::json::to_value(&debug_info)
                             .expect("Failed to convert telemetry frame to serde value");
 
                         ecu_data.insert(String::from("debug_info"), debug_info_value);
                     }
-                    Packet::EcuDebugSensorMeasurement((sensor, data)) => match data {
+                    Packet::EcuTelemetry(EcuTelemetry::DebugSensorMeasurement((sensor, data))) => match data {
                         shared::SensorData::Pressure {
                             pressure_pa,
                             raw_data: _,
@@ -263,18 +263,27 @@ pub fn ecu_telemetry_stream(
 
     ws.channel(move |mut stream| {
         Box::pin(async move {
-            while process_is_running() {
-                observer_handler.register_observer_thread();
-                if let Some((_, event)) = observer_handler.wait_event(Duration::from_millis(1)) {
-                    if let ObserverEvent::AggregateTelemetry { controller, json } = event {
-                        if let NetworkAddress::EngineController(ecu_index) = controller {
-                            if ecu_index != ecu_id {
-                                continue;
-                            }
-                        } else {
-                            continue;
-                        }
+            let filter_telemetry_fn = move |event: &ObserverEvent| {
+                if let ObserverEvent::AggregateTelemetry { controller, json: _ } = event {
+                    if let NetworkAddress::EngineController(ecu_index) = controller {
+                        return *ecu_index == ecu_id;
+                    }
+                }
 
+                false
+            };
+
+            while process_is_running() {
+                if observer_handler.register_observer_thread() {
+                    observer_handler.register_subscription_filter("ecu_telemetry_stream", filter_telemetry_fn);
+                }
+
+                if let Some((_, event)) = observer_handler.wait_event(Duration::from_millis(1)) {
+                    if !filter_telemetry_fn(&event) {
+                        continue;
+                    }
+
+                    if let ObserverEvent::AggregateTelemetry { controller: _, json } = event {
                         let result = stream.send(ws::Message::Text(json)).await;
 
                         if result.is_err() || stream.is_terminated() {

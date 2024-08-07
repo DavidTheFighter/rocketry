@@ -1,2 +1,2 @@
 ./build-sil \
-    && python -m pysim.simulation.igniter_pump "rt_wyvern_config.json"
+    && python -m pysim.simulation.igniter_pump "rt_wyvern_config.json" $@

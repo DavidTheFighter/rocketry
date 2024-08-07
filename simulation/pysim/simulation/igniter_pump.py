@@ -146,7 +146,7 @@ class IgniterPumpSimulation(SimulationBase):
         return True
 
 if __name__ == "__main__":
-    realtime = len(sys.argv) > 1 and sys.argv[1] == "-r"
+    realtime = len(sys.argv) > 1 and "-r" in sys.argv
 
     def igniter_app():
         config = SimConfig()

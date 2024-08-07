@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use strum::EnumProperty;
 use strum_macros::{EnumCount as EnumCountMacro, EnumDiscriminants, EnumIter};
 
-use crate::SensorConfig;
+use crate::{SensorConfig, SensorData};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum EngineState {
@@ -80,7 +80,7 @@ pub enum EcuCommand {
     },
     SetSparking(bool),
     FireIgniter,
-    FireEnginePumpFed,
+    FireEngine,
     ShutdownEngine,
     SetTankState((TankType, TankState)),
     SetPumpDuty((PumpType, f32)),
@@ -89,6 +89,20 @@ pub enum EcuCommand {
         config: SensorConfig,
     },
     ConfigureEcu(EcuConfig),
+    GetConfig,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum EcuTelemetry {
+    Telemetry(EcuTelemetryFrame),
+    TankTelemetry(EcuTankTelemetryFrame),
+    DebugInfo(EcuDebugInfo),
+    DebugSensorMeasurement((EcuSensor, SensorData)),
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub enum EcuResponse {
+    Config(EcuConfig),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter)]

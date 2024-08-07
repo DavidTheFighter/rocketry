@@ -6,6 +6,7 @@ mod input;
 mod logging;
 pub(crate) mod observer;
 mod telemetry;
+mod terminal;
 
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -39,6 +40,8 @@ fn rocket(observer_handler: Arc<ObserverHandler>) -> Rocket<Build> {
             routes![
                 all_options,
                 browser_stream,
+                commands::send_packet,
+                commands::packet_proxy,
             ],
         )
         .mount("/commands", commands::get_routes())
@@ -82,6 +85,10 @@ async fn main() {
     let observer_handler_ref = observer_handler.clone();
     join_handles.push(thread::spawn(move || {
         camera_streaming_thread(observer_handler_ref);
+    }));
+
+    join_handles.push(thread::spawn(move || {
+        terminal::terminal_thread();
     }));
 
     let observer_handler_ref = observer_handler.clone();

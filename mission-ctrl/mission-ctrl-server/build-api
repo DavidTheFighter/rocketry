@@ -1,0 +1,3 @@
+cd ../mission-ctrl-api \
+    && maturin develop --release \
+    && cd ../mission-ctrl-server
