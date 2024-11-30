@@ -1,10 +1,14 @@
 use pyo3::prelude::*;
 
+pub const REALTIME_WAIT_INTERVAL: f64 = 0.01;
+
 #[pyfunction]
-pub fn simulate_app_replay(py: Python, simulation: PyObject, timestep_callback: PyObject) {
+pub fn simulate_app(py: Python, simulation: PyObject, timestep_callback: PyObject, realtime: bool) {
     println!("Starting simulation");
 
     let start_time = std::time::Instant::now();
+    let mut realtime_wait_counter = 0.0;
+    let mut last_time = start_time;
 
     while simulation
         .call_method0(py, "advance_timestep")
@@ -28,6 +32,44 @@ pub fn simulate_app_replay(py: Python, simulation: PyObject, timestep_callback: 
             err.print(py);
             break;
         }
+
+        if realtime {
+            simulation.call_method0(py, "realtime_wait")
+                .expect("Failed to call realtime_wait method on simulation");
+        }
+
+        if false && realtime {
+            let now = std::time::Instant::now();
+            let elapsed = now.duration_since(last_time).as_secs_f64();
+            realtime_wait_counter += elapsed;
+
+            if realtime_wait_counter > REALTIME_WAIT_INTERVAL {
+                // Busy wait
+                while std::time::Instant::now().duration_since(now).as_secs_f64()
+                    < REALTIME_WAIT_INTERVAL
+                {
+                    // Busy wait
+                }
+
+                realtime_wait_counter -= REALTIME_WAIT_INTERVAL;
+            }
+
+            // let now = std::time::Instant::now();
+            // let elapsed = now.duration_since(last_realtime_wait_time).as_secs_f64();
+
+            // if elapsed > REALTIME_WAIT_INTERVAL {
+            //     // Busy wait
+            //     while std::time::Instant::now().duration_since(last_realtime_wait_time).as_secs_f64()
+            //         < REALTIME_WAIT_INTERVAL
+            //     {
+            //         // Busy wait
+            //     }
+
+            //     last_realtime_wait_time = now + std::time::Duration::from_secs_f64(elapsed - REALTIME_WAIT_INTERVAL);
+            // }
+        }
+
+        last_time = std::time::Instant::now();
     }
 
     let elapsed = start_time.elapsed().as_secs_f64();

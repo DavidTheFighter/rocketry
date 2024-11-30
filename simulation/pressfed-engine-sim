@@ -1,2 +1,2 @@
 ./build-sil \
-    && python -m pysim.simulation.engine_pressurefed "rt_endrega_config.json"
+    && python -m pysim.simulation.engine_pressurefed "../projects/endrega/gen_endrega_config.py" "../projects/endrega/endrega_config.json" $@

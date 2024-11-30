@@ -8,6 +8,23 @@
   )
 
 
+  (sheet (at 268.605 210.185) (size 19.685 20.32) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 7701b1cc-30c3-4117-bb83-7be83d0195a2)
+    (property "Sheetname" "Sensing" (at 268.605 209.4734 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "sensing.kicad_sch" (at 268.605 231.0896 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "ecu-kicad-v0.4"
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8" (page "11"))
+      )
+    )
+  )
+
   (sheet (at 368.3 277.495) (size 73.66 38.1) (fields_autoplaced)
     (stroke (width 0.1524) (type solid))
     (fill (color 0 0 0 0.0000))
@@ -42,14 +59,14 @@
     )
   )
 
-  (sheet (at 368.3 227.965) (size 73.66 40.64) (fields_autoplaced)
+  (sheet (at 172.72 215.265) (size 73.66 40.64) (fields_autoplaced)
     (stroke (width 0.1524) (type solid))
     (fill (color 0 0 0 0.0000))
     (uuid 9ead4792-45f5-4116-99cb-935143ec5657)
-    (property "Sheetname" "Microcontroller" (at 368.3 227.2534 0)
+    (property "Sheetname" "Microcontroller" (at 172.72 214.5534 0)
       (effects (font (size 1.27 1.27)) (justify left bottom))
     )
-    (property "Sheetfile" "microcontroller.kicad_sch" (at 368.3 269.1896 0)
+    (property "Sheetfile" "microcontroller.kicad_sch" (at 172.72 256.4896 0)
       (effects (font (size 1.27 1.27)) (justify left top))
     )
     (instances

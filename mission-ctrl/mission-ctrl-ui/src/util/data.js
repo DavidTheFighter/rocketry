@@ -11,6 +11,8 @@ export class DataHandler {
         this.data_retention_s = data_retention_s;
         this.last_update = new Date();
 
+        this.data._last_update_elapsed = Infinity;
+
         this._connect();
         this._heartbeat();
     }
@@ -19,13 +21,14 @@ export class DataHandler {
         if (this.websocket == null || this.websocket.readyState == WebSocket.CLOSED) {
             console.log("Connection lost, reconnecting to websocket");
             this._connect();
-        } else if (this.last_update < (new Date() - 10000)) {
-            console.log("No data received in 10 seconds, reconnecting to websocket");
+        } else if (this.last_update < (new Date() - 5000)) {
+            console.log("No data received in 5 seconds, reconnecting to websocket");
             this.websocket.close();
             this._connect();
         }
 
         this._cullOldData();
+        this.data._last_update_elapsed = (new Date() - this.last_update) / 1000;
 
         setTimeout(this._heartbeat.bind(this), 1000);
     }
@@ -49,6 +52,9 @@ export class DataHandler {
     _connect() {
         let ws = new WebSocket(this.websocket_url);
         ws.onmessage = this._onmessage.bind(this);
+        ws.onerror = () => {
+            ws.close();
+        };
         this.websocket = ws;
     }
 

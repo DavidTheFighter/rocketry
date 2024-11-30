@@ -8,8 +8,8 @@ def build_oxidizer_tank(config: dict, outlet, initial_pressure_pa: float) -> sil
 
 def _build_tank_dynamics(config: dict, prop_config: dict, outlet, initial_pressure_pa: float) -> sil.SilTankDynamics:
     feed_config = sil.SilTankFeedConfig(
-        config['feedConfig']['pressurePsi'] * 6894.76, # Psi -> Pa
-        config['feedConfig']['setPointPsi'] * 6894.76, # Psi -> Pa
+        config['feedConfig']['pressurePa'],
+        config['feedConfig']['setPointPa'],
         sil.GasDefinition(
             config['feedConfig']['feedGas']['name'],
             config['feedConfig']['feedGas']['molecularWeightKg'] * 1e3, # kg/mol -> g/mol

@@ -17,8 +17,6 @@ class SimConfig:
     baro_data_rate: float = 0.1 # Seconds
     angular_data_rate: float = 0.01 # Seconds
 
-    ecu_pressure_sensor_rate: float = 0.001 # Seconds
-
     ecu_tank_vent_diamter_m: float = 0.0025 # Meters
     ecu_tank_pressure_set_point_pa: float = 50 * 6894.75729 # PSI to pascals
 

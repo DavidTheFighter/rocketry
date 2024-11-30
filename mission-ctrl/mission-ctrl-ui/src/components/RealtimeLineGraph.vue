@@ -126,6 +126,7 @@ export default {
         scales: {
           x: {
             type: 'time',
+            bounds: 'ticks',
             title: {
               display: this.xTitle != null,
               text: this.xTitle,

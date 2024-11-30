@@ -43,7 +43,7 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<network::SimBridgeIface>()?;
 
     m.add_function(wrap_pyfunction!(
-        simulation_manager::simulate_app_replay,
+        simulation_manager::simulate_app,
         m
     )?)?;
     m.add_function(wrap_pyfunction!(logging::load_logs_from_file, m)?)?;

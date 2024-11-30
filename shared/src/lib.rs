@@ -11,6 +11,7 @@ pub mod fcu_mock;
 pub mod logger;
 pub mod standard_atmosphere;
 pub mod streamish_hal;
+pub mod util;
 
 use comms_hal::{NetworkAddress, Packet};
 use serde::{Deserialize, Serialize};

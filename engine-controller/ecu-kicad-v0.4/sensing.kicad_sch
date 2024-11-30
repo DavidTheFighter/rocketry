@@ -1,0 +1,53 @@
+(kicad_sch (version 20230121) (generator eeschema)
+
+  (uuid cee86105-cab3-4c67-8666-bf8daf6d95fb)
+
+  (paper "A4")
+
+  (lib_symbols
+  )
+
+
+  (sheet (at 116.205 81.915) (size 17.145 6.35) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid 8454efdf-ecef-4863-8302-be65299f3a99)
+    (property "Sheetname" "PressureSense" (at 116.205 81.2034 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "pressure_sense.kicad_sch" (at 116.205 88.8496 0)
+      (effects (font (size 1.27 1.27)) (justify left top) hide)
+    )
+    (pin "PS_IN" input (at 116.205 85.09 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid 5441fd32-b768-45e9-b7cd-40dcf804c456)
+    )
+    (pin "PS_OUT" output (at 133.35 85.09 0)
+      (effects (font (size 1.27 1.27)) (justify right))
+      (uuid 381eece7-08f0-40a8-a13d-421e79e71d5c)
+    )
+    (instances
+      (project "ecu-kicad-v0.4"
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8" (page "8"))
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/7701b1cc-30c3-4117-bb83-7be83d0195a2" (page "8"))
+      )
+    )
+  )
+
+  (sheet (at 116.84 95.885) (size 15.875 6.35) (fields_autoplaced)
+    (stroke (width 0.1524) (type solid))
+    (fill (color 0 0 0 0.0000))
+    (uuid ecf2c6bd-2b14-4e8a-8e3c-6218c8749933)
+    (property "Sheetname" "ThermocoupleSense0" (at 116.84 95.1734 0)
+      (effects (font (size 1.27 1.27)) (justify left bottom))
+    )
+    (property "Sheetfile" "thermocouple_sense.kicad_sch" (at 116.84 102.8196 0)
+      (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (instances
+      (project "ecu-kicad-v0.4"
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/7701b1cc-30c3-4117-bb83-7be83d0195a2" (page "12"))
+      )
+    )
+  )
+)

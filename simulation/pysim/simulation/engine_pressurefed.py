@@ -1,14 +1,17 @@
-import json
+import sys
 
 import software_in_loop as sil
-from pysim.config import SimConfig
-from pysim.replay import SimReplay
-from pysim.simulation.simulation import SimulationBase
+from pysim.simulation.simulation import SimulationBase, build_sim_from_argv
 import pysim.simulation.config_builder as cb
 
-class EnginePumpSimulation(SimulationBase):
-    def __init__(self, config: SimConfig, equip_config: dict, loggingQueue=None, log_to_file=False):
-        super().__init__(config, loggingQueue, log_to_file)
+class EngineSimulation(SimulationBase):
+    def __init__(self, sim_config: dict):
+        super().__init__(sim_config)
+
+    def initialize(self, project_config: dict, realtime: bool):
+        self.project_config = project_config
+        self.realtime = realtime
+
         self.eth_network = sil.SilNetwork([10, 0, 0, 0])
 
         self.ecu_eth_phy = sil.SilNetworkPhy(self.eth_network)
@@ -17,7 +20,7 @@ class EnginePumpSimulation(SimulationBase):
         self.mission_ctrl_eth_phy = sil.SilNetworkPhy(self.eth_network)
         self.mission_ctrl_eth_iface = sil.SilNetworkIface(self.mission_ctrl_eth_phy)
 
-        self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface])
+        self.mission_ctrl = sil.MissionControl([self.mission_ctrl_eth_iface], self.realtime)
 
         self.tank_fuel_pipe = sil.FluidConnection()
         self.engine_fuel_pipe = sil.FluidConnection()
@@ -30,16 +33,17 @@ class EnginePumpSimulation(SimulationBase):
         self.fuel_splitter = sil.FluidSplitter(self.tank_fuel_pipe, [self.engine_fuel_pipe, self.igniter_fuel_pipe])
         self.oxidizer_splitter = sil.FluidSplitter(self.tank_oxidizer_pipe, [self.engine_oxidizer_pipe, self.igniter_oxidizer_pipe])
 
-        self.fuel_tank_dynamics = cb.build_fuel_tank(equip_config, self.tank_fuel_pipe, sil.ATMOSPHERIC_PRESSURE_PA)
-        self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(equip_config, self.tank_oxidizer_pipe, sil.ATMOSPHERIC_PRESSURE_PA)
+        self.fuel_tank_dynamics = cb.build_fuel_tank(self.project_config["hardwareConfig"], self.tank_fuel_pipe, sil.ATMOSPHERIC_PRESSURE_PA)
+        self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(self.project_config["hardwareConfig"], self.tank_oxidizer_pipe, sil.ATMOSPHERIC_PRESSURE_PA)
 
-        self.igniter_dynamics = cb.build_igniter(equip_config, self.igniter_fuel_pipe, self.igniter_oxidizer_pipe)
-        self.engine_dynamics = cb.build_engine(equip_config, self.engine_fuel_pipe, self.engine_oxidizer_pipe)
+        self.igniter_dynamics = cb.build_igniter(self.project_config["hardwareConfig"], self.igniter_fuel_pipe, self.igniter_oxidizer_pipe)
+        self.engine_dynamics = cb.build_engine(self.project_config["hardwareConfig"], self.engine_fuel_pipe, self.engine_oxidizer_pipe)
 
         self.ecu = sil.EcuSil(
             [self.ecu_eth_iface],
             0, # ECU index
-            config.ecu_sensor_config,
+            self.project_config["hardwareConfig"]["ecuSensorConfig"],
+            self.sim_config["ecu_update_rate"],
             self.fuel_tank_dynamics,
             self.oxidizer_tank_dynamics,
             self.engine_dynamics,
@@ -49,6 +53,10 @@ class EnginePumpSimulation(SimulationBase):
         )
 
         self.dynamics_manager = sil.DynamicsManager()
+
+        self.dynamics_manager.add_dynamics_component(self.ecu)
+        self.dynamics_manager.add_dynamics_component(self.mission_ctrl)
+
         self.dynamics_manager.add_dynamics_component(self.fuel_tank_dynamics)
         self.dynamics_manager.add_dynamics_component(self.oxidizer_tank_dynamics)
         self.dynamics_manager.add_dynamics_component(self.igniter_dynamics)
@@ -63,24 +71,16 @@ class EnginePumpSimulation(SimulationBase):
         self.dynamics_manager.add_dynamics_component(self.oxidizer_splitter)
 
         self.logger = sil.Logger([self.eth_network])
-        self.logger.dt = self.config.sim_update_rate
+        self.logger.dt = self.sim_config["sim_update_rate"]
 
-        self.ecu.update_ecu_config(self.config.ecu_config)
-        self.time_since_last_ecu_update = 0.0
+        self.ecu.update_ecu_config(self.project_config["softwareConfig"]["ecu0"])
 
     def advance_timestep(self):
-        self.ecu.update_timestamp(self.t)
+        self.dynamics_manager.update(self.t, self.dt)
 
-        self.mission_ctrl.update(self.dt)
-        self.dynamics_manager.update(self.dt)
-
-        self.time_since_last_ecu_update += self.dt
-        if self.time_since_last_ecu_update >= self.config.ecu_update_rate:
-            self.ecu.update(self.config.ecu_update_rate)
-            self.time_since_last_ecu_update -= self.config.ecu_update_rate
-
-        self.logger.log_common_data()
-        self.logger.log_ecu_data(self.ecu)
+        if not self.realtime:
+            self.logger.log_common_data()
+            self.logger.log_ecu_data(self.ecu)
 
         self.t += self.dt
 
@@ -88,25 +88,20 @@ class EnginePumpSimulation(SimulationBase):
 
 if __name__ == "__main__":
     def engine_app():
-        import sys
+        sim_config = {
+            "ecu_update_rate": 0.001,
+            "sim_update_rate": 0.0005,
+            "replay_update_rate": 0.01,
+        }
 
-        config = SimConfig()
-        config.sim_update_rate = 0.0005 # Seconds
-        config.main_fuel_pump_pressure_setpoint_pa = 500 * 6894.75729 # PSI to pascals
-        config.main_oxidizer_pump_pressure_setpoint_pa = 500 * 6894.75729 # PSI to pascals
-        config.ecu_config['engine_config']['use_pumps'] = False
-
-        if len(sys.argv) > 1:
-            with open(sys.argv[1], 'r') as f:
-                equip_config = json.load(f)
-        else:
-            print("Usage: python engine_pump.py <config_file>")
+        if len(sys.argv) < 2:
+            print("Usage: python engine_pressurefed.py <optional gen script> <config_file> ...")
             return
 
         ignited = False
         pressurized = False
 
-        def tick_callback(sim: EnginePumpSimulation):
+        def tick_callback(sim: EngineSimulation):
             nonlocal ignited, pressurized
 
             if not ignited and not pressurized and sim.t > 0.5:
@@ -123,6 +118,13 @@ if __name__ == "__main__":
 
             return True
 
-        sil.simulate_app_replay(EnginePumpSimulation(config, equip_config), tick_callback)
+        simulation = EngineSimulation(sim_config)
+        build_sim_from_argv(simulation, sys.argv)
+
+        sil.simulate_app(
+            simulation,
+            None if simulation.realtime else tick_callback,
+            simulation.realtime,
+        )
 
     engine_app()

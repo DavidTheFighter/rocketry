@@ -4,7 +4,7 @@
       <RealtimeLineGraph
         :data-description="tankDataset"
         :dataset="dataset"
-        :yrange="[0, 100]"
+        :yrange="[0, 800]"
         :xTitle="'Time (sec)'"
         :displayTimeSeconds="30.0"
         :displayTickInterval="5.0"
@@ -186,6 +186,17 @@ export default {
     },
     softwareDataset() {
       return [
+      {
+          name: 'Telemetry Rate',
+          value: this.dataset?.display_fields?.telemetry_rate_hz,
+          units: "Hz",
+        },
+        {
+          name: 'Last mission-ctrl',
+          value: this.dataset?._last_update_elapsed,
+          units: "s",
+          badValue: this.dataset?._last_update_elapsed > 1.0,
+        },
         {
           name: 'Engine State',
           lastValue: this.dataset?.telemetry?.engine_state,
@@ -209,11 +220,6 @@ export default {
         {
           name: 'Ox Pump State',
           lastValue: this.dataset?.telemetry?.oxidizer_pump_state,
-        },
-        {
-          name: 'Telemetry Rate',
-          value: this.dataset?.display_fields?.telemetry_rate_hz,
-          units: "Hz",
         },
       ];
     },

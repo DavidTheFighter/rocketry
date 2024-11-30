@@ -1,0 +1,150 @@
+{
+    "hardwareConfig": {
+        "feedConfig": {
+            "pressurePa": 13789520.0,
+            "setPointPa": 3447380.0,
+            "orificeDiameterMeters": 0.004,
+            "orificeCd": 0.6,
+            "temperatureKelvin": 293.15,
+            "feedGas": {
+                "name": "GN2",
+                "molecularWeightKg": 0.028,
+                "specificHeatRatio": 1.039
+            }
+        },
+        "fuelConfig": {
+            "ventDiameterMeters": 0.0025,
+            "ventCd": 0.65,
+            "tankVolumeMeters3": 0.005,
+            "fuelLiquid": {
+                "name": "75% IPA",
+                "densityKgPerM3": 846.0
+            }
+        },
+        "oxidizerConfig": {
+            "ventDiameterMeters": 0.0025,
+            "ventCd": 0.65,
+            "tankVolumeMeters3": 0.01,
+            "oxidizerLiquid": {
+                "name": "LOX",
+                "densityKgPerM3": 1141.0
+            }
+        },
+        "igniterConfig": {
+            "fuelInjectorDiameterMeters": 0.0003302,
+            "fuelInjectorCd": 0.75,
+            "oxidizerInjectorDiameterMeters": 0.0003302,
+            "oxidizerInjectorCd": 0.75,
+            "throatDiameterMeters": 0.004
+        },
+        "fuelPumpConfig": {
+            "setPointPsi": 500.0
+        },
+        "oxidizerPumpConfig": {
+            "setPointPsi": 500.0
+        },
+        "engineConfig": {
+            "usePump": false,
+            "fuelInjectorDiameterMeters": 0.00373,
+            "fuelInjectorCd": 0.75,
+            "oxidizerInjectorDiameterMeters": 0.003792,
+            "oxidizerInjectorCd": 0.75,
+            "throatDiameterMeters": 0.03
+        },
+        "ecuSensorConfig": {
+            "FuelTankPressure": {
+                "rate": 0.001,
+                "std_dev": 3500,
+                "pressure_min": 0,
+                "pressure_max": 1378951.4579999999
+            },
+            "OxidizerTankPressure": {
+                "rate": 0.001,
+                "std_dev": 3500,
+                "pressure_min": 0,
+                "pressure_max": 1378951.4579999999
+            },
+            "IgniterChamberPressure": {
+                "rate": 0.001,
+                "std_dev": 3500,
+                "pressure_min": 0,
+                "pressure_max": 3447378.6449999996
+            },
+            "IgniterFuelInjectorPressure": {
+                "rate": 0.001,
+                "std_dev": 3500,
+                "pressure_min": 0,
+                "pressure_max": 3447378.6449999996
+            },
+            "IgniterOxidizerInjectorPressure": {
+                "rate": 0.001,
+                "std_dev": 3500,
+                "pressure_min": 0,
+                "pressure_max": 3447378.6449999996
+            },
+            "EngineChamberPressure": {
+                "rate": 0.001,
+                "std_dev": 10000,
+                "pressure_min": 0,
+                "pressure_max": 3447378.6449999996
+            },
+            "EngineFuelInjectorPressure": {
+                "rate": 0.001,
+                "std_dev": 10000,
+                "pressure_min": 0,
+                "pressure_max": 3447378.6449999996
+            },
+            "EngineOxidizerInjectorPressure": {
+                "rate": 0.001,
+                "std_dev": 10000,
+                "pressure_min": 0,
+                "pressure_max": 3447378.6449999996
+            },
+            "FuelPumpOutletPressure": {
+                "rate": 0.001,
+                "std_dev": 3500,
+                "pressure_min": 0,
+                "pressure_max": 3447378.6449999996
+            },
+            "OxidizerPumpOutletPressure": {
+                "rate": 0.001,
+                "std_dev": 3500,
+                "pressure_min": 0,
+                "pressure_max": 3447378.6449999996
+            }
+        }
+    },
+    "softwareConfig": {
+        "ecu0": {
+            "engine_config": {
+                "use_pumps": false,
+                "fuel_injector_pressure_setpoint_pa": 3447380.0,
+                "fuel_injector_startup_pressure_tolerance_pa": 172369.0,
+                "fuel_injector_running_pressure_tolerance_pa": 689476.0,
+                "oxidizer_injector_pressure_setpoint_pa": 3447380.0,
+                "oxidizer_injector_startup_pressure_tolerance_pa": 172369.0,
+                "oxidizer_injector_running_pressure_tolerance_pa": 689476.0,
+                "engine_target_combustion_pressure_pa": 2068428.0,
+                "engine_combustion_pressure_tolerance_pa": 1378952.0,
+                "pump_startup_timeout_s": 1.0,
+                "igniter_startup_timeout_s": 1.0,
+                "engine_startup_timeout_s": 1.0,
+                "engine_firing_duration_s": 4.0,
+                "engine_shutdown_duration_s": 0.5
+            },
+            "igniter_config": {
+                "startup_timeout_s": 1.0,
+                "startup_pressure_threshold_pa": 206842.80000000002,
+                "startup_stable_time_s": 0.25,
+                "test_firing_duration_s": 0.75,
+                "shutdown_duration_s": 0.5,
+                "max_throat_temp_k": 500.0
+            },
+            "tanks_config": {
+                "target_fuel_pressure_pa": 3447378.6449999996,
+                "target_oxidizer_pressure_pa": 3447378.6449999996
+            },
+            "telemetry_rate_s": 0.02
+        }
+    }
+}

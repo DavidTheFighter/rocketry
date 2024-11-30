@@ -71,7 +71,12 @@ impl DynamicsManager {
         self.components.push(component);
     }
 
-    pub fn update(&mut self, py: Python, dt: f64) {
+    pub fn update(&mut self, py: Python, t: f64, dt: f64) {
+        // Update timestamps for any components that implement it
+        for component in self.components.iter_mut() {
+            let _ = component.call_method1(py, "update_timestamp", (t,));
+        }
+
         for component in self.components.iter_mut() {
             component.call_method1(py, "update", (dt,)).expect(&format!(
                 "Failed to call update on {:?}",
@@ -81,7 +86,7 @@ impl DynamicsManager {
 
         for component in self.components.iter_mut() {
             component.call_method0(py, "post_update").expect(&format!(
-                "Failed to call pre_update on {:?}",
+                "Failed to call post_update on {:?}",
                 component.to_string()
             ));
         }

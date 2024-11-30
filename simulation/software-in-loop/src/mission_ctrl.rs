@@ -111,6 +111,8 @@ impl MissionControl {
         }
     }
 
+    pub fn post_update(&mut self) {}
+
     pub fn send_arm_vehicle_packet(&mut self) {
         let command = fcu_hal::VehicleCommand::Arm {
             magic_number: fcu_hal::ARMING_MAGIC_NUMBER,

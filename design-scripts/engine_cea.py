@@ -19,10 +19,10 @@ class EngineDesign:
     convergent_half_angle: float
 
 ENDREGA_1KN = EngineDesign(
-    oxName='LOX',
-    fuelName='Isopropanol70',
+    oxName='N2O',
+    fuelName='Isopropanol90',
     contraction_ratio=3.6,
-    chamber_pressure=300.0, # PSI
+    chamber_pressure=200.0, # PSI
     injector_pressure=500.0, # PSI
     exit_pressure=10.0, # PSI
     mix_ratio=1.2,  # O/F

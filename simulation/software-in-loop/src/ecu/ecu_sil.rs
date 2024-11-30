@@ -31,6 +31,8 @@ pub struct EcuSil {
     pub(crate) _big_brother: Rc<RefCell<EcuBigBrother<'static>>>,
     pub(crate) ecu: Ecu<'static>,
     pub(crate) sensors: HashMap<EcuSensor, Box<dyn SensorNoise>>,
+    time_since_last_ecu_update: f64,
+    ecu_update_interval: f64,
     fuel_tank: Option<Py<SilTankDynamics>>,
     oxidizer_tank: Option<Py<SilTankDynamics>>,
     engine: Option<Py<SilEngineDynamics>>,
@@ -46,6 +48,7 @@ impl EcuSil {
         network_ifaces: &PyList,
         ecu_index: u8,
         sensor_configuration: &PyDict,
+        ecu_update_interval: f64,
         fuel_tank: Option<Py<SilTankDynamics>>,
         oxidizer_tank: Option<Py<SilTankDynamics>>,
         engine: Option<Py<SilEngineDynamics>>,
@@ -94,6 +97,8 @@ impl EcuSil {
             _big_brother: big_brother,
             ecu,
             sensors: initialize_sensors(sensor_configuration),
+            time_since_last_ecu_update: 0.0,
+            ecu_update_interval,
             fuel_tank,
             oxidizer_tank,
             engine,
@@ -104,6 +109,38 @@ impl EcuSil {
     }
 
     pub fn update(&mut self, py: Python, dt: f64) {
+        self.time_since_last_ecu_update += dt;
+
+        if self.time_since_last_ecu_update >= self.ecu_update_interval {
+            self.update_ecu_loop(py, self.ecu_update_interval);
+            self.time_since_last_ecu_update -= self.ecu_update_interval;
+        }
+
+        if self.time_since_last_ecu_update >= self.ecu_update_interval {
+            eprintln!("Too few updates per frame, skipping update {} {} {}", self.time_since_last_ecu_update, dt, self.ecu_update_interval);
+        }
+    }
+
+    pub fn post_update(&mut self) {}
+
+    pub fn update_ecu_config(&mut self, dict: &PyDict) {
+        let config = obj_from_dict(dict);
+
+        println!("Updating ECU config: {:?}", config);
+
+        self.ecu.configure_ecu(config);
+    }
+
+    pub fn update_timestamp(&mut self, sim_time: f32) {
+        self.ecu
+            .driver
+            .as_mut_any()
+            .downcast_mut::<EcuDriverSil>()
+            .expect("Failed to retrieve driver from ECU object")
+            .update_timestamp(sim_time);
+    }
+
+    fn update_ecu_loop(&mut self, py: Python, dt: f64) {
         self.ecu.update(dt as f32);
         self.update_sensors(py, dt);
 
@@ -170,23 +207,6 @@ impl EcuSil {
             oxidizer_pump.borrow_mut(py).new_state.motor_duty_cycle =
                 self.ecu.driver.get_linear_output(EcuLinearOutput::OxidizerPump) as f64;
         }
-    }
-
-    pub fn update_ecu_config(&mut self, dict: &PyDict) {
-        let config = obj_from_dict(dict);
-
-        println!("Updating ECU config: {:?}", config);
-
-        self.ecu.configure_ecu(config);
-    }
-
-    pub fn update_timestamp(&mut self, sim_time: f32) {
-        self.ecu
-            .driver
-            .as_mut_any()
-            .downcast_mut::<EcuDriverSil>()
-            .expect("Failed to retrieve driver from ECU object")
-            .update_timestamp(sim_time);
     }
 
     // Returns general and widely needed fields from the FCU

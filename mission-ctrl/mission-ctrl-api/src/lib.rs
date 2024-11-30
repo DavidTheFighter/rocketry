@@ -40,8 +40,6 @@ impl CommandHandler {
 
         let json_str = serde_json::to_string(&packet_with_address).unwrap();
 
-        println!("Sending packet: {}", json_str);
-
         self.websocket
             .lock()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?
