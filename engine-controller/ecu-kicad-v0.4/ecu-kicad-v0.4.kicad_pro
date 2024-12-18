@@ -340,20 +340,12 @@
       "Output Driving"
     ],
     [
-      "78adda00-5038-4b2e-91dd-f461ba60ecd9",
-      "Temperature"
-    ],
-    [
-      "bc394d3c-e9ca-4af6-b4a2-898c79d06b25",
-      "Pressure"
-    ],
-    [
       "b1d345e9-2e9c-457a-a0b4-7532a447bfe6",
       "OutputDrv0"
     ],
     [
       "8454efdf-ecef-4863-8302-be65299f3a99",
-      "PressureSense"
+      "PressureSense0"
     ],
     [
       "64f49881-3157-4073-b83e-d9cba26a7f27",

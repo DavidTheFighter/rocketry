@@ -73,7 +73,7 @@ pub struct PacketWithAddress {
 pub mod tests_data {
     use super::*;
     use crate::{
-        ecu_hal::{self, EcuConfig, EngineConfig, EngineState, IgniterConfig, IgniterState, TanksConfig}, fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER
+        ecu_hal::{self, EcuBinaryOutput, EcuConfig, EngineConfig, EngineState, IgniterConfig, IgniterState, TanksConfig}, fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER
     };
     use mint::Vector3;
     use strum::EnumCount;
@@ -155,8 +155,12 @@ pub mod tests_data {
                 max_throat_temp_k: 749.248,
             },
             tanks_config: Some(TanksConfig {
-                target_fuel_pressure_pa: 9315.1,
-                target_oxidizer_pressure_pa: 9315.1,
+                fuel_press_valve: None,
+                fuel_fill_valve: Some(EcuBinaryOutput::FuelFillValve),
+                fuel_vent_valve: Some(EcuBinaryOutput::FuelVentValve),
+                oxidizer_press_valve: None,
+                oxidizer_fill_valve: Some(EcuBinaryOutput::OxidizerFillValve),
+                oxidizer_vent_valve: Some(EcuBinaryOutput::OxidizerVentValve),
             }),
             telemetry_rate_s: 0.945218,
         })),

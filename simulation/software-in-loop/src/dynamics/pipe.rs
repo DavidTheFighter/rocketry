@@ -11,6 +11,9 @@ pub struct FluidConnectionState {
     pub applied_outlet_pressure_pa: Scalar,
     #[pyo3(get, set)]
     pub closed: bool,
+    #[pyo3(get, set)]
+    pub mass_flow_rate_kg_s: Scalar,
+
     pub pressure_pa: Scalar,
 }
 

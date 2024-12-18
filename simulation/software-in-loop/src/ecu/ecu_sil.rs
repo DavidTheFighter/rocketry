@@ -176,7 +176,7 @@ impl EcuSil {
 
         if let Some(fuel_tank) = self.fuel_tank.as_ref() {
             let mut fuel_tank = fuel_tank.borrow_mut(py);
-            fuel_tank.new_state.feed_valve_open = self
+            fuel_tank.new_state.press_valve_open = self
                 .ecu
                 .driver
                 .get_binary_valve(EcuBinaryOutput::FuelPressValve);
@@ -188,7 +188,7 @@ impl EcuSil {
 
         if let Some(oxidizer_tank) = self.oxidizer_tank.as_ref(){
             let mut oxidizer_tank = oxidizer_tank.borrow_mut(py);
-            oxidizer_tank.new_state.feed_valve_open = self
+            oxidizer_tank.new_state.press_valve_open = self
                 .ecu
                 .driver
                 .get_binary_valve(EcuBinaryOutput::OxidizerPressValve);
@@ -256,14 +256,14 @@ impl EcuSil {
                 self
                     .fuel_tank
                     .as_ref()
-                    .map(|tank| tank.borrow(py).state.tank_pressure_pa as f64)
+                    .map(|tank| tank.borrow(py).ullage_pressure_pa() as f64)
                     .unwrap_or(0.0)
             }
             EcuSensor::OxidizerTankPressure => {
                 self
                     .oxidizer_tank
                     .as_ref()
-                    .map(|tank| tank.borrow(py).state.tank_pressure_pa as f64)
+                    .map(|tank| tank.borrow(py).ullage_pressure_pa() as f64)
                     .unwrap_or(0.0)
             }
             EcuSensor::IgniterChamberPressure => {

@@ -40,10 +40,17 @@ impl Tank {
         )
     }
 
-    pub fn depress(&mut self, py: Python) -> PyResult<()> {
+    pub fn vent(&mut self, py: Python) -> PyResult<()> {
         self.command_handler.borrow(py).send_ecu_command(
             self.ecu_index,
-            EcuCommand::SetTankState((self.tank_type, TankState::Depressurized)),
+            EcuCommand::SetTankState((self.tank_type, TankState::Venting)),
+        )
+    }
+
+    pub fn fill(&mut self, py: Python) -> PyResult<()> {
+        self.command_handler.borrow(py).send_ecu_command(
+            self.ecu_index,
+            EcuCommand::SetTankState((self.tank_type, TankState::Filling)),
         )
     }
 }

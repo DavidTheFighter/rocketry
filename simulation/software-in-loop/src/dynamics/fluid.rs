@@ -28,15 +28,18 @@ pub struct LiquidDefinition {
     pub name: String,
     #[pyo3(get)]
     pub density_kg_m3: f64,
+    #[pyo3(get)]
+    pub vapor_pressure_pa: f64,
 }
 
 #[pymethods]
 impl LiquidDefinition {
     #[new]
-    pub fn new(name: String, density_kg_m3: f64) -> Self {
+    pub fn new(name: String, density_kg_m3: f64, vapor_pressure_pa: f64) -> Self {
         Self {
             name,
             density_kg_m3,
+            vapor_pressure_pa,
         }
     }
 }

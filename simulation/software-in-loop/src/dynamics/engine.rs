@@ -116,10 +116,18 @@ impl SilEngineDynamics {
             .borrow_mut(py)
             .new_state
             .applied_outlet_pressure_pa = self.new_state.chamber_pressure_pa;
+        self.fuel_inlet
+            .borrow_mut(py)
+            .new_state
+            .mass_flow_rate_kg_s = fuel_mass_flow_kg / dt;
         self.oxidizer_inlet
             .borrow_mut(py)
             .new_state
             .applied_outlet_pressure_pa = self.new_state.chamber_pressure_pa;
+        self.oxidizer_inlet
+            .borrow_mut(py)
+            .new_state
+            .mass_flow_rate_kg_s = oxidizer_mass_flow_kg / dt;
     }
 
     pub fn set_combustion_pressure_modifier(&mut self, callback: PyObject) {

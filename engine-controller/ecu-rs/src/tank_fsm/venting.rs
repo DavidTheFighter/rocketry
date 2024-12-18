@@ -8,14 +8,14 @@ use shared::{
 use super::{new_state_from_command, TankFsm, TankType};
 
 #[derive(Debug)]
-pub struct Idle {
+pub struct Venting {
     tank_type: TankType,
     press_valve: Option<EcuBinaryOutput>,
     fill_valve: Option<EcuBinaryOutput>,
     vent_valve: Option<EcuBinaryOutput>,
 }
 
-impl<'f> ControllerState<TankFsm, Ecu<'f>> for Idle {
+impl<'f> ControllerState<TankFsm, Ecu<'f>> for Venting {
     fn update<'a>(
         &mut self,
         _ecu: &mut Ecu,
@@ -39,7 +39,7 @@ impl<'f> ControllerState<TankFsm, Ecu<'f>> for Idle {
         }
 
         if let Some(vent_valve) = self.vent_valve {
-            ecu.driver.set_binary_valve(vent_valve, false);
+            ecu.driver.set_binary_valve(vent_valve, true);
         }
     }
 
@@ -48,14 +48,14 @@ impl<'f> ControllerState<TankFsm, Ecu<'f>> for Idle {
     }
 }
 
-impl Idle {
+impl Venting {
     pub fn new(
         tank_type: TankType,
         press_valve: Option<EcuBinaryOutput>,
-        fill_valve: Option<EcuBinaryOutput>,
-        vent_valve: Option<EcuBinaryOutput>,
+    fill_valve: Option<EcuBinaryOutput>,
+    vent_valve: Option<EcuBinaryOutput>,
     ) -> TankFsm {
-        TankFsm::Idle(Self {
+        TankFsm::Venting(Self {
             tank_type,
             press_valve,
             fill_valve,

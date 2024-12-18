@@ -241,21 +241,23 @@ impl<'a> Ecu<'a> {
     pub fn configure_ecu(&mut self, config: EcuConfig) {
         self.config = config;
 
-        if self.config.tanks_config.is_some() {
+        if let Some(tanks_config) = self.config.tanks_config.clone() {
             self.fuel_tank = Some(ControllerEntity::new(
                 self,
                 tank_fsm::idle::Idle::new(
                     TankType::FuelMain,
-                    EcuBinaryOutput::FuelPressValve,
-                    EcuBinaryOutput::FuelVentValve,
+                    tanks_config.fuel_press_valve,
+                    tanks_config.fuel_fill_valve,
+                    tanks_config.fuel_vent_valve,
                 ),
             ));
             self.oxidizer_tank = Some(ControllerEntity::new(
                 self,
                 tank_fsm::idle::Idle::new(
                     TankType::OxidizerMain,
-                    EcuBinaryOutput::OxidizerPressValve,
-                    EcuBinaryOutput::OxidizerVentValve,
+                    tanks_config.oxidizer_press_valve,
+                    tanks_config.oxidizer_fill_valve,
+                    tanks_config.oxidizer_vent_valve,
                 ),
             ));
         } else {

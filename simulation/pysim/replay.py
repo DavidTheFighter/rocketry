@@ -1,6 +1,5 @@
 import socket
 import time
-from pysim.config import *
 import numpy as np
 from software_in_loop import Logger
 

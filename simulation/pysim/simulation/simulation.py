@@ -1,6 +1,5 @@
 import time, math, abc, json, subprocess, typing
 
-from pysim.config import SimConfig
 from pysim.replay import SimReplay
 
 class SimulationBase:

@@ -42,23 +42,6 @@
     )
   )
 
-  (sheet (at 356.87 160.655) (size 80.01 38.1) (fields_autoplaced)
-    (stroke (width 0.1524) (type solid))
-    (fill (color 0 0 0 0.0000))
-    (uuid 78adda00-5038-4b2e-91dd-f461ba60ecd9)
-    (property "Sheetname" "Temperature" (at 356.87 159.9434 0)
-      (effects (font (size 1.27 1.27)) (justify left bottom))
-    )
-    (property "Sheetfile" "temperature.kicad_sch" (at 356.87 199.3396 0)
-      (effects (font (size 1.27 1.27)) (justify left top))
-    )
-    (instances
-      (project "ecu-kicad-v0.4"
-        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8" (page "5"))
-      )
-    )
-  )
-
   (sheet (at 172.72 215.265) (size 73.66 40.64) (fields_autoplaced)
     (stroke (width 0.1524) (type solid))
     (fill (color 0 0 0 0.0000))
@@ -72,23 +55,6 @@
     (instances
       (project "ecu-kicad-v0.4"
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8" (page "3"))
-      )
-    )
-  )
-
-  (sheet (at 448.31 160.655) (size 78.105 36.83) (fields_autoplaced)
-    (stroke (width 0.1524) (type solid))
-    (fill (color 0 0 0 0.0000))
-    (uuid bc394d3c-e9ca-4af6-b4a2-898c79d06b25)
-    (property "Sheetname" "Pressure" (at 448.31 159.9434 0)
-      (effects (font (size 1.27 1.27)) (justify left bottom))
-    )
-    (property "Sheetfile" "pressure.kicad_sch" (at 448.31 198.0696 0)
-      (effects (font (size 1.27 1.27)) (justify left top))
-    )
-    (instances
-      (project "ecu-kicad-v0.4"
-        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8" (page "6"))
       )
     )
   )

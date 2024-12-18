@@ -132,7 +132,7 @@ impl MissionControl {
     pub fn send_set_fuel_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
         let command = match pressurized {
             true => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::FuelMain, ecu_hal::TankState::Pressurized)),
-            false => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::FuelMain, ecu_hal::TankState::Depressurized)),
+            false => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::FuelMain, ecu_hal::TankState::Venting)),
         };
 
         let packet = Packet::EcuCommand(command);
@@ -142,7 +142,7 @@ impl MissionControl {
     pub fn send_set_oxidizer_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
         let command = match pressurized {
             true => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::OxidizerMain, ecu_hal::TankState::Pressurized)),
-            false => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::OxidizerMain, ecu_hal::TankState::Depressurized)),
+            false => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::OxidizerMain, ecu_hal::TankState::Venting)),
         };
 
         let packet = Packet::EcuCommand(command);

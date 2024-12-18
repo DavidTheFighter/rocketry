@@ -24,7 +24,7 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<logging::Logger>()?;
 
     m.add_class::<dynamics::SilTankDynamics>()?;
-    m.add_class::<dynamics::SilTankFeedConfig>()?;
+    m.add_class::<dynamics::SilTankPressConfig>()?;
     m.add_class::<dynamics::SilVehicleDynamics>()?;
     m.add_class::<dynamics::combustion::CombustionData>()?;
     m.add_class::<dynamics::igniter::SilIgniterDynamics>()?;

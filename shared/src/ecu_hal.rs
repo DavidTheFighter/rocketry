@@ -27,8 +27,9 @@ pub enum IgniterState {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
 pub enum TankState {
     Idle,
-    Depressurized,
+    Venting,
     Pressurized,
+    Filling,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumIter)]
@@ -111,8 +112,10 @@ pub enum EcuBinaryOutput {
     IgniterOxidizerValve,
     FuelPressValve,
     FuelVentValve,
+    FuelFillValve,
     OxidizerPressValve,
     OxidizerVentValve,
+    OxidizerFillValve,
     EngineFuelValve,
     EngineOxidizerValve,
     FuelPurgeValve,
@@ -280,8 +283,12 @@ pub struct IgniterConfig {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TanksConfig {
-    pub target_fuel_pressure_pa: f32,
-    pub target_oxidizer_pressure_pa: f32,
+    pub fuel_press_valve: Option<EcuBinaryOutput>,
+    pub fuel_fill_valve: Option<EcuBinaryOutput>,
+    pub fuel_vent_valve: Option<EcuBinaryOutput>,
+    pub oxidizer_press_valve: Option<EcuBinaryOutput>,
+    pub oxidizer_fill_valve: Option<EcuBinaryOutput>,
+    pub oxidizer_vent_valve: Option<EcuBinaryOutput>,
 }
 
 impl EcuConfig {

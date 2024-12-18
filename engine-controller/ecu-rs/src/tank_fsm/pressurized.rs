@@ -10,8 +10,9 @@ use super::{new_state_from_command, TankFsm, TankType};
 #[derive(Debug)]
 pub struct Pressurized {
     tank_type: TankType,
-    press_valve: EcuBinaryOutput,
-    vent_valve: EcuBinaryOutput,
+    press_valve: Option<EcuBinaryOutput>,
+    fill_valve: Option<EcuBinaryOutput>,
+    vent_valve: Option<EcuBinaryOutput>,
 }
 
 impl<'f> ControllerState<TankFsm, Ecu<'f>> for Pressurized {
@@ -29,8 +30,17 @@ impl<'f> ControllerState<TankFsm, Ecu<'f>> for Pressurized {
     }
 
     fn enter_state(&mut self, ecu: &mut Ecu) {
-        ecu.driver.set_binary_valve(self.press_valve, true);
-        ecu.driver.set_binary_valve(self.vent_valve, false);
+        if let Some(valve) = self.press_valve {
+            ecu.driver.set_binary_valve(valve, true);
+        }
+
+        if let Some(valve) = self.fill_valve {
+            ecu.driver.set_binary_valve(valve, false);
+        }
+
+        if let Some(valve) = self.vent_valve {
+            ecu.driver.set_binary_valve(valve, false);
+        }
     }
 
     fn exit_state(&mut self, _ecu: &mut Ecu) {
@@ -41,12 +51,14 @@ impl<'f> ControllerState<TankFsm, Ecu<'f>> for Pressurized {
 impl Pressurized {
     pub fn new(
         tank_type: TankType,
-        press_valve: EcuBinaryOutput,
-        vent_valve: EcuBinaryOutput,
+        press_valve: Option<EcuBinaryOutput>,
+        fill_valve: Option<EcuBinaryOutput>,
+        vent_valve: Option<EcuBinaryOutput>,
     ) -> TankFsm {
         TankFsm::Pressurized(Self {
             tank_type,
             press_valve,
+            fill_valve,
             vent_valve,
         })
     }
@@ -60,6 +72,7 @@ impl Pressurized {
                             *new_state,
                             self.tank_type,
                             self.press_valve,
+                            self.fill_valve,
                             self.vent_valve,
                         ));
                     }

@@ -13,7 +13,7 @@ type Scalar = f64;
 pub const ATMOSPHERIC_PRESSURE_PA: Scalar = 101325.0;
 
 pub use tank::SilTankDynamics;
-pub use tank::SilTankFeedConfig;
+pub use tank::SilTankPressConfig;
 pub use vehicle::SilVehicleDynamics;
 
 use pyo3::prelude::*;

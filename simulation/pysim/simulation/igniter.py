@@ -86,10 +86,6 @@ class IgniterSimulation(SimulationBase):
 
 if __name__ == "__main__":
     def igniter_app():
-        # config = SimConfig()
-        # config.sim_update_rate = 0.0005 # Seconds
-        # config.ecu_tank_pressure_set_point_pa = 200 * 6894.75729 # PSI to pascals
-
         sim_config = {
             "ecu_update_rate": 0.001,
             "sim_update_rate": 0.0005,

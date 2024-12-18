@@ -5,35 +5,38 @@ def generate_config(filename):
     config = {}
 
     config["hardwareConfig"] = {
-        "feedConfig": {
-            "pressurePa": 2000.0 * 6894.76, # PSI to Pascals,
-            "setPointPa": 500.0 * 6894.76, # PSI to Pascals,
-            "orificeDiameterMeters": 0.004,
-            "orificeCd": 0.6,
-            "temperatureKelvin": 293.15,
-            "feedGas": {
-                "name": "GN2",
-                "molecularWeightKg": 0.028,
-                "specificHeatRatio": 1.039
-            }
-        },
+        "pressConfig": None,
         "fuelConfig": {
             "ventDiameterMeters": 0.0025,
             "ventCd": 0.65,
             "tankVolumeMeters3": 0.005,
-            "fuelLiquid": {
+            "propellantMassKg": 4.0,
+            "propellantLiquid": {
                 "name": "75% IPA",
-                "densityKgPerM3": 846.0
-            }
+                "densityKgPerM3": 846.0,
+                "vaporPressurePa": 4.1,
+            },
+            "ullageGas": {
+                "name": "N2O",
+                "molecularWeightKg": 0.04401,
+                "specificHeatRatio": 0.875,
+            },
         },
         "oxidizerConfig": {
             "ventDiameterMeters": 0.0025,
             "ventCd": 0.65,
-            "tankVolumeMeters3": 0.01,
-            "oxidizerLiquid": {
-                "name": "LOX",
-                "densityKgPerM3": 1141.0
-            }
+            "tankVolumeMeters3": 0.03,
+            "propellantMassKg": 10.0,
+            "propellantLiquid": {
+                "name": "N2O",
+                "densityKgPerM3": 1220.0,
+                "vaporPressurePa": 5137000.0,
+            },
+            "ullageGas": {
+                "name": "N2O",
+                "molecularWeightKg": 0.04401,
+                "specificHeatRatio": 0.875,
+            },
         },
         "igniterConfig": {
             "fuelInjectorDiameterMeters": 0.0003302,
@@ -135,7 +138,7 @@ def generate_config(filename):
                 "pump_startup_timeout_s": 1.0,
                 "igniter_startup_timeout_s": 1.0,
                 "engine_startup_timeout_s": 1.0,
-                "engine_firing_duration_s": 4.0,
+                "engine_firing_duration_s": 10.0,
                 "engine_shutdown_duration_s": 0.5,
             },
             "igniter_config": {
@@ -147,10 +150,14 @@ def generate_config(filename):
                 "max_throat_temp_k": 500.0,
             },
             "tanks_config": {
-                'target_fuel_pressure_pa': 500 * 6894.75729, # PSI to pascals
-                'target_oxidizer_pressure_pa': 500 * 6894.75729, # PSI to pascals
+                'fuel_press_valve': None,
+                'fuel_vent_valve': "FuelVentValve",
+                'fuel_fill_valve': "FuelFillValve",
+                'oxidizer_press_valve': None,
+                'oxidizer_vent_valve': "OxidizerVentValve",
+                'oxidizer_fill_valve': "OxidizerFillValve",
             },
-            "telemetry_rate_s": 0.02
+            "telemetry_rate_s": 0.02,
         }
     }
 

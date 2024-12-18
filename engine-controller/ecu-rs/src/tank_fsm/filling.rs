@@ -8,13 +8,14 @@ use shared::{
 use super::{new_state_from_command, TankFsm, TankType};
 
 #[derive(Debug)]
-pub struct Depressurized {
+pub struct Filling {
     tank_type: TankType,
-    press_valve: EcuBinaryOutput,
-    vent_valve: EcuBinaryOutput,
+    press_valve: Option<EcuBinaryOutput>,
+    fill_valve: Option<EcuBinaryOutput>,
+    vent_valve: Option<EcuBinaryOutput>,
 }
 
-impl<'f> ControllerState<TankFsm, Ecu<'f>> for Depressurized {
+impl<'f> ControllerState<TankFsm, Ecu<'f>> for Filling {
     fn update<'a>(
         &mut self,
         _ecu: &mut Ecu,
@@ -29,8 +30,17 @@ impl<'f> ControllerState<TankFsm, Ecu<'f>> for Depressurized {
     }
 
     fn enter_state(&mut self, ecu: &mut Ecu) {
-        ecu.driver.set_binary_valve(self.press_valve, false);
-        ecu.driver.set_binary_valve(self.vent_valve, true);
+        if let Some(press_valve) = self.press_valve {
+            ecu.driver.set_binary_valve(press_valve, false);
+        }
+
+        if let Some(fill_valve) = self.fill_valve {
+            ecu.driver.set_binary_valve(fill_valve, true);
+        }
+
+        if let Some(vent_valve) = self.vent_valve {
+            ecu.driver.set_binary_valve(vent_valve, true);
+        }
     }
 
     fn exit_state(&mut self, _ecu: &mut Ecu) {
@@ -38,15 +48,17 @@ impl<'f> ControllerState<TankFsm, Ecu<'f>> for Depressurized {
     }
 }
 
-impl Depressurized {
+impl Filling {
     pub fn new(
         tank_type: TankType,
-        press_valve: EcuBinaryOutput,
-        vent_valve: EcuBinaryOutput,
+        press_valve: Option<EcuBinaryOutput>,
+        fill_valve: Option<EcuBinaryOutput>,
+        vent_valve: Option<EcuBinaryOutput>,
     ) -> TankFsm {
-        TankFsm::Depressurized(Self {
+        TankFsm::Filling(Self {
             tank_type,
             press_valve,
+            fill_valve,
             vent_valve,
         })
     }
@@ -60,6 +72,7 @@ impl Depressurized {
                             *new_state,
                             self.tank_type,
                             self.press_valve,
+                            self.fill_valve,
                             self.vent_valve,
                         ));
                     }

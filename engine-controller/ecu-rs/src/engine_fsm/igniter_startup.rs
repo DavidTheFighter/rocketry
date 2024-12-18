@@ -31,7 +31,7 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for IgniterStartup {
         }
 
         if self.startup_timed_out(ecu) {
-            ecu.alert_manager.set_condition(EcuAlert::EngineStartupPumpTimeout);
+            ecu.alert_manager.set_condition(EcuAlert::EngineStartupIgniterAnomaly);
             return Some(EngineShutdown::new());
         }
 
