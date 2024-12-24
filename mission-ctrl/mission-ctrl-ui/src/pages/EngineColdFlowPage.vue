@@ -8,26 +8,16 @@
         :xTitle="'Time (sec)'"
         :displayTimeSeconds="30.0"
         :displayTickInterval="5.0"
-        class="columnFourths"
-      />
-      <RealtimeLineGraph
-        :data-description="pumpDataset"
-        :dataset="dataset"
-        :yrange="[0, 800]"
-        :xTitle="'Time (sec)'"
-        :displayTimeSeconds="30.0"
-        :displayTickInterval="5.0"
-        class="columnFourths"
+        class="columnThirds"
       />
       <RealtimeLineGraph
         :data-description="igniterDataset"
         :dataset="dataset"
         :yrange="[0, 800]"
         :xTitle="'Time (sec)'"
-        :yTitle="'Pressure (PSI)'"
         :displayTimeSeconds="30.0"
         :displayTickInterval="5.0"
-        class="columnFourths"
+        class="columnThirds"
       />
       <RealtimeLineGraph
         :data-description="engineDataset"
@@ -36,7 +26,7 @@
         :xTitle="'Time (sec)'"
         :displayTimeSeconds="30.0"
         :displayTickInterval="5.0"
-        class="columnFourths"
+        class="columnThirds"
       />
     </div>
     <div class="row">

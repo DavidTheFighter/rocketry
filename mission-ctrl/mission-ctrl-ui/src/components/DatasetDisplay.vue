@@ -88,8 +88,8 @@ export default {
       let value = "??";
       if (state?.value != null && state?.value != undefined) {
         value = state.value;
-      } else if (state?.lastValue != null && state?.lastValue != undefined) {
-        value = state.lastValue[state.lastValue.length - 1]['value'];
+      } else if (state?.lastValue != null && state?.lastValue != undefined && state.lastValue.length > 0) {
+        value = state.lastValue[state.lastValue.length - 1]['value'] ?? "??";
       }
 
       if (state?.units) {
@@ -102,8 +102,8 @@ export default {
       let value = null;
       if (state?.value != null && state?.value != undefined) {
         value = state.value;
-      } else if (state?.lastValue != null && state?.lastValue != undefined) {
-        value = state.lastValue[state.lastValue.length - 1]['value'];
+      } else if (state?.lastValue != null && state?.lastValue != undefined && state.lastValue.length > 0) {
+        value = state.lastValue[state.lastValue.length - 1]['value'] ?? "??";
       }
 
       if (state?.badValue != null && state?.badValue != undefined) {

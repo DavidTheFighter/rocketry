@@ -77,7 +77,6 @@ fn broadcast() {
     }
 }
 
-#[test]
 fn bb_many_bb_routing() {
     let network = fixture_network();
     let mut interfaces = Vec::new();

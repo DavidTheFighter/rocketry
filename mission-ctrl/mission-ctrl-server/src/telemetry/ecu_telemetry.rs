@@ -40,6 +40,8 @@ impl EcuTelemetryHandler {
 
         let mut current_telemetry_data = HashMap::new();
 
+        self.observer_handler.register_observer_thread();
+
         while process_is_running() {
             let now = timestamp();
             if now - last_rate_record_time >= self.telemetry_rate_record_time {
@@ -91,8 +93,6 @@ impl EcuTelemetryHandler {
         let mut telemetry_data = previous_telemetry_data.clone();
         let mut ecu_sensor_datas = HashMap::new();
         let mut received_data = false;
-
-        self.observer_handler.register_observer_thread();
 
         let start_time = std::time::Instant::now();
 
@@ -215,31 +215,16 @@ impl EcuTelemetryHandler {
     }
 
     fn get_packet(&self) -> Option<(NetworkAddress, Packet)> {
-        if cfg!(windows) {
-            if let Some((_, event)) = self.observer_handler.get_event() {
-                if let ObserverEvent::PacketReceived {
-                    address,
-                    ip: _,
-                    packet,
-                } = event
-                {
-                    return Some((address, packet));
-                }
-            }
+        let timeout = Duration::from_millis(1);
 
-            std::thread::yield_now();
-        } else {
-            let timeout = Duration::from_millis(1);
-
-            if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
-                if let ObserverEvent::PacketReceived {
-                    address,
-                    ip: _,
-                    packet,
-                } = event
-                {
-                    return Some((address, packet));
-                }
+        if let Some((_, event)) = self.observer_handler.wait_event(timeout) {
+            if let ObserverEvent::PacketReceived {
+                address,
+                ip: _,
+                packet,
+            } = event
+            {
+                return Some((address, packet));
             }
         }
 

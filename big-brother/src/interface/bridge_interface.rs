@@ -58,7 +58,7 @@ impl BigBrotherInterface for BridgeInterface {
     ) -> Result<Option<(usize, BigBrotherEndpoint)>, BigBrotherError> {
         let recv = self.udp_socket.recv_from(data);
         if let Err(e) = &recv {
-            if e.kind() == std::io::ErrorKind::WouldBlock {
+            if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::ConnectionReset {
                 return Ok(None);
             }
         }

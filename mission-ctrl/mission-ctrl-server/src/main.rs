@@ -3,7 +3,6 @@ mod commands;
 mod comms;
 mod config;
 mod input;
-mod logging;
 pub(crate) mod observer;
 mod telemetry;
 mod terminal;
@@ -89,11 +88,6 @@ async fn main() {
 
     join_handles.push(thread::spawn(move || {
         terminal::terminal_thread();
-    }));
-
-    let observer_handler_ref = observer_handler.clone();
-    join_handles.push(thread::spawn(move || {
-        logging::logging_thread(observer_handler_ref);
     }));
 
     let shutdown_handle_ref = shutdown_handle.clone();
