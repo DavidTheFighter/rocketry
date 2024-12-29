@@ -2,12 +2,12 @@ use shared::{ecu_hal::EngineState, ControllerFsm, ControllerState};
 
 use crate::Ecu;
 
-pub mod idle;
-pub mod pump_startup;
-pub mod igniter_startup;
+pub mod engine_shutdown;
 pub mod engine_startup;
 pub mod firing;
-pub mod engine_shutdown;
+pub mod idle;
+pub mod igniter_startup;
+pub mod pump_startup;
 
 pub enum EngineFsm {
     Idle(idle::Idle),

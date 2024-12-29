@@ -2,12 +2,15 @@ use std::{cell::RefCell, net::UdpSocket, rc::Rc};
 
 use big_brother::{
     big_brother::{BigBrotherError, MAX_INTERFACE_COUNT, WORKING_BUFFER_SIZE},
-    interface::{bridge_interface::BridgeInterface, mock_interface::MockInterface, BigBrotherInterface},
+    interface::{
+        bridge_interface::BridgeInterface, mock_interface::MockInterface, BigBrotherInterface,
+    },
 };
 use fcu_rs::FcuBigBrother;
 use pyo3::{prelude::*, types::PyList};
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal, fcu_hal, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal, fcu_hal, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT,
 };
 
 use crate::network::{SilNetworkIface, SimBridgeIface};
@@ -53,8 +56,9 @@ impl MissionControl {
 
             println!("Doing simulation bridge");
 
-            let simulation_interface = BridgeInterface::new(REALTIME_SIMULATION_SIM_PORT, REALTIME_SIMULATION_CTRL_PORT)
-                .expect("Failed to create simulation interface for comms thread");
+            let simulation_interface =
+                BridgeInterface::new(REALTIME_SIMULATION_SIM_PORT, REALTIME_SIMULATION_CTRL_PORT)
+                    .expect("Failed to create simulation interface for comms thread");
 
             simulation_bridge_iface.replace(Rc::new(RefCell::new(simulation_interface)));
 
@@ -131,8 +135,14 @@ impl MissionControl {
 
     pub fn send_set_fuel_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
         let command = match pressurized {
-            true => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::FuelMain, ecu_hal::TankState::Pressurized)),
-            false => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::FuelMain, ecu_hal::TankState::Venting)),
+            true => ecu_hal::EcuCommand::SetTankState((
+                ecu_hal::TankType::FuelMain,
+                ecu_hal::TankState::Pressurized,
+            )),
+            false => ecu_hal::EcuCommand::SetTankState((
+                ecu_hal::TankType::FuelMain,
+                ecu_hal::TankState::Venting,
+            )),
         };
 
         let packet = Packet::EcuCommand(command);
@@ -141,8 +151,14 @@ impl MissionControl {
 
     pub fn send_set_oxidizer_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
         let command = match pressurized {
-            true => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::OxidizerMain, ecu_hal::TankState::Pressurized)),
-            false => ecu_hal::EcuCommand::SetTankState((ecu_hal::TankType::OxidizerMain, ecu_hal::TankState::Venting)),
+            true => ecu_hal::EcuCommand::SetTankState((
+                ecu_hal::TankType::OxidizerMain,
+                ecu_hal::TankState::Pressurized,
+            )),
+            false => ecu_hal::EcuCommand::SetTankState((
+                ecu_hal::TankType::OxidizerMain,
+                ecu_hal::TankState::Venting,
+            )),
         };
 
         let packet = Packet::EcuCommand(command);

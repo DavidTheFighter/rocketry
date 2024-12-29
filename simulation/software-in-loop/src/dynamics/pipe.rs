@@ -44,9 +44,13 @@ impl FluidConnection {
     }
 
     pub fn update(&mut self, dt: f64) {
-        let applied_pressure = self.state.applied_inlet_pressure_pa.max(self.state.applied_outlet_pressure_pa);
+        let applied_pressure = self
+            .state
+            .applied_inlet_pressure_pa
+            .max(self.state.applied_outlet_pressure_pa);
         let delta = applied_pressure - self.state.pressure_pa;
-        self.new_state.pressure_pa = self.state.pressure_pa + delta * self.pressure_velocity * dt as Scalar;
+        self.new_state.pressure_pa =
+            self.state.pressure_pa + delta * self.pressure_velocity * dt as Scalar;
     }
 
     #[getter]

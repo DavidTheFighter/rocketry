@@ -1,6 +1,8 @@
 use crate::Ecu;
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuCommand, EcuLinearOutput, PumpType}, ControllerState
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuCommand, EcuLinearOutput, PumpType},
+    ControllerState,
 };
 
 use super::{pumping::Pumping, PumpFsm};

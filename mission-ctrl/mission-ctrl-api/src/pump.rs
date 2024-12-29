@@ -27,14 +27,23 @@ impl Pump {
     }
 
     pub fn full(&mut self, py: Python) -> PyResult<()> {
-        self.command_handler.borrow(py).send_ecu_command(self.ecu_index, EcuCommand::SetPumpDuty((self.pump_type, 1.0)))
+        self.command_handler.borrow(py).send_ecu_command(
+            self.ecu_index,
+            EcuCommand::SetPumpDuty((self.pump_type, 1.0)),
+        )
     }
 
     pub fn off(&mut self, py: Python) -> PyResult<()> {
-        self.command_handler.borrow(py).send_ecu_command(self.ecu_index, EcuCommand::SetPumpDuty((self.pump_type, 0.0)))
+        self.command_handler.borrow(py).send_ecu_command(
+            self.ecu_index,
+            EcuCommand::SetPumpDuty((self.pump_type, 0.0)),
+        )
     }
 
     pub fn set_duty(&mut self, py: Python, duty: f32) -> PyResult<()> {
-        self.command_handler.borrow(py).send_ecu_command(self.ecu_index, EcuCommand::SetPumpDuty((self.pump_type, duty)))
+        self.command_handler.borrow(py).send_ecu_command(
+            self.ecu_index,
+            EcuCommand::SetPumpDuty((self.pump_type, duty)),
+        )
     }
 }

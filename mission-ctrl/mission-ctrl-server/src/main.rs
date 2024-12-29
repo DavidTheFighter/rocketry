@@ -13,13 +13,13 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use cameras::browser_stream;
-use telemetry::ecu_telemetry::telemetry_thread;
-use telemetry::fcu_telemetry::fcu_telemetry_thread;
 use input::input_thread;
 use observer::ObserverHandler;
 use rocket::fairing::{Fairing, Info, Kind};
 use rocket::http::Header;
 use rocket::{Build, Request, Response, Rocket};
+use telemetry::ecu_telemetry::telemetry_thread;
+use telemetry::fcu_telemetry::fcu_telemetry_thread;
 
 use crate::cameras::camera_streaming_thread;
 use crate::comms::comms_thread;

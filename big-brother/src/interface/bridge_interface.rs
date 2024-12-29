@@ -41,10 +41,7 @@ impl BigBrotherInterface for BridgeInterface {
         destination: BigBrotherEndpoint,
         data: &mut [u8],
     ) -> Result<(), BigBrotherError> {
-        let destination = format!(
-            "127.0.0.1:{}",
-            self.target_port,
-        );
+        let destination = format!("127.0.0.1:{}", self.target_port,);
 
         self.udp_socket
             .send_to(data, destination)
@@ -58,7 +55,9 @@ impl BigBrotherInterface for BridgeInterface {
     ) -> Result<Option<(usize, BigBrotherEndpoint)>, BigBrotherError> {
         let recv = self.udp_socket.recv_from(data);
         if let Err(e) = &recv {
-            if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::ConnectionReset {
+            if e.kind() == std::io::ErrorKind::WouldBlock
+                || e.kind() == std::io::ErrorKind::ConnectionReset
+            {
                 return Ok(None);
             }
         }

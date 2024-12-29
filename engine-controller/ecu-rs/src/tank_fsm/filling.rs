@@ -1,7 +1,7 @@
 use crate::Ecu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, EcuBinaryOutput},
+    ecu_hal::{EcuBinaryOutput, EcuCommand},
     ControllerState,
 };
 

@@ -1,6 +1,6 @@
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuAlert, EcuBinaryOutput, EcuCommand, TankState},
+    ecu_hal::{EcuAlert, EcuBinaryOutput, EcuCommand, IgniterConfig, TankState},
     ControllerState,
 };
 
@@ -8,7 +8,9 @@ use crate::Ecu;
 
 use super::{startup::Startup, IgniterFsm};
 
-pub struct Idle;
+pub struct Idle {
+    igniter_config: IgniterConfig,
+}
 
 impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Idle {
     fn update<'a>(
@@ -19,11 +21,13 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Idle {
     ) -> Option<IgniterFsm> {
         if self.received_fire_igniter(packets) {
             if self.tanks_pressurized(ecu) {
-                ecu.alert_manager.clear_condition(EcuAlert::IgniterTankOffNominal);
+                ecu.alert_manager
+                    .clear_condition(EcuAlert::IgniterTankOffNominal);
 
-                return Some(Startup::new());
+                return Some(Startup::new(self.igniter_config.clone()));
             } else {
-                ecu.alert_manager.set_condition(EcuAlert::IgniterTankOffNominal);
+                ecu.alert_manager
+                    .set_condition(EcuAlert::IgniterTankOffNominal);
             }
         }
 
@@ -31,8 +35,10 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Idle {
     }
 
     fn enter_state(&mut self, ecu: &mut Ecu) {
-        ecu.driver.set_binary_valve(EcuBinaryOutput::IgniterFuelValve, false);
-        ecu.driver.set_binary_valve(EcuBinaryOutput::IgniterOxidizerValve, false);
+        ecu.driver
+            .set_binary_valve(EcuBinaryOutput::IgniterFuelValve, false);
+        ecu.driver
+            .set_binary_valve(EcuBinaryOutput::IgniterOxidizerValve, false);
         ecu.driver.set_sparking(false);
     }
 
@@ -42,8 +48,8 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Idle {
 }
 
 impl Idle {
-    pub fn new() -> IgniterFsm {
-        IgniterFsm::Idle(Self {})
+    pub fn new(igniter_config: IgniterConfig) -> IgniterFsm {
+        IgniterFsm::Idle(Self { igniter_config })
     }
 
     fn received_fire_igniter(&self, packets: &[(NetworkAddress, Packet)]) -> bool {

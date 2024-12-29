@@ -2,7 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use big_brother::interface::{
     mock_interface::MockInterface,
-    mock_topology::{MockPhysicalInterface, MockPhysicalNet}, std_interface::StdInterface,
+    mock_topology::{MockPhysicalInterface, MockPhysicalNet},
+    std_interface::StdInterface,
 };
 use pyo3::{prelude::*, types::PyList};
 

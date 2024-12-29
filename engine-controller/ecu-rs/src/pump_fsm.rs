@@ -1,7 +1,4 @@
-use shared::{
-    ecu_hal::PumpState,
-    ControllerFsm, ControllerState,
-};
+use shared::{ecu_hal::PumpState, ControllerFsm, ControllerState};
 
 use crate::Ecu;
 

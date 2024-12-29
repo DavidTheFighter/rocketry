@@ -1,12 +1,22 @@
 use big_brother::BigBrother;
 use shared::{
-    alerts::AlertManager, comms_hal::{NetworkAddress, Packet}, ecu_hal::{
-        EcuAlert, EcuBinaryOutput, EcuCommand, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuLinearOutput, EcuResponse, EcuSensor, EcuTankTelemetryFrame, EcuTelemetry, EcuTelemetryFrame, EngineState, IgniterState, PumpState, PumpType, TankState, TankType
-    }, ControllerEntity, SensorData, COMMS_NETWORK_MAP_SIZE
+    alerts::AlertManager,
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{
+        EcuAlert, EcuCommand, EcuConfig, EcuDebugInfoVariant, EcuDriver, EcuResponse, EcuSensor,
+        EcuTankTelemetryFrame, EcuTelemetry, EcuTelemetryFrame, EngineState, IgniterState,
+        PumpState, TankState, TankType,
+    },
+    ControllerEntity, SensorData, COMMS_NETWORK_MAP_SIZE,
 };
 
 use crate::{
-    engine_fsm::{self, EngineFsm}, igniter_fsm::{self, IgniterFsm}, pump_fsm::{self, PumpFsm}, silprintln, state_vector::StateVector, tank_fsm::{self, TankFsm}
+    engine_fsm::{self, EngineFsm},
+    igniter_fsm::{self, IgniterFsm},
+    pump_fsm::PumpFsm,
+    silprintln,
+    state_vector::StateVector,
+    tank_fsm::{self, TankFsm},
 };
 
 use strum::IntoEnumIterator;
@@ -39,7 +49,7 @@ pub struct Ecu<'a> {
 
 impl<'a> Ecu<'a> {
     pub fn new(driver: &'a mut dyn EcuDriver, comms: &'a mut EcuBigBrother<'a>) -> Self {
-        let mut ecu = Self {
+        Self {
             config: EcuConfig::default(),
             debug_info_enabled: true,
             driver,
@@ -55,29 +65,7 @@ impl<'a> Ecu<'a> {
             last_telemetry_frame: None,
             time_since_last_telemetry: 1e3,
             local_command_queue: empty_command_array(),
-        };
-
-        ecu.engine = Some(ControllerEntity::new(
-            &mut ecu,
-            engine_fsm::idle::Idle::new(),
-        ));
-
-        ecu.igniter = Some(ControllerEntity::new(
-            &mut ecu,
-            igniter_fsm::idle::Idle::new(),
-        ));
-
-        ecu.fuel_pump = Some(ControllerEntity::new(
-            &mut ecu,
-            pump_fsm::idle::Idle::new(PumpType::FuelMain, EcuLinearOutput::FuelPump),
-        ));
-
-        ecu.oxidizer_pump = Some(ControllerEntity::new(
-            &mut ecu,
-            pump_fsm::idle::Idle::new(PumpType::OxidizerMain, EcuLinearOutput::OxidizerPump),
-        ));
-
-        ecu
+        }
     }
 
     pub fn update(&mut self, dt: f32) {
@@ -98,7 +86,8 @@ impl<'a> Ecu<'a> {
 
         for command in &mut self.local_command_queue {
             if let Some(command) = command.take() {
-                packet_queue[num_packets] = (NetworkAddress::MissionControl, Packet::EcuCommand(command));
+                packet_queue[num_packets] =
+                    (NetworkAddress::MissionControl, Packet::EcuCommand(command));
                 num_packets += 1;
 
                 if num_packets >= PACKET_QUEUE_SIZE {
@@ -189,8 +178,8 @@ impl<'a> Ecu<'a> {
                 Packet::EcuCommand(EcuCommand::GetConfig) => {
                     silprintln!("Received get config command");
                     self.send_response_packet(EcuResponse::Config(self.config.clone()), *remote);
-                },
-                _ => {},
+                }
+                _ => {}
             }
         }
     }
@@ -201,18 +190,38 @@ impl<'a> Ecu<'a> {
             engine_state: self.engine_state(),
             igniter_state: self.igniter_state(),
             engine_chamber_pressure_pa: self.state_vector.sensor_data.engine_chamber_pressure_pa,
-            engine_fuel_injector_pressure_pa: self.state_vector.sensor_data.engine_fuel_injector_pressure_pa,
-            engine_oxidizer_injector_pressure_pa: self.state_vector.sensor_data.engine_oxidizer_injector_pressure_pa,
+            engine_fuel_injector_pressure_pa: self
+                .state_vector
+                .sensor_data
+                .engine_fuel_injector_pressure_pa,
+            engine_oxidizer_injector_pressure_pa: self
+                .state_vector
+                .sensor_data
+                .engine_oxidizer_injector_pressure_pa,
             igniter_chamber_pressure_pa: self.state_vector.sensor_data.igniter_chamber_pressure_pa,
-            fuel_pump_state: self.fuel_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
-            oxidizer_pump_state: self.oxidizer_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
-            fuel_pump_outlet_pressure_pa: self.state_vector.sensor_data.fuel_pump_outlet_pressure_pa,
-            oxidizer_pump_outlet_pressure_pa: self.state_vector.sensor_data.oxidizer_pump_outlet_pressure_pa,
+            fuel_pump_state: self
+                .fuel_pump
+                .as_ref()
+                .map(|fsm| fsm.hal_state())
+                .unwrap_or(PumpState::Idle),
+            oxidizer_pump_state: self
+                .oxidizer_pump
+                .as_ref()
+                .map(|fsm| fsm.hal_state())
+                .unwrap_or(PumpState::Idle),
+            fuel_pump_outlet_pressure_pa: self
+                .state_vector
+                .sensor_data
+                .fuel_pump_outlet_pressure_pa,
+            oxidizer_pump_outlet_pressure_pa: self
+                .state_vector
+                .sensor_data
+                .oxidizer_pump_outlet_pressure_pa,
         }
     }
 
     pub fn generate_tank_telemetry_frame(&self) -> Option<EcuTankTelemetryFrame> {
-        if self.config.tanks_config.is_none() {
+        if self.config.fuel_tank_config.is_none() && self.config.oxidizer_tank_config.is_none() {
             return None;
         }
 
@@ -222,8 +231,16 @@ impl<'a> Ecu<'a> {
             timestamp: (self.driver.timestamp() * 1e3) as u64,
             fuel_tank_state,
             oxidizer_tank_state,
-            fuel_tank_pressure_pa: self.state_vector.sensor_data.fuel_tank_pressure_pa.unwrap_or(0.0),
-            oxidizer_tank_pressure_pa: self.state_vector.sensor_data.oxidizer_tank_pressure_pa.unwrap_or(0.0),
+            fuel_tank_pressure_pa: self
+                .state_vector
+                .sensor_data
+                .fuel_tank_pressure_pa
+                .unwrap_or(0.0),
+            oxidizer_tank_pressure_pa: self
+                .state_vector
+                .sensor_data
+                .oxidizer_tank_pressure_pa
+                .unwrap_or(0.0),
         })
     }
 
@@ -241,27 +258,49 @@ impl<'a> Ecu<'a> {
     pub fn configure_ecu(&mut self, config: EcuConfig) {
         self.config = config;
 
-        if let Some(tanks_config) = self.config.tanks_config.clone() {
+        if let Some(engine_config) = self.config.engine_config.clone() {
+            self.engine = Some(ControllerEntity::new(
+                self,
+                engine_fsm::idle::Idle::new(engine_config),
+            ));
+        } else {
+            self.engine = None;
+        }
+
+        if let Some(igniter_config) = self.config.igniter_config.clone() {
+            self.igniter = Some(ControllerEntity::new(
+                self,
+                igniter_fsm::idle::Idle::new(igniter_config),
+            ));
+        } else {
+            self.igniter = None;
+        }
+
+        if let Some(tanks_config) = self.config.fuel_tank_config.clone() {
             self.fuel_tank = Some(ControllerEntity::new(
                 self,
                 tank_fsm::idle::Idle::new(
                     TankType::FuelMain,
-                    tanks_config.fuel_press_valve,
-                    tanks_config.fuel_fill_valve,
-                    tanks_config.fuel_vent_valve,
-                ),
-            ));
-            self.oxidizer_tank = Some(ControllerEntity::new(
-                self,
-                tank_fsm::idle::Idle::new(
-                    TankType::OxidizerMain,
-                    tanks_config.oxidizer_press_valve,
-                    tanks_config.oxidizer_fill_valve,
-                    tanks_config.oxidizer_vent_valve,
+                    tanks_config.press_valve,
+                    tanks_config.fill_valve,
+                    tanks_config.vent_valve,
                 ),
             ));
         } else {
             self.fuel_tank = None;
+        }
+
+        if let Some(tanks_config) = self.config.oxidizer_tank_config.clone() {
+            self.oxidizer_tank = Some(ControllerEntity::new(
+                self,
+                tank_fsm::idle::Idle::new(
+                    TankType::OxidizerMain,
+                    tanks_config.press_valve,
+                    tanks_config.fill_valve,
+                    tanks_config.vent_valve,
+                ),
+            ));
+        } else {
             self.oxidizer_tank = None;
         }
     }
@@ -270,20 +309,34 @@ impl<'a> Ecu<'a> {
         let _ = self.comms.send_packet(packet, destination);
     }
 
-    pub(crate) fn send_telemetry_packet(&mut self, telemetry: EcuTelemetry, destination: NetworkAddress) {
+    pub(crate) fn send_telemetry_packet(
+        &mut self,
+        telemetry: EcuTelemetry,
+        destination: NetworkAddress,
+    ) {
         self.send_packet(&Packet::EcuTelemetry(telemetry), destination);
     }
 
-    pub(crate) fn send_response_packet(&mut self, response: EcuResponse, destination: NetworkAddress) {
+    pub(crate) fn send_response_packet(
+        &mut self,
+        response: EcuResponse,
+        destination: NetworkAddress,
+    ) {
         self.send_packet(&Packet::EcuResponse(response), destination);
     }
 
     pub(crate) fn engine_state(&self) -> EngineState {
-        self.engine.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(EngineState::Idle)
+        self.engine
+            .as_ref()
+            .map(|fsm| fsm.hal_state())
+            .unwrap_or(EngineState::Idle)
     }
 
     pub(crate) fn igniter_state(&self) -> IgniterState {
-        self.igniter.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(IgniterState::Idle)
+        self.igniter
+            .as_ref()
+            .map(|fsm| fsm.hal_state())
+            .unwrap_or(IgniterState::Idle)
     }
 
     pub(crate) fn fuel_tank_state(&self) -> Option<TankState> {
@@ -333,5 +386,3 @@ fn empty_packet_array() -> [(NetworkAddress, Packet); PACKET_QUEUE_SIZE] {
 fn empty_command_array() -> [Option<EcuCommand>; LOCAL_COMMAND_QUEUE_SIZE] {
     [None, None, None, None, None, None, None, None]
 }
-
-

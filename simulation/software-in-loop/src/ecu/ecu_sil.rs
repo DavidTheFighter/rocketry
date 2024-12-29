@@ -16,7 +16,10 @@ use shared::{
 use strum::IntoEnumIterator;
 
 use crate::{
-    dynamics::{engine::SilEngineDynamics, igniter::SilIgniterDynamics, pump::SilPumpDynamics, SilTankDynamics, ATMOSPHERIC_PRESSURE_PA},
+    dynamics::{
+        engine::SilEngineDynamics, igniter::SilIgniterDynamics, pump::SilPumpDynamics,
+        SilTankDynamics, ATMOSPHERIC_PRESSURE_PA,
+    },
     network::SilNetworkIface,
     sensors::SensorNoise,
     ser::{dict_from_obj, obj_from_dict},
@@ -117,7 +120,10 @@ impl EcuSil {
         }
 
         if self.time_since_last_ecu_update >= self.ecu_update_interval {
-            eprintln!("Too few updates per frame, skipping update {} {} {}", self.time_since_last_ecu_update, dt, self.ecu_update_interval);
+            eprintln!(
+                "Too few updates per frame, skipping update {} {} {}",
+                self.time_since_last_ecu_update, dt, self.ecu_update_interval
+            );
         }
     }
 
@@ -157,7 +163,8 @@ impl EcuSil {
 
             if let Some(igniter) = self.igniter.as_ref() {
                 let igniter = igniter.borrow_mut(py);
-                engine.new_state.has_ignition_source = igniter.chamber_pressure_pa() > ATMOSPHERIC_PRESSURE_PA;
+                engine.new_state.has_ignition_source =
+                    igniter.chamber_pressure_pa() > ATMOSPHERIC_PRESSURE_PA;
             }
         }
 
@@ -186,7 +193,7 @@ impl EcuSil {
                 .get_binary_valve(EcuBinaryOutput::FuelVentValve);
         }
 
-        if let Some(oxidizer_tank) = self.oxidizer_tank.as_ref(){
+        if let Some(oxidizer_tank) = self.oxidizer_tank.as_ref() {
             let mut oxidizer_tank = oxidizer_tank.borrow_mut(py);
             oxidizer_tank.new_state.press_valve_open = self
                 .ecu
@@ -203,9 +210,11 @@ impl EcuSil {
                 self.ecu.driver.get_linear_output(EcuLinearOutput::FuelPump) as f64;
         }
 
-        if let Some(oxidizer_pump) = self.oxidizer_pump.as_ref(){
+        if let Some(oxidizer_pump) = self.oxidizer_pump.as_ref() {
             oxidizer_pump.borrow_mut(py).new_state.motor_duty_cycle =
-                self.ecu.driver.get_linear_output(EcuLinearOutput::OxidizerPump) as f64;
+                self.ecu
+                    .driver
+                    .get_linear_output(EcuLinearOutput::OxidizerPump) as f64;
         }
     }
 
@@ -252,79 +261,78 @@ impl EcuSil {
 impl EcuSil {
     pub fn get_direct_sensor_value(&self, py: Python, sensor: EcuSensor) -> f64 {
         match sensor {
-            EcuSensor::FuelTankPressure => {
-                self
-                    .fuel_tank
-                    .as_ref()
-                    .map(|tank| tank.borrow(py).ullage_pressure_pa() as f64)
-                    .unwrap_or(0.0)
-            }
-            EcuSensor::OxidizerTankPressure => {
-                self
-                    .oxidizer_tank
-                    .as_ref()
-                    .map(|tank| tank.borrow(py).ullage_pressure_pa() as f64)
-                    .unwrap_or(0.0)
-            }
-            EcuSensor::IgniterChamberPressure => {
-                self
-                    .igniter
-                    .as_ref()
-                    .map(|igniter| igniter.borrow(py).chamber_pressure_pa() as f64)
-                    .unwrap_or(0.0)
-            }
-            EcuSensor::IgniterFuelInjectorPressure =>
-                self
-                    .igniter
-                    .as_ref()
-                    .map(|igniter| igniter.borrow(py).fuel_inlet.borrow(py).outlet_pressure_pa() as f64)
-                    .unwrap_or(0.0),
-            EcuSensor::IgniterOxidizerInjectorPressure => {
-                self
-                    .igniter
-                    .as_ref()
-                    .map(|igniter| igniter.borrow(py).oxidizer_inlet.borrow(py).outlet_pressure_pa() as f64)
-                    .unwrap_or(0.0)
-            }
+            EcuSensor::FuelTankPressure => self
+                .fuel_tank
+                .as_ref()
+                .map(|tank| tank.borrow(py).tank_pressure_pa() as f64)
+                .unwrap_or(0.0),
+            EcuSensor::OxidizerTankPressure => self
+                .oxidizer_tank
+                .as_ref()
+                .map(|tank| tank.borrow(py).tank_pressure_pa() as f64)
+                .unwrap_or(0.0),
+            EcuSensor::IgniterChamberPressure => self
+                .igniter
+                .as_ref()
+                .map(|igniter| igniter.borrow(py).chamber_pressure_pa() as f64)
+                .unwrap_or(0.0),
+            EcuSensor::IgniterFuelInjectorPressure => self
+                .igniter
+                .as_ref()
+                .map(|igniter| {
+                    igniter
+                        .borrow(py)
+                        .fuel_inlet
+                        .borrow(py)
+                        .outlet_pressure_pa() as f64
+                })
+                .unwrap_or(0.0),
+            EcuSensor::IgniterOxidizerInjectorPressure => self
+                .igniter
+                .as_ref()
+                .map(|igniter| {
+                    igniter
+                        .borrow(py)
+                        .oxidizer_inlet
+                        .borrow(py)
+                        .outlet_pressure_pa() as f64
+                })
+                .unwrap_or(0.0),
             EcuSensor::IgniterThroatTemperature => 0.0,
-            EcuSensor::EngineChamberPressure => {
-                self
-                    .engine
-                    .as_ref()
-                    .map(|engine| engine.borrow(py).chamber_pressure_pa() as f64)
-                    .unwrap_or(0.0)
-            },
-            EcuSensor::EngineFuelInjectorPressure => {
-                self
-                    .engine
-                    .as_ref()
-                    .map(|engine| engine.borrow(py).fuel_inlet.borrow(py).outlet_pressure_pa() as f64)
-                    .unwrap_or(0.0)
-            },
-            EcuSensor::EngineOxidizerInjectorPressure => {
-                self
-                    .engine
-                    .as_ref()
-                    .map(|engine| engine.borrow(py).oxidizer_inlet.borrow(py).outlet_pressure_pa() as f64)
-                    .unwrap_or(0.0)
-            },
+            EcuSensor::EngineChamberPressure => self
+                .engine
+                .as_ref()
+                .map(|engine| engine.borrow(py).chamber_pressure_pa() as f64)
+                .unwrap_or(0.0),
+            EcuSensor::EngineFuelInjectorPressure => self
+                .engine
+                .as_ref()
+                .map(|engine| engine.borrow(py).fuel_inlet.borrow(py).outlet_pressure_pa() as f64)
+                .unwrap_or(0.0),
+            EcuSensor::EngineOxidizerInjectorPressure => self
+                .engine
+                .as_ref()
+                .map(|engine| {
+                    engine
+                        .borrow(py)
+                        .oxidizer_inlet
+                        .borrow(py)
+                        .outlet_pressure_pa() as f64
+                })
+                .unwrap_or(0.0),
             EcuSensor::EngineThroatTemperature => 0.0,
-            EcuSensor::FuelPumpOutletPressure => {
-                self
-                    .fuel_pump
-                    .as_ref()
-                    .map(|pump| pump.borrow(py).state.pressure_pa as f64)
-                    .unwrap_or(0.0)
-            },
+            EcuSensor::FuelPumpOutletPressure => self
+                .fuel_pump
+                .as_ref()
+                .map(|pump| pump.borrow(py).state.pressure_pa as f64)
+                .unwrap_or(0.0),
             EcuSensor::FuelPumpInletPressure => 0.0,
             EcuSensor::FuelPumpInducerPressure => 0.0,
-            EcuSensor::OxidizerPumpOutletPressure => {
-                self
-                    .oxidizer_pump
-                    .as_ref()
-                    .map(|pump| pump.borrow(py).state.pressure_pa as f64)
-                    .unwrap_or(0.0)
-            },
+            EcuSensor::OxidizerPumpOutletPressure => self
+                .oxidizer_pump
+                .as_ref()
+                .map(|pump| pump.borrow(py).state.pressure_pa as f64)
+                .unwrap_or(0.0),
             EcuSensor::OxidizerPumpInletPressure => 0.0,
             EcuSensor::OxidizerPumpInducerPressure => 0.0,
         }

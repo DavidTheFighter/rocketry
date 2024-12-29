@@ -48,7 +48,9 @@ fn new_state_from_command(
     match state {
         TankState::Idle => idle::Idle::new(tank_type, press_valve, fill_valve, vent_valve),
         TankState::Venting => venting::Venting::new(tank_type, press_valve, fill_valve, vent_valve),
-        TankState::Pressurized => pressurized::Pressurized::new(tank_type, press_valve, fill_valve, vent_valve),
+        TankState::Pressurized => {
+            pressurized::Pressurized::new(tank_type, press_valve, fill_valve, vent_valve)
+        }
         TankState::Filling => filling::Filling::new(tank_type, press_valve, fill_valve, vent_valve),
     }
 }

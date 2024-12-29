@@ -50,7 +50,9 @@ pub enum PumpType {
     OxidizerMain,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter, Hash)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, EnumCountMacro, EnumIter, Hash,
+)]
 pub enum EcuSensor {
     FuelTankPressure,
     OxidizerTankPressure,
@@ -247,9 +249,10 @@ pub enum EcuDebugInfo {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EcuConfig {
-    pub engine_config: EngineConfig,
-    pub igniter_config: IgniterConfig,
-    pub tanks_config: Option<TanksConfig>,
+    pub engine_config: Option<EngineConfig>,
+    pub igniter_config: Option<IgniterConfig>,
+    pub fuel_tank_config: Option<TankConfig>,
+    pub oxidizer_tank_config: Option<TankConfig>,
     pub telemetry_rate_s: f32,
 }
 
@@ -282,21 +285,21 @@ pub struct IgniterConfig {
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct TanksConfig {
-    pub fuel_press_valve: Option<EcuBinaryOutput>,
-    pub fuel_fill_valve: Option<EcuBinaryOutput>,
-    pub fuel_vent_valve: Option<EcuBinaryOutput>,
-    pub oxidizer_press_valve: Option<EcuBinaryOutput>,
-    pub oxidizer_fill_valve: Option<EcuBinaryOutput>,
-    pub oxidizer_vent_valve: Option<EcuBinaryOutput>,
+pub struct TankConfig {
+    pub press_valve: Option<EcuBinaryOutput>,
+    pub fill_valve: Option<EcuBinaryOutput>,
+    pub vent_valve: Option<EcuBinaryOutput>,
+    pub press_min_threshold_pa: f32,
+    pub press_max_threshold_pa: f32,
 }
 
 impl EcuConfig {
     pub fn default() -> Self {
         Self {
-            engine_config: EngineConfig::default(),
-            igniter_config: IgniterConfig::default(),
-            tanks_config: None,
+            engine_config: Some(EngineConfig::default()),
+            igniter_config: Some(IgniterConfig::default()),
+            fuel_tank_config: None,
+            oxidizer_tank_config: None,
             telemetry_rate_s: 0.02,
         }
     }

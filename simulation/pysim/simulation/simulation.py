@@ -1,4 +1,4 @@
-import time, math, abc, json, subprocess, typing
+import time, abc, json, subprocess, typing
 
 from pysim.replay import SimReplay
 

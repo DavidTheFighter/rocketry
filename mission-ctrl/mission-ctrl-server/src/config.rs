@@ -22,13 +22,14 @@ impl ConfigHandler {
 
     fn run(&mut self) {
         if self.observer_handler.register_observer_thread() {
-            self.observer_handler.register_subscription_filter("config_thread", |event| {
-                if let ObserverEvent::SendPacket { address: _, packet } = event {
-                    matches!(packet, Packet::DeviceBooted)
-                } else {
-                    false
-                }
-            });
+            self.observer_handler
+                .register_subscription_filter("config_thread", |event| {
+                    if let ObserverEvent::SendPacket { address: _, packet } = event {
+                        matches!(packet, Packet::DeviceBooted)
+                    } else {
+                        false
+                    }
+                });
         }
         self.send_ecu_config(NetworkAddress::EngineController(0));
 

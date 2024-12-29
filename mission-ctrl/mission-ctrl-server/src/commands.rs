@@ -7,12 +7,23 @@ pub mod tanks;
 use std::{sync::Arc, time::Duration};
 
 use rocket::{
-    futures::{stream::FusedStream, SinkExt, StreamExt}, serde::{json::{serde_json, Json}, Deserialize, Serialize}, State
+    futures::{stream::FusedStream, SinkExt, StreamExt},
+    serde::{
+        json::{serde_json, Json},
+        Deserialize, Serialize,
+    },
+    State,
 };
-use shared::{comms_hal::{NetworkAddress, Packet, PacketWithAddress}, ecu_hal::EcuResponse};
+use shared::{
+    comms_hal::{NetworkAddress, Packet, PacketWithAddress},
+    ecu_hal::EcuResponse,
+};
 
-use crate::{observer::{ObserverEvent, ObserverHandler}, process_is_running};
-use components::{set_solenoid_valve, test_solenoid_valve, test_spark, set_fcu_output};
+use crate::{
+    observer::{ObserverEvent, ObserverHandler},
+    process_is_running,
+};
+use components::{set_fcu_output, set_solenoid_valve, test_solenoid_valve, test_spark};
 use logging::{erase_flash, retrieve_logs, set_logging};
 use sequence::test_fire_igniter;
 use streamish::{start_stream, stop_stream};

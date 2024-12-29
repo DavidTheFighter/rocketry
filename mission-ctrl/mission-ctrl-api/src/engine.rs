@@ -14,10 +14,15 @@ pub struct Engine {
 impl Engine {
     #[new]
     pub fn new(ecu_index: u8, command_handler: Py<CommandHandler>) -> Self {
-        Self { ecu_index, command_handler }
+        Self {
+            ecu_index,
+            command_handler,
+        }
     }
 
     pub fn fire(&mut self, py: Python) -> PyResult<()> {
-        self.command_handler.borrow(py).send_ecu_command(self.ecu_index, EcuCommand::FireEngine)
+        self.command_handler
+            .borrow(py)
+            .send_ecu_command(self.ecu_index, EcuCommand::FireEngine)
     }
 }

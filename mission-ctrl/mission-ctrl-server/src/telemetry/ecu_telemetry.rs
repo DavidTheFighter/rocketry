@@ -134,21 +134,23 @@ impl EcuTelemetryHandler {
 
                         ecu_data.insert(String::from("debug_info"), debug_info_value);
                     }
-                    Packet::EcuTelemetry(EcuTelemetry::DebugSensorMeasurement((sensor, data))) => match data {
-                        shared::SensorData::Pressure {
-                            pressure_pa,
-                            raw_data: _,
-                        } => {
-                            sensor_data.insert(format!("{:?}", sensor), json!(pressure_pa));
+                    Packet::EcuTelemetry(EcuTelemetry::DebugSensorMeasurement((sensor, data))) => {
+                        match data {
+                            shared::SensorData::Pressure {
+                                pressure_pa,
+                                raw_data: _,
+                            } => {
+                                sensor_data.insert(format!("{:?}", sensor), json!(pressure_pa));
+                            }
+                            shared::SensorData::Temperature {
+                                temperature_k,
+                                raw_data: _,
+                            } => {
+                                sensor_data
+                                    .insert(format!("{:?}", sensor), json!(temperature_k + 273.15));
+                            }
                         }
-                        shared::SensorData::Temperature {
-                            temperature_k,
-                            raw_data: _,
-                        } => {
-                            sensor_data
-                                .insert(format!("{:?}", sensor), json!(temperature_k + 273.15));
-                        }
-                    },
+                    }
                     Packet::AlertBitmask(bitmask) => {
                         let alert_conditions = ecu_data
                             .entry(String::from("alert_conditions"))
@@ -189,9 +191,7 @@ impl EcuTelemetryHandler {
             ecu_data.insert(String::from("display_fields"), display_fields.clone());
             ecu_data.insert(
                 String::from("noHistoryFields"),
-                json!(vec![
-                    String::from("display_fields"),
-                ]),
+                json!(vec![String::from("display_fields"),]),
             );
 
             return Ok(telemetry_data);
@@ -249,7 +249,11 @@ pub fn ecu_telemetry_stream(
     ws.channel(move |mut stream| {
         Box::pin(async move {
             let filter_telemetry_fn = move |event: &ObserverEvent| {
-                if let ObserverEvent::AggregateTelemetry { controller, json: _ } = event {
+                if let ObserverEvent::AggregateTelemetry {
+                    controller,
+                    json: _,
+                } = event
+                {
                     if let NetworkAddress::EngineController(ecu_index) = controller {
                         return *ecu_index == ecu_id;
                     }
@@ -260,7 +264,8 @@ pub fn ecu_telemetry_stream(
 
             while process_is_running() {
                 if observer_handler.register_observer_thread() {
-                    observer_handler.register_subscription_filter("ecu_telemetry_stream", filter_telemetry_fn);
+                    observer_handler
+                        .register_subscription_filter("ecu_telemetry_stream", filter_telemetry_fn);
                 }
 
                 if let Some((_, event)) = observer_handler.wait_event(Duration::from_millis(1)) {
@@ -268,7 +273,11 @@ pub fn ecu_telemetry_stream(
                         continue;
                     }
 
-                    if let ObserverEvent::AggregateTelemetry { controller: _, json } = event {
+                    if let ObserverEvent::AggregateTelemetry {
+                        controller: _,
+                        json,
+                    } = event
+                    {
                         let result = stream.send(ws::Message::Text(json)).await;
 
                         if result.is_err() || stream.is_terminated() {

@@ -33,8 +33,9 @@ class IgniterSimulation(SimulationBase):
         self.fuel_splitter = sil.FluidSplitter(self.tank_fuel_pipe, [self.engine_fuel_pipe, self.igniter_fuel_pipe])
         self.oxidizer_splitter = sil.FluidSplitter(self.tank_oxidizer_pipe, [self.engine_oxidizer_pipe, self.igniter_oxidizer_pipe])
 
-        self.fuel_tank_dynamics = cb.build_fuel_tank(self.project_config["hardwareConfig"], self.tank_fuel_pipe, sil.ATMOSPHERIC_PRESSURE_PA)
-        self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(self.project_config["hardwareConfig"], self.tank_oxidizer_pipe, sil.ATMOSPHERIC_PRESSURE_PA)
+        N2O_VAPOR_PRESSURE_PA = self.project_config["hardwareConfig"]["oxidizerConfig"]["propellantLiquid"]["vaporPressurePa"]
+        self.fuel_tank_dynamics = cb.build_fuel_tank(self.project_config["hardwareConfig"], self.tank_fuel_pipe, N2O_VAPOR_PRESSURE_PA, sil.ROOM_TEMP_K)
+        self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(self.project_config["hardwareConfig"], self.tank_oxidizer_pipe, N2O_VAPOR_PRESSURE_PA, sil.ROOM_TEMP_K)
 
         self.igniter_dynamics = cb.build_igniter(self.project_config["hardwareConfig"], self.igniter_fuel_pipe, self.igniter_oxidizer_pipe)
 
@@ -71,7 +72,8 @@ class IgniterSimulation(SimulationBase):
         self.logger = sil.Logger([self.eth_network])
         self.logger.dt = self.sim_config["sim_update_rate"]
 
-        self.ecu.update_ecu_config(self.project_config["softwareConfig"]["ecu0"])
+        self.ecu_config = self.project_config["softwareConfig"]["ecu0"]
+        self.ecu.update_ecu_config(self.ecu_config)
 
     def advance_timestep(self):
         self.dynamics_manager.update(self.t, self.dt)

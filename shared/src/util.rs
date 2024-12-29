@@ -1,4 +1,3 @@
-
 pub struct LoopTimer<T> {
     elapsed_time: T,
     interval: T,

@@ -40,15 +40,13 @@ fn software_in_loop(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<network::SilNetworkIface>()?;
     m.add_class::<network::SimBridgeIface>()?;
 
-    m.add_function(wrap_pyfunction!(
-        simulation_manager::simulate_app,
-        m
-    )?)?;
+    m.add_function(wrap_pyfunction!(simulation_manager::simulate_app, m)?)?;
     m.add_function(wrap_pyfunction!(logging::load_logs_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(fcu::convert_altitude_to_pressure, m)?)?;
     m.add_function(wrap_pyfunction!(fcu::convert_pressure_to_altitude, m)?)?;
 
     m.add("ATMOSPHERIC_PRESSURE_PA", dynamics::ATMOSPHERIC_PRESSURE_PA)?;
+    m.add("ROOM_TEMP_K", dynamics::ROOM_TEMP_K)?;
 
     Ok(())
 }

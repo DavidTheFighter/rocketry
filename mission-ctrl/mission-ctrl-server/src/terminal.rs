@@ -2,10 +2,7 @@ use std::process::Stdio;
 
 use crate::process_is_running;
 
-
-struct TerminalThread {
-
-}
+struct TerminalThread {}
 
 impl TerminalThread {
     pub fn new() -> TerminalThread {
@@ -31,12 +28,9 @@ impl TerminalThread {
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
 
-        ttyd_process
-            .kill()
-            .expect("Failed to kill ttyd process");
+        ttyd_process.kill().expect("Failed to kill ttyd process");
     }
 }
-
 
 pub fn terminal_thread() {
     let mut terminal_thread = TerminalThread::new();

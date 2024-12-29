@@ -3,7 +3,8 @@ use std::{sync::Arc, thread, time::Duration};
 use rocket::{serde::json::Json, State};
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuBinaryOutput, EcuCommand}, fcu_hal::{self, VehicleCommand},
+    ecu_hal::{EcuBinaryOutput, EcuCommand},
+    fcu_hal::{self, VehicleCommand},
 };
 
 use crate::{

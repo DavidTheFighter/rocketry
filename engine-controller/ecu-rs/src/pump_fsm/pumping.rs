@@ -1,6 +1,8 @@
 use crate::Ecu;
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuCommand, EcuLinearOutput, PumpType}, ControllerState
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuCommand, EcuLinearOutput, PumpType},
+    ControllerState,
 };
 
 use super::{idle::Idle, PumpFsm};
@@ -22,7 +24,8 @@ impl<'f> ControllerState<PumpFsm, Ecu<'f>> for Pumping {
         if let Some(duty) = self.received_pump_command(packets) {
             if duty > 0.01 {
                 self.duty_cycle = duty;
-                ecu.driver.set_linear_output(self.linear_output, self.duty_cycle);
+                ecu.driver
+                    .set_linear_output(self.linear_output, self.duty_cycle);
             } else {
                 return Some(Idle::new(self.pump_type, self.linear_output));
             }
@@ -32,7 +35,8 @@ impl<'f> ControllerState<PumpFsm, Ecu<'f>> for Pumping {
     }
 
     fn enter_state(&mut self, ecu: &mut Ecu) {
-        ecu.driver.set_linear_output(self.linear_output, self.duty_cycle);
+        ecu.driver
+            .set_linear_output(self.linear_output, self.duty_cycle);
     }
 
     fn exit_state(&mut self, _ecu: &mut Ecu) {
@@ -41,7 +45,7 @@ impl<'f> ControllerState<PumpFsm, Ecu<'f>> for Pumping {
 }
 
 impl Pumping {
-    pub fn new(pump_type: PumpType, linear_output: EcuLinearOutput, duty_cycle: f32,) -> PumpFsm {
+    pub fn new(pump_type: PumpType, linear_output: EcuLinearOutput, duty_cycle: f32) -> PumpFsm {
         PumpFsm::Pumping(Self {
             pump_type,
             linear_output,

@@ -117,7 +117,8 @@ where
     }
 
     pub fn recv_packet(&mut self) -> Result<Option<(P, A)>, BigBrotherError> {
-        self.recv_packet_raw().map(|packet| packet.map(|(packet, addr, _)| (packet, addr)))
+        self.recv_packet_raw()
+            .map(|packet| packet.map(|(packet, addr, _)| (packet, addr)))
     }
 
     pub fn recv_packet_raw(&mut self) -> Result<Option<(P, A, &[u8])>, BigBrotherError> {
@@ -182,13 +183,20 @@ where
                                     None
                                 };
 
-                                self.network_map
-                                    .update_session_id(metadata.from_addr, session_id, broadcast_counter)?;
+                                self.network_map.update_session_id(
+                                    metadata.from_addr,
+                                    session_id,
+                                    broadcast_counter,
+                                )?;
                             }
                         },
                         BigBrotherPacket::UserPacket(packet) => {
                             if dedupe.is_ok() {
-                                return Ok(Some((packet, metadata.from_addr, &self.working_buffer[..size])));
+                                return Ok(Some((
+                                    packet,
+                                    metadata.from_addr,
+                                    &self.working_buffer[..size],
+                                )));
                             }
                         }
                     }

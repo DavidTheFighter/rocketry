@@ -1,12 +1,16 @@
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuAlert, EcuCommand}, ControllerState
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuAlert, EcuCommand, EngineConfig},
+    ControllerState,
 };
 
 use crate::{fsm_tanks_pressurized, silprintln, Ecu};
 
 use super::{igniter_startup::IgniterStartup, pump_startup::PumpStartup, EngineFsm};
 
-pub struct Idle;
+pub struct Idle {
+    engine_config: EngineConfig,
+}
 
 impl<'f> ControllerState<EngineFsm, Ecu<'f>> for Idle {
     fn update<'a>(
@@ -17,15 +21,17 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for Idle {
     ) -> Option<EngineFsm> {
         if self.received_fire_command(packets) {
             if fsm_tanks_pressurized(ecu) {
-                ecu.alert_manager.clear_condition(EcuAlert::EngineTankOffNominal);
+                ecu.alert_manager
+                    .clear_condition(EcuAlert::EngineTankOffNominal);
 
-                if ecu.config.engine_config.use_pumps {
-                    return Some(PumpStartup::new());
+                if self.engine_config.use_pumps {
+                    return Some(PumpStartup::new(self.engine_config.clone()));
                 } else {
-                    return Some(IgniterStartup::new());
+                    return Some(IgniterStartup::new(self.engine_config.clone()));
                 }
             } else {
-                ecu.alert_manager.set_condition(EcuAlert::EngineTankOffNominal);
+                ecu.alert_manager
+                    .set_condition(EcuAlert::EngineTankOffNominal);
             }
         }
 
@@ -43,8 +49,8 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for Idle {
 }
 
 impl Idle {
-    pub fn new() -> EngineFsm {
-        EngineFsm::Idle(Self {})
+    pub fn new(engine_config: EngineConfig) -> EngineFsm {
+        EngineFsm::Idle(Self { engine_config })
     }
 
     fn received_fire_command(&self, packets: &[(NetworkAddress, Packet)]) -> bool {

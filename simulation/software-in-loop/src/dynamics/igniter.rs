@@ -1,7 +1,9 @@
 use pyo3::prelude::*;
 
 use super::{
-    combustion::{calc_chamber_pressure, CombustionData}, pipe::FluidConnection, InjectorConfig, Scalar, ATMOSPHERIC_PRESSURE_PA
+    combustion::{calc_chamber_pressure, CombustionData},
+    pipe::FluidConnection,
+    InjectorConfig, Scalar, ATMOSPHERIC_PRESSURE_PA,
 };
 
 pub const MINIMUM_SUSTAINABLE_CHAMBER_PRESSURE_PA: Scalar = 206843.0; // 30 PSI
@@ -106,10 +108,7 @@ impl SilIgniterDynamics {
             .borrow_mut(py)
             .new_state
             .applied_outlet_pressure_pa = self.new_state.chamber_pressure_pa;
-        self.fuel_inlet
-            .borrow_mut(py)
-            .new_state
-            .mass_flow_rate_kg_s = fuel_mass_flow_kg / dt;
+        self.fuel_inlet.borrow_mut(py).new_state.mass_flow_rate_kg_s = fuel_mass_flow_kg / dt;
         self.oxidizer_inlet
             .borrow_mut(py)
             .new_state

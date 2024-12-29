@@ -23,7 +23,7 @@ def generate_config(filename):
             },
         },
         "oxidizerConfig": {
-            "ventDiameterMeters": 0.0025,
+            "ventDiameterMeters": 0.005,
             "ventCd": 0.65,
             "tankVolumeMeters3": 0.03,
             "propellantMassKg": 10.0,
@@ -149,13 +149,19 @@ def generate_config(filename):
                 "shutdown_duration_s": 0.5,
                 "max_throat_temp_k": 500.0,
             },
-            "tanks_config": {
-                'fuel_press_valve': None,
-                'fuel_vent_valve': "FuelVentValve",
-                'fuel_fill_valve': "FuelFillValve",
-                'oxidizer_press_valve': None,
-                'oxidizer_vent_valve': "OxidizerVentValve",
-                'oxidizer_fill_valve': "OxidizerFillValve",
+            "fuel_tank_config": {
+                'press_valve': None,
+                'vent_valve': "FuelVentValve",
+                'fill_valve': "FuelFillValve",
+                'press_min_threshold_pa': 500.0 * 6894.76, # PSI to Pascals
+                'press_max_threshold_pa': 900.0 * 6894.76, # PSI to Pascals
+            },
+            "oxidizer_tank_config": {
+                'press_valve': None,
+                'vent_valve': "OxidizerVentValve",
+                'fill_valve': "OxidizerFillValve",
+                'press_min_threshold_pa': 500.0 * 6894.76, # PSI to Pascals
+                'press_max_threshold_pa': 900.0 * 6894.76, # PSI to Pascals
             },
             "telemetry_rate_s": 0.02,
         }

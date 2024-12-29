@@ -18,7 +18,7 @@
             }
         },
         "oxidizerConfig": {
-            "ventDiameterMeters": 0.0025,
+            "ventDiameterMeters": 0.005,
             "ventCd": 0.65,
             "tankVolumeMeters3": 0.03,
             "propellantMassKg": 10.0,
@@ -143,13 +143,19 @@
                 "shutdown_duration_s": 0.5,
                 "max_throat_temp_k": 500.0
             },
-            "tanks_config": {
-                "fuel_press_valve": null,
-                "fuel_vent_valve": "FuelVentValve",
-                "fuel_fill_valve": "FuelFillValve",
-                "oxidizer_press_valve": null,
-                "oxidizer_vent_valve": "OxidizerVentValve",
-                "oxidizer_fill_valve": "OxidizerFillValve"
+            "fuel_tank_config": {
+                "press_valve": null,
+                "vent_valve": "FuelVentValve",
+                "fill_valve": "FuelFillValve",
+                "press_min_threshold_pa": 3447380.0,
+                "press_max_threshold_pa": 6205284.0
+            },
+            "oxidizer_tank_config": {
+                "press_valve": null,
+                "vent_valve": "OxidizerVentValve",
+                "fill_valve": "OxidizerFillValve",
+                "press_min_threshold_pa": 3447380.0,
+                "press_max_threshold_pa": 6205284.0
             },
             "telemetry_rate_s": 0.02
         }

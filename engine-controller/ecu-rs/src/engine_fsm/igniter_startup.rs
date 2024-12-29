@@ -1,5 +1,7 @@
 use shared::{
-    comms_hal::{NetworkAddress, Packet}, ecu_hal::{EcuAlert, EcuCommand, IgniterState}, ControllerState
+    comms_hal::{NetworkAddress, Packet},
+    ecu_hal::{EcuAlert, EcuCommand, EngineConfig, IgniterState},
+    ControllerState,
 };
 
 use crate::{silprintln, Ecu};
@@ -7,6 +9,7 @@ use crate::{silprintln, Ecu};
 use super::{engine_shutdown::EngineShutdown, engine_startup::EngineStartup, EngineFsm};
 
 pub struct IgniterStartup {
+    engine_config: EngineConfig,
     startup_elapsed_time: f32,
 }
 
@@ -17,22 +20,23 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for IgniterStartup {
         dt: f32,
         _packets: &[(NetworkAddress, Packet)],
     ) -> Option<EngineFsm> {
-
         match ecu.igniter_state() {
             IgniterState::Firing => {
-                return Some(EngineStartup::new());
-            },
+                return Some(EngineStartup::new(self.engine_config.clone()));
+            }
             IgniterState::Shutdown => {
                 silprintln!("Aborting due to {:?} state", ecu.igniter_state());
-                ecu.alert_manager.set_condition(EcuAlert::EngineStartupIgniterAnomaly);
-                return Some(EngineShutdown::new());
+                ecu.alert_manager
+                    .set_condition(EcuAlert::EngineStartupIgniterAnomaly);
+                return Some(EngineShutdown::new(self.engine_config.clone()));
             }
-            _ => {},
+            _ => {}
         }
 
-        if self.startup_timed_out(ecu) {
-            ecu.alert_manager.set_condition(EcuAlert::EngineStartupIgniterAnomaly);
-            return Some(EngineShutdown::new());
+        if self.startup_timed_out() {
+            ecu.alert_manager
+                .set_condition(EcuAlert::EngineStartupIgniterAnomaly);
+            return Some(EngineShutdown::new(self.engine_config.clone()));
         }
 
         // TODO Check stable pump/feed pressure
@@ -53,13 +57,14 @@ impl<'f> ControllerState<EngineFsm, Ecu<'f>> for IgniterStartup {
 }
 
 impl IgniterStartup {
-    pub fn new() -> EngineFsm {
+    pub fn new(engine_config: EngineConfig) -> EngineFsm {
         EngineFsm::IgniterStartup(Self {
+            engine_config,
             startup_elapsed_time: 0.0,
         })
     }
 
-    fn startup_timed_out(&self, ecu: &mut Ecu) -> bool {
-        self.startup_elapsed_time >= ecu.config.engine_config.igniter_startup_timeout_s
+    fn startup_timed_out(&self) -> bool {
+        self.startup_elapsed_time >= self.engine_config.igniter_startup_timeout_s
     }
 }

@@ -9,7 +9,7 @@ use rocket::serde::{
 use shared::alerts::{self, AlertBitmaskType};
 use shared::comms_hal::{NetworkAddress, Packet};
 use shared::fcu_hal::{FcuAlertCondition, FcuDebugInfo, FcuTelemetryFrame};
-use strum::{IntoEnumIterator, EnumProperty};
+use strum::{EnumProperty, IntoEnumIterator};
 
 use crate::observer::{ObserverEvent, ObserverHandler};
 use crate::{process_is_running, timestamp};
@@ -72,7 +72,7 @@ impl FcuTelemetryHandler {
                         self.last_fcu_telemetry = frame;
                         self.last_telemetry_timestamp = timestamp();
                         telemetry_counter += 1;
-                    },
+                    }
                     Packet::FcuDebugInfo(debug_info) => {
                         self.last_debug_info = debug_info;
 
@@ -87,10 +87,10 @@ impl FcuTelemetryHandler {
                         }
 
                         self.populate_debug_info(endpoint_data.as_mut().unwrap());
-                    },
+                    }
                     Packet::AlertBitmask(bitmask) => {
                         self.last_alert_bitmask = bitmask;
-                    },
+                    }
                     _ => {}
                 }
             }
@@ -104,7 +104,7 @@ impl FcuTelemetryHandler {
                     .expect("Failed to lock telemetry state")
                     .replace(self.populate_telemetry_endpoint());
 
-                    populate_graph_data_mutex(&GRAPH_ENDPOINT_DATA, self.populate_graph_frame());
+                populate_graph_data_mutex(&GRAPH_ENDPOINT_DATA, self.populate_graph_frame());
             }
 
             if now - last_rate_record_time >= self.telemetry_rate_record_time {
@@ -145,10 +145,7 @@ impl FcuTelemetryHandler {
         for condition in FcuAlertCondition::iter() {
             if alerts::is_condition_set(self.last_alert_bitmask, condition as AlertBitmaskType) {
                 let mut alert_value = rocket::serde::json::serde_json::Map::new();
-                alert_value.insert(
-                    String::from("alert"),
-                    json!(format!("{:?}", condition)),
-                );
+                alert_value.insert(String::from("alert"), json!(format!("{:?}", condition)));
                 alert_value.insert(
                     String::from("severity"),
                     json!(condition.get_str("severity").unwrap()),

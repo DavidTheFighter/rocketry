@@ -5,7 +5,10 @@ pub mod tank;
 
 use std::{net::TcpStream, sync::Mutex};
 
-use pyo3::{prelude::*, types::{PyDict, PyList}};
+use pyo3::{
+    prelude::*,
+    types::{PyDict, PyList},
+};
 use serde::Serialize;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
@@ -27,7 +30,9 @@ impl CommandHandler {
 
         println!("Websocket HTTP code: {}", response.status());
 
-        Ok(Self { websocket: Mutex::new(websocket) })
+        Ok(Self {
+            websocket: Mutex::new(websocket),
+        })
     }
 }
 
@@ -61,7 +66,8 @@ impl CommandHandler {
         destination: NetworkAddress,
         callback_fn: F,
     ) -> PyResult<Packet>
-    where F: Fn(&Packet) -> bool
+    where
+        F: Fn(&Packet) -> bool,
     {
         self.send_packet(packet, destination)?;
 
@@ -75,8 +81,9 @@ impl CommandHandler {
 
             if let tungstenite::Message::Text(json_str) = message {
                 let packet_with_address: shared::comms_hal::PacketWithAddress =
-                    serde_json::from_str(&json_str)
-                        .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?;
+                    serde_json::from_str(&json_str).map_err(|e| {
+                        PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e))
+                    })?;
 
                 if packet_with_address.address == destination {
                     if callback_fn(&packet_with_address.packet) {

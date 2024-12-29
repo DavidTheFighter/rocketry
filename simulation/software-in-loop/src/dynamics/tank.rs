@@ -1,6 +1,10 @@
 use pyo3::prelude::*;
 
-use super::{fluid::{GasDefinition, LiquidDefinition}, pipe::FluidConnection, Scalar, ATMOSPHERIC_PRESSURE_PA};
+use super::{
+    fluid::{GasDefinition, LiquidDefinition},
+    pipe::FluidConnection,
+    Scalar, ATMOSPHERIC_PRESSURE_PA,
+};
 
 pub const GAS_CONSTANT: Scalar = 8.31446261815324;
 
@@ -87,12 +91,17 @@ impl SilTankDynamics {
             Some(press_config.extract(py).unwrap())
         };
 
-        let initial_propellant_volume_m3 = initial_propellant_mass_kg / propellant_liquid.density_kg_m3;
+        let initial_propellant_volume_m3 =
+            initial_propellant_mass_kg / propellant_liquid.density_kg_m3;
         if initial_propellant_volume_m3 > tank_volume_m3 * 0.99 {
             panic!("Initial propellant mass exceeds tank volume");
         }
 
-        println!("Propellant {} volume fraction: {:.2}", propellant_liquid.name, initial_propellant_volume_m3 / tank_volume_m3);
+        println!(
+            "Propellant {} volume fraction: {:.2}",
+            propellant_liquid.name,
+            initial_propellant_volume_m3 / tank_volume_m3
+        );
 
         let initial_tank_state = TankState {
             press_valve_open: false,
@@ -100,7 +109,7 @@ impl SilTankDynamics {
             propellant_mass_kg: initial_propellant_mass_kg,
             propellant_mass_flow_kg_s: 0.0,
             ullage_temperature_k: initial_tank_temperature_k,
-            ullage_gas_mass_kg: 4.137e6
+            ullage_gas_mass_kg: initial_tank_pressure_pa
                 * (tank_volume_m3 - initial_propellant_volume_m3)
                 * ullage_gas.molecular_weight_kg
                 / (GAS_CONSTANT * initial_tank_temperature_k),
@@ -121,7 +130,10 @@ impl SilTankDynamics {
             ullage_outlet: py.None(),
         };
 
-        println!("Initial ullage pressure: {:.2} Pa", tank.calc_ullage_pressure_pa());
+        println!(
+            "Initial ullage pressure: {:.2} Pa",
+            tank.calc_ullage_pressure_pa()
+        );
 
         tank
     }
@@ -129,14 +141,15 @@ impl SilTankDynamics {
     pub fn update(&mut self, py: Python, dt: f64) {
         let dt = dt as Scalar;
 
-        let pressure_diff = self.propellant_liquid.vapor_pressure_pa - self.calc_ullage_pressure_pa();
+        let pressure_diff =
+            self.propellant_liquid.vapor_pressure_pa - self.calc_ullage_pressure_pa();
 
         let press_mass_flow_kg = self.calc_press_mass_flow_kg(dt);
         let vent_mass_flow_kg = self.calc_vent_mass_flow_kg(dt);
         let boil_off_mass_flow_kg = if pressure_diff > 0.0 {
-            pressure_diff * self.calc_propellant_volume_m3()
-                * self.ullage_gas.molecular_weight_kg
-                / (GAS_CONSTANT * self.new_state.ullage_temperature_k) * dt
+            pressure_diff * self.calc_propellant_volume_m3() * self.ullage_gas.molecular_weight_kg
+                / (GAS_CONSTANT * self.new_state.ullage_temperature_k)
+                * dt
         } else {
             0.0
         };
@@ -155,10 +168,13 @@ impl SilTankDynamics {
 
         let ullage_inlet_mass_flow_kg = self.calc_ullage_inlet_mass_flow(py, dt);
 
-        let ullage_mass_flow_kg = press_mass_flow_kg - vent_mass_flow_kg + boil_off_mass_flow_kg - ullage_outlet_mass_flow_kg + ullage_inlet_mass_flow_kg;
+        let ullage_mass_flow_kg = press_mass_flow_kg - vent_mass_flow_kg + boil_off_mass_flow_kg
+            - ullage_outlet_mass_flow_kg
+            + ullage_inlet_mass_flow_kg;
         self.new_state.ullage_gas_mass_kg += ullage_mass_flow_kg;
 
-        self.new_state.propellant_mass_flow_kg_s = -boil_off_mass_flow_kg - self.outlet.borrow(py).state.mass_flow_rate_kg_s;
+        self.new_state.propellant_mass_flow_kg_s =
+            -boil_off_mass_flow_kg - self.outlet.borrow(py).state.mass_flow_rate_kg_s;
         self.new_state.propellant_mass_kg += self.state.propellant_mass_flow_kg_s * dt;
 
         if self.new_state.propellant_mass_kg < 0.0 {
@@ -204,7 +220,7 @@ impl SilTankDynamics {
     }
 
     #[getter]
-    pub fn ullage_pressure_pa(&self) -> f64 {
+    pub fn tank_pressure_pa(&self) -> f64 {
         self.calc_ullage_pressure_pa()
     }
 }
@@ -214,8 +230,7 @@ impl SilTankDynamics {
         if let Some(press_config) = &self.press_config {
             let ullage_pressure_pa = self.calc_ullage_pressure_pa();
 
-            if ullage_pressure_pa >= press_config.press_setpoint_pa
-                || !self.state.press_valve_open
+            if ullage_pressure_pa >= press_config.press_setpoint_pa || !self.state.press_valve_open
             {
                 return 0.0;
             }
@@ -250,8 +265,7 @@ impl SilTankDynamics {
             return 0.0;
         }
 
-        let upstream_gas_density = self.ullage_gas.molecular_weight_kg
-            * ullage_pressure_pa
+        let upstream_gas_density = self.ullage_gas.molecular_weight_kg * ullage_pressure_pa
             / (GAS_CONSTANT * self.state.ullage_temperature_k);
 
         let expansibility_factor = 1.0;
@@ -259,10 +273,7 @@ impl SilTankDynamics {
         let mass_flow_rate_kg_s = self.vent_orifice_diameter_area_m2
             * self.vent_orifice_cd
             * expansibility_factor
-            * (2.0
-                * upstream_gas_density
-                * (ullage_pressure_pa - ATMOSPHERIC_PRESSURE_PA))
-                .sqrt();
+            * (2.0 * upstream_gas_density * (ullage_pressure_pa - ATMOSPHERIC_PRESSURE_PA)).sqrt();
 
         mass_flow_rate_kg_s * dt
     }
@@ -272,7 +283,11 @@ impl SilTankDynamics {
             return 0.0;
         }
 
-        let inlet = self.ullage_inlet.as_ref(py).extract::<Py<FluidConnection>>().unwrap();
+        let inlet = self
+            .ullage_inlet
+            .as_ref(py)
+            .extract::<Py<FluidConnection>>()
+            .unwrap();
 
         if inlet.borrow(py).state.closed {
             return 0.0;
@@ -281,15 +296,19 @@ impl SilTankDynamics {
         let inlet_pressure_pa = inlet.borrow(py).state.applied_inlet_pressure_pa;
         let outlet_pressure_pa = inlet.borrow(py).state.applied_outlet_pressure_pa;
 
-        if inlet_pressure_pa < outlet_pressure_pa {
-            return 0.0;
-        }
-
-        let upstream_gas_density = self.ullage_gas.molecular_weight_kg
-            * inlet_pressure_pa
+        let upstream_gas_density = self.ullage_gas.molecular_weight_kg * inlet_pressure_pa
             / (GAS_CONSTANT * self.state.ullage_temperature_k);
 
-        let result = 0.004 * 0.004 * upstream_gas_density * (inlet_pressure_pa - outlet_pressure_pa).sqrt() * dt;
+        const PIPE_DIAMETER_M: Scalar = 0.004;
+        let mut result = PIPE_DIAMETER_M
+            * PIPE_DIAMETER_M
+            * upstream_gas_density
+            * (inlet_pressure_pa - outlet_pressure_pa).abs().sqrt()
+            * dt;
+
+        if inlet_pressure_pa < outlet_pressure_pa {
+            result *= -1.0;
+        }
 
         result
     }

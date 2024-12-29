@@ -1,6 +1,6 @@
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuAlert, EcuBinaryOutput, TankState},
+    ecu_hal::{EcuAlert, EcuBinaryOutput, IgniterConfig, TankState},
     ControllerState,
 };
 
@@ -9,6 +9,7 @@ use crate::Ecu;
 use super::{shutdown::Shutdown, IgniterFsm};
 
 pub struct Firing {
+    igniter_config: IgniterConfig,
     elapsed_time: f32,
 }
 
@@ -22,17 +23,19 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Firing {
         self.elapsed_time += dt;
 
         if !self.tanks_pressurized(ecu) {
-            ecu.alert_manager.set_condition(EcuAlert::IgniterTankOffNominal);
-            return Some(Shutdown::new());
+            ecu.alert_manager
+                .set_condition(EcuAlert::IgniterTankOffNominal);
+            return Some(Shutdown::new(self.igniter_config.clone()));
         }
 
-        if self.throat_too_hot(ecu) {
-            ecu.alert_manager.set_condition(EcuAlert::IgniterThroatOverheat);
-            return Some(Shutdown::new());
+        if self.throat_too_hot() {
+            ecu.alert_manager
+                .set_condition(EcuAlert::IgniterThroatOverheat);
+            return Some(Shutdown::new(self.igniter_config.clone()));
         }
 
-        if self.firing_ended(ecu) {
-            return Some(Shutdown::new());
+        if self.firing_ended() {
+            return Some(Shutdown::new(self.igniter_config.clone()));
         }
 
         None
@@ -52,8 +55,11 @@ impl<'f> ControllerState<IgniterFsm, Ecu<'f>> for Firing {
 }
 
 impl Firing {
-    pub fn new() -> IgniterFsm {
-        IgniterFsm::Firing(Self { elapsed_time: 0.0 })
+    pub fn new(igniter_config: IgniterConfig) -> IgniterFsm {
+        IgniterFsm::Firing(Self {
+            igniter_config,
+            elapsed_time: 0.0,
+        })
     }
 
     fn tanks_pressurized(&self, ecu: &Ecu) -> bool {
@@ -64,13 +70,13 @@ impl Firing {
                 .map_or(true, |state| state == TankState::Pressurized)
     }
 
-    fn firing_ended(&self, ecu: &mut Ecu) -> bool {
-        self.elapsed_time >= ecu.config.igniter_config.test_firing_duration_s
+    fn firing_ended(&self) -> bool {
+        self.elapsed_time >= self.igniter_config.test_firing_duration_s
     }
 
-    fn throat_too_hot(&self, ecu: &mut Ecu) -> bool {
+    fn throat_too_hot(&self) -> bool {
         let igniter_throat_temp_max = 0.0; // TODO
 
-        igniter_throat_temp_max >= ecu.config.igniter_config.max_throat_temp_k
+        igniter_throat_temp_max >= self.igniter_config.max_throat_temp_k
     }
 }

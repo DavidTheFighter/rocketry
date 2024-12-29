@@ -1,7 +1,13 @@
-use std:: sync::Arc;
+use std::sync::Arc;
 
-use big_brother::{interface::{bridge_interface::BridgeInterface, std_interface::StdInterface}, BigBrother};
-use shared::{comms_hal::{NetworkAddress, Packet}, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT};
+use big_brother::{
+    interface::{bridge_interface::BridgeInterface, std_interface::StdInterface},
+    BigBrother,
+};
+use shared::{
+    comms_hal::{NetworkAddress, Packet},
+    REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT,
+};
 
 use crate::{
     observer::{ObserverEvent, ObserverHandler, ObserverResponse},
@@ -33,8 +39,9 @@ impl CommsThread {
         let mut std_interface = StdInterface::new([169, 254, 255, 255])
             .expect("Failed to create std interface for comms thread");
 
-        let mut simulation_interface = BridgeInterface::new(REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT)
-            .expect("Failed to create simulation interface for comms thread");
+        let mut simulation_interface =
+            BridgeInterface::new(REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT)
+                .expect("Failed to create simulation interface for comms thread");
         let mut bb: BigBrother<'_, NETWORK_MAP_SIZE, Packet, NetworkAddress> = BigBrother::new(
             NetworkAddress::MissionControl,
             rand::random(),

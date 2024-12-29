@@ -35,8 +35,8 @@ class EngineSimulation(SimulationBase):
         self.fuel_splitter = sil.FluidSplitter(self.tank_fuel_pipe, [self.engine_fuel_pipe, self.igniter_fuel_pipe])
         self.oxidizer_splitter = sil.FluidSplitter(self.tank_oxidizer_pipe, [self.engine_oxidizer_pipe, self.igniter_oxidizer_pipe])
 
-        self.fuel_tank_dynamics = cb.build_fuel_tank(self.project_config["hardwareConfig"], self.tank_fuel_pipe, sil.ATMOSPHERIC_PRESSURE_PA, 293.15)
-        self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(self.project_config["hardwareConfig"], self.tank_oxidizer_pipe, sil.ATMOSPHERIC_PRESSURE_PA, 293.15)
+        self.fuel_tank_dynamics = cb.build_fuel_tank(self.project_config["hardwareConfig"], self.tank_fuel_pipe, sil.ATMOSPHERIC_PRESSURE_PA, sil.ROOM_TEMP_K)
+        self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(self.project_config["hardwareConfig"], self.tank_oxidizer_pipe, sil.ATMOSPHERIC_PRESSURE_PA, sil.ROOM_TEMP_K)
 
         self.igniter_dynamics = cb.build_igniter(self.project_config["hardwareConfig"], self.igniter_fuel_pipe, self.igniter_oxidizer_pipe)
         self.engine_dynamics = cb.build_engine(self.project_config["hardwareConfig"], self.engine_fuel_pipe, self.engine_oxidizer_pipe)

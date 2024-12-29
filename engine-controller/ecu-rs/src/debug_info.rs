@@ -12,9 +12,18 @@ impl<'a> Ecu<'a> {
                 timestamp,
                 igniter_state: self.igniter_state(),
                 sparking: self.driver.get_sparking(),
-                igniter_chamber_pressure_pa: self.state_vector.sensor_data.igniter_chamber_pressure_pa,
-                igniter_fuel_injector_pressure_pa: self.state_vector.sensor_data.igniter_fuel_injector_pressure_pa,
-                igniter_oxidizer_injector_pressure_pa: self.state_vector.sensor_data.igniter_oxidizer_injector_pressure_pa,
+                igniter_chamber_pressure_pa: self
+                    .state_vector
+                    .sensor_data
+                    .igniter_chamber_pressure_pa,
+                igniter_fuel_injector_pressure_pa: self
+                    .state_vector
+                    .sensor_data
+                    .igniter_fuel_injector_pressure_pa,
+                igniter_oxidizer_injector_pressure_pa: self
+                    .state_vector
+                    .sensor_data
+                    .igniter_oxidizer_injector_pressure_pa,
             },
             EcuDebugInfoVariant::TankInfo => EcuDebugInfo::TankInfo {
                 timestamp,
@@ -23,13 +32,29 @@ impl<'a> Ecu<'a> {
             },
             EcuDebugInfoVariant::PumpInfo => EcuDebugInfo::PumpInfo {
                 timestamp,
-                fuel_pump_state: self.fuel_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
-                oxidizer_pump_state: self.oxidizer_pump.as_ref().map(|fsm| fsm.hal_state()).unwrap_or(PumpState::Idle),
+                fuel_pump_state: self
+                    .fuel_pump
+                    .as_ref()
+                    .map(|fsm| fsm.hal_state())
+                    .unwrap_or(PumpState::Idle),
+                oxidizer_pump_state: self
+                    .oxidizer_pump
+                    .as_ref()
+                    .map(|fsm| fsm.hal_state())
+                    .unwrap_or(PumpState::Idle),
             },
             EcuDebugInfoVariant::SensorData => EcuDebugInfo::SensorData {
                 timestamp,
-                fuel_tank_pressure_pa: self.state_vector.sensor_data.fuel_tank_pressure_pa.unwrap_or(0.0),
-                oxidizer_tank_pressure_pa: self.state_vector.sensor_data.oxidizer_tank_pressure_pa.unwrap_or(0.0),
+                fuel_tank_pressure_pa: self
+                    .state_vector
+                    .sensor_data
+                    .fuel_tank_pressure_pa
+                    .unwrap_or(0.0),
+                oxidizer_tank_pressure_pa: self
+                    .state_vector
+                    .sensor_data
+                    .oxidizer_tank_pressure_pa
+                    .unwrap_or(0.0),
             },
         }
     }

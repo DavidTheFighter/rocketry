@@ -1,5 +1,8 @@
 use std::{
-    collections::HashMap, sync::{mpsc, RwLock}, thread, time::{Duration, Instant}
+    collections::HashMap,
+    sync::{mpsc, RwLock},
+    thread,
+    time::{Duration, Instant},
 };
 
 use dashmap::DashMap;
@@ -89,7 +92,11 @@ impl ObserverHandler {
         }
     }
 
-    pub fn register_subscription_filter(&self, filter_id: &str, filter_fn: impl Fn(&ObserverEvent) -> bool + 'static) {
+    pub fn register_subscription_filter(
+        &self,
+        filter_id: &str,
+        filter_fn: impl Fn(&ObserverEvent) -> bool + 'static,
+    ) {
         if let Some(notify_data) = self
             .global_notify_txs
             .write()
@@ -97,7 +104,9 @@ impl ObserverHandler {
             .iter_mut()
             .find(|notify_data| notify_data.thread_id == thread::current().id())
         {
-            notify_data.filter_fns.insert(String::from(filter_id), Box::new(filter_fn));
+            notify_data
+                .filter_fns
+                .insert(String::from(filter_id), Box::new(filter_fn));
         } else {
             eprintln!(
                 "register_subscription_filter: Observer thread {:?} not registered",
@@ -116,7 +125,12 @@ impl ObserverHandler {
             .iter()
         {
             if notify_data.thread_id != thread::current().id() {
-                if notify_data.filter_fns.len() == 0 || notify_data.filter_fns.iter().any(|(_, filter_fn)| filter_fn(&event)) {
+                if notify_data.filter_fns.len() == 0
+                    || notify_data
+                        .filter_fns
+                        .iter()
+                        .any(|(_, filter_fn)| filter_fn(&event))
+                {
                     notify_data.tx.send((event_id, event.clone())).unwrap();
                 }
             }

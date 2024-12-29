@@ -61,9 +61,13 @@ pub fn dict_from_obj<T: Serialize>(py: Python, obj: T) -> &PyDict {
 }
 
 pub fn obj_from_dict<T: serde::de::DeserializeOwned>(dict: &PyDict) -> T {
-    println!("This one: {:?}", serde_json::to_string(&EcuConfig::default()).unwrap());
+    println!(
+        "This one: {:?}",
+        serde_json::to_string(&EcuConfig::default()).unwrap()
+    );
 
-    let json_str = dict.to_string()
+    let json_str = dict
+        .to_string()
         .replace("'", "\"")
         .replace(": True", ": true")
         .replace(": False", ": false")

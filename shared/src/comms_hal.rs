@@ -2,7 +2,11 @@ use big_brother::big_brother::Broadcastable;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    alerts, ecu_hal::{EcuCommand, EcuTelemetry, EcuResponse, EcuTelemetryFrame}, fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand}, streamish_hal::StreamishCommand, SensorConfig,
+    alerts,
+    ecu_hal::{EcuCommand, EcuResponse, EcuTelemetry, EcuTelemetryFrame},
+    fcu_hal::{FcuDebugInfo, FcuSensorData, FcuTelemetryFrame, VehicleCommand},
+    streamish_hal::StreamishCommand,
+    SensorConfig,
 };
 
 use strum_macros::EnumCount as EnumCountMacro;
@@ -73,7 +77,11 @@ pub struct PacketWithAddress {
 pub mod tests_data {
     use super::*;
     use crate::{
-        ecu_hal::{self, EcuBinaryOutput, EcuConfig, EngineConfig, EngineState, IgniterConfig, IgniterState, TanksConfig}, fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER
+        ecu_hal::{
+            self, EcuBinaryOutput, EcuConfig, EngineConfig, EngineState, IgniterConfig,
+            IgniterState, TankConfig,
+        },
+        fcu_hal, SensorCalibration, RESET_MAGIC_NUMBER,
     };
     use mint::Vector3;
     use strum::EnumCount;
@@ -130,7 +138,7 @@ pub mod tests_data {
             oxidizer_pump_outlet_pressure_pa: 96420.425,
         })),
         Packet::EcuResponse(EcuResponse::Config(EcuConfig {
-            engine_config: EngineConfig {
+            engine_config: Some(EngineConfig {
                 use_pumps: true,
                 fuel_injector_pressure_setpoint_pa: 1234.567,
                 fuel_injector_startup_pressure_tolerance_pa: 0.14962,
@@ -145,23 +153,23 @@ pub mod tests_data {
                 engine_startup_timeout_s: 0.14962,
                 engine_firing_duration_s: Some(79.21968),
                 engine_shutdown_duration_s: 0.14962,
-            },
-            igniter_config: IgniterConfig {
+            }),
+            igniter_config: Some(IgniterConfig {
                 startup_timeout_s: 749.248,
                 startup_pressure_threshold_pa: 749.248,
                 startup_stable_time_s: 749.248,
                 test_firing_duration_s: 749.248,
                 shutdown_duration_s: 749.248,
                 max_throat_temp_k: 749.248,
-            },
-            tanks_config: Some(TanksConfig {
-                fuel_press_valve: None,
-                fuel_fill_valve: Some(EcuBinaryOutput::FuelFillValve),
-                fuel_vent_valve: Some(EcuBinaryOutput::FuelVentValve),
-                oxidizer_press_valve: None,
-                oxidizer_fill_valve: Some(EcuBinaryOutput::OxidizerFillValve),
-                oxidizer_vent_valve: Some(EcuBinaryOutput::OxidizerVentValve),
             }),
+            fuel_tank_config: Some(TankConfig {
+                press_valve: None,
+                fill_valve: Some(EcuBinaryOutput::FuelFillValve),
+                vent_valve: Some(EcuBinaryOutput::FuelVentValve),
+                press_min_threshold_pa: 0.14962,
+                press_max_threshold_pa: 1542.012,
+            }),
+            oxidizer_tank_config: None,
             telemetry_rate_s: 0.945218,
         })),
         Packet::AlertBitmask(0xAAAA_AAAA),

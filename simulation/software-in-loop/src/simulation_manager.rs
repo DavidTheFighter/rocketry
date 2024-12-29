@@ -34,7 +34,8 @@ pub fn simulate_app(py: Python, simulation: PyObject, timestep_callback: PyObjec
         }
 
         if realtime {
-            simulation.call_method0(py, "realtime_wait")
+            simulation
+                .call_method0(py, "realtime_wait")
                 .expect("Failed to call realtime_wait method on simulation");
         }
 

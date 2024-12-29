@@ -2,8 +2,8 @@ pub mod combustion;
 pub mod engine;
 pub mod fluid;
 pub mod igniter;
-pub mod pipe_splitter;
 pub mod pipe;
+pub mod pipe_splitter;
 pub mod pump;
 pub mod tank;
 pub mod vehicle;
@@ -11,6 +11,7 @@ pub mod vehicle;
 type Scalar = f64;
 
 pub const ATMOSPHERIC_PRESSURE_PA: Scalar = 101325.0;
+pub const ROOM_TEMP_K: Scalar = 293.15;
 
 pub use tank::SilTankDynamics;
 pub use tank::SilTankPressConfig;

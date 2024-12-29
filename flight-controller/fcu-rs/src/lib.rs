@@ -147,7 +147,8 @@ impl<'a> Fcu<'a> {
             self.time_since_last_telemetry = 0.0;
         }
 
-        self.alert_manager.set_condition(FcuAlertCondition::BatteryVoltageLow);
+        self.alert_manager
+            .set_condition(FcuAlertCondition::BatteryVoltageLow);
 
         if self.debug_info_enabled {
             for variant in FcuDebugInfoVariant::iter() {
@@ -189,7 +190,7 @@ impl<'a> Fcu<'a> {
         match packet {
             Packet::VehicleCommand(command) => {
                 self.handle_command(source, command);
-            },
+            }
             Packet::EnableDataLogging(state) => {
                 self.data_logger.set_logging_enabled(*state);
             }
@@ -209,10 +210,10 @@ impl<'a> Fcu<'a> {
         match command {
             VehicleCommand::Configure(config) => {
                 self.configure_fcu(config.clone());
-            },
+            }
             VehicleCommand::SetOutputChannel { channel, state } => {
                 self.driver.set_output_channel(*channel, *state);
-            },
+            }
             _ => {}
         }
     }

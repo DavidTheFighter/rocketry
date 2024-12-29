@@ -13,14 +13,8 @@ pub struct FluidSplitter {
 #[pymethods]
 impl FluidSplitter {
     #[new]
-    pub fn new(
-        inlet: Py<FluidConnection>,
-        outlets: Vec<Py<FluidConnection>>,
-    ) -> Self {
-        Self {
-            inlet,
-            outlets,
-        }
+    pub fn new(inlet: Py<FluidConnection>, outlets: Vec<Py<FluidConnection>>) -> Self {
+        Self { inlet, outlets }
     }
 
     fn post_update(&mut self) {

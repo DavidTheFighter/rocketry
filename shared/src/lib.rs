@@ -145,12 +145,6 @@ impl SensorConfig {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum SensorData {
-    Pressure {
-        pressure_pa: f32,
-        raw_data: u16,
-    },
-    Temperature {
-        temperature_k: f32,
-        raw_data: u16,
-    },
+    Pressure { pressure_pa: f32, raw_data: u16 },
+    Temperature { temperature_k: f32, raw_data: u16 },
 }

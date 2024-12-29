@@ -38,10 +38,7 @@ fn populate_graph_data_mutex(
         .replace(endpoint_data);
 }
 
-fn populate_graph_data(
-    endpoint_data: &mut Value,
-    graph_data: Map<String, Value>,
-) {
+fn populate_graph_data(endpoint_data: &mut Value, graph_data: Map<String, Value>) {
     let endpoint_data_map = endpoint_data
         .as_object_mut()
         .expect("Failed to convert serde value to serde object");

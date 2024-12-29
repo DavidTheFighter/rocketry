@@ -2,7 +2,7 @@ import software_in_loop as sil
 from simulation.pysim.simulation.igniter import IgniterSimulation
 import pytest
 
-from simulation.tests.test_ecu_tank import tanks_pressurized
+from simulation.tests.test_ecu_tank_selfpress import tanks_pressurized
 
 @pytest.fixture
 def igniter_sim(endrega_config):

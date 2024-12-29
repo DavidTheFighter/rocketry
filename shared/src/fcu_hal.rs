@@ -3,7 +3,9 @@ use core::any::Any;
 use mint::{Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
-use strum_macros::{EnumCount as EnumCountMacro, EnumDiscriminants, EnumIter, EnumString, EnumProperty};
+use strum_macros::{
+    EnumCount as EnumCountMacro, EnumDiscriminants, EnumIter, EnumProperty, EnumString,
+};
 
 use crate::alerts::AlertBitmaskType;
 

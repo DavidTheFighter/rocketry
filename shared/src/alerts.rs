@@ -61,7 +61,10 @@ where
             self.time_since_last_ping_s = 0.0;
             self.pending_update = false;
 
-            [Some(Packet::AlertBitmask(self.get_condition_bitmask())), None]
+            [
+                Some(Packet::AlertBitmask(self.get_condition_bitmask())),
+                None,
+            ]
         } else {
             [None, None]
         }

@@ -102,14 +102,14 @@ def build_fuel_pump(config: dict, tank_outlet, pump_outlet) -> sil.SilPumpDynami
     return sil.SilPumpDynamics(
         tank_outlet,
         pump_outlet,
-        (config['fuelPumpConfig']['setPointPsi'] - config['feedConfig']['setPointPsi']) * 6894.76, # Psi -> Pa
+        (config['fuelPumpConfig']['setPointPsi'] - config['pressConfig']['setPointPsi']) * 6894.76, # Psi -> Pa
     )
 
 def build_oxidizer_pump(config: dict, tank_outlet, pump_outlet) -> sil.SilPumpDynamics:
     return sil.SilPumpDynamics(
         tank_outlet,
         pump_outlet,
-        (config['oxidizerPumpConfig']['setPointPsi'] - config['feedConfig']['setPointPsi']) * 6894.76, # Psi -> Pa
+        (config['oxidizerPumpConfig']['setPointPsi'] - config['pressConfig']['setPointPsi']) * 6894.76, # Psi -> Pa
     )
 
 def _propellant_definition(prop_config: dict) -> sil.LiquidDefinition:

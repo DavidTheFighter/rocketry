@@ -1,7 +1,7 @@
 use crate::Ecu;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::{EcuCommand, EcuBinaryOutput},
+    ecu_hal::{EcuBinaryOutput, EcuCommand},
     ControllerState,
 };
 
@@ -52,8 +52,8 @@ impl Venting {
     pub fn new(
         tank_type: TankType,
         press_valve: Option<EcuBinaryOutput>,
-    fill_valve: Option<EcuBinaryOutput>,
-    vent_valve: Option<EcuBinaryOutput>,
+        fill_valve: Option<EcuBinaryOutput>,
+        vent_valve: Option<EcuBinaryOutput>,
     ) -> TankFsm {
         TankFsm::Venting(Self {
             tank_type,
