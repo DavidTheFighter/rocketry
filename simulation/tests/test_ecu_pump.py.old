@@ -1,8 +1,8 @@
 import software_in_loop as sil
-from simulation.pysim.config import SimConfig
+from simulation.config import SimConfig
 import pytest
 
-from simulation.pysim.simulation.igniter_pump import IgniterPumpSimulation
+from simulation.simulation.igniter_pump import IgniterPumpSimulation
 
 THRESHOLD_PRESSURE = sil.ATMOSPHERIC_PRESSURE_PA * 2.0
 

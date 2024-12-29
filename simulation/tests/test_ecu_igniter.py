@@ -1,7 +1,7 @@
 import software_in_loop as sil
 import pytest
 
-from simulation.pysim.scenarios.igniter import IgniterSimulation
+from simulation.scenarios.igniter import IgniterSimulation
 from simulation.tests.test_ecu_tank_selfpress import tanks_pressurized
 
 @pytest.fixture

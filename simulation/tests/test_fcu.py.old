@@ -1,5 +1,5 @@
-from simulation.pysim.simulation.solid_rocket import SolidRocketSimulation
-from simulation.pysim.config import SimConfig
+from simulation.simulation.solid_rocket import SolidRocketSimulation
+from simulation.config import SimConfig
 from software_in_loop import convert_pressure_to_altitude
 import pytest
 

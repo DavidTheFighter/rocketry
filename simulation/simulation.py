@@ -1,6 +1,29 @@
-import time, abc, json, subprocess, typing, importlib
+import time, abc, typing, importlib
 
-from simulation.pysim.replay import SimReplay
+from simulation.replay import SimReplay
+
+def _empty_project_config():
+    return {
+        "hardwareConfig": {
+            "pressConfig": None,
+            "fuelConfig": None,
+            "oxidizerConfig": None,
+            "igniterConfig": None,
+            "fuelPumpConfig": None,
+            "oxidizerPumpConfig": None,
+            "engineConfig": None,
+            "ecuSensorConfig": {},
+        },
+        "softwareConfig": {
+            "ecu0": {
+                "engine_config": None,
+                "igniter_config": None,
+                "fuel_tank_config": None,
+                "oxidizer_tank_config": None,
+                "telemetry_rate_s": 0.02,
+            },
+        },
+    }
 
 class SimulationBase:
     def __init__(
@@ -94,6 +117,7 @@ def build_sim_from_argv(simulation: SimulationBase, argv: typing.List[str]):
 
 def build_config(project_config_gen_module: str) -> dict:
     config_gen_module = importlib.import_module(project_config_gen_module)
-    config = config_gen_module.generate_config()
+    config = _empty_project_config()
+    config.update(config_gen_module.generate_config())
 
     return config

@@ -1,8 +1,8 @@
 import pytest
-from simulation.pysim.scenarios.simulation import build_config
+from simulation.simulation import build_config
 
 ENDREGA_CONFIG = build_config(
-    "projects.endrega.gen_endrega_config",
+    "projects.endrega.gen_endrega",
 )
 
 @pytest.fixture

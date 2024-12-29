@@ -1,2 +1,2 @@
 ./build-sil \
-    && python -m simulation.pysim.scenarios.engine_pressurefed projects.endrega.gen_endrega_config $@
+    && python -m simulation.scenarios.engine_pressurefed projects.endrega.gen_endrega $@
