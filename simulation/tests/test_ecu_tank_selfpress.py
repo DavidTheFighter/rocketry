@@ -1,8 +1,8 @@
 import software_in_loop as sil
 import pytest
 
-from pysim.simulation.simulation import SimulationBase
-import pysim.simulation.config_builder as cb
+from simulation.pysim.scenarios.simulation import SimulationBase
+import simulation.pysim.scenarios.config_builder as cb
 
 def tanks_pressurized(sim: SimulationBase):
     fuel_threshold_pa = sim.ecu_config["fuel_tank_config"]["press_min_threshold_pa"]

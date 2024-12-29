@@ -1,10 +1,10 @@
 import sys
 
 import software_in_loop as sil
-from pysim.simulation.simulation import SimulationBase, build_sim_from_argv
-import pysim.simulation.config_builder as cb
+from simulation.pysim.scenarios.simulation import SimulationBase, build_sim_from_argv
+import simulation.pysim.scenarios.config_builder as cb
 
-class EngineSimulation(SimulationBase):
+class IgniterSimulation(SimulationBase):
     def __init__(self, sim_config: dict):
         super().__init__(sim_config)
 
@@ -30,16 +30,14 @@ class EngineSimulation(SimulationBase):
         self.engine_oxidizer_pipe = sil.FluidConnection()
         self.igniter_oxidizer_pipe = sil.FluidConnection()
 
-        self.ox_to_fuel_press_pipe = sil.FluidConnection()
-
         self.fuel_splitter = sil.FluidSplitter(self.tank_fuel_pipe, [self.engine_fuel_pipe, self.igniter_fuel_pipe])
         self.oxidizer_splitter = sil.FluidSplitter(self.tank_oxidizer_pipe, [self.engine_oxidizer_pipe, self.igniter_oxidizer_pipe])
 
-        self.fuel_tank_dynamics = cb.build_fuel_tank(self.project_config["hardwareConfig"], self.tank_fuel_pipe, sil.ATMOSPHERIC_PRESSURE_PA, sil.ROOM_TEMP_K)
-        self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(self.project_config["hardwareConfig"], self.tank_oxidizer_pipe, sil.ATMOSPHERIC_PRESSURE_PA, sil.ROOM_TEMP_K)
+        N2O_VAPOR_PRESSURE_PA = self.project_config["hardwareConfig"]["oxidizerConfig"]["propellantLiquid"]["vaporPressurePa"]
+        self.fuel_tank_dynamics = cb.build_fuel_tank(self.project_config["hardwareConfig"], self.tank_fuel_pipe, N2O_VAPOR_PRESSURE_PA, sil.ROOM_TEMP_K)
+        self.oxidizer_tank_dynamics = cb.build_oxidizer_tank(self.project_config["hardwareConfig"], self.tank_oxidizer_pipe, N2O_VAPOR_PRESSURE_PA, sil.ROOM_TEMP_K)
 
         self.igniter_dynamics = cb.build_igniter(self.project_config["hardwareConfig"], self.igniter_fuel_pipe, self.igniter_oxidizer_pipe)
-        self.engine_dynamics = cb.build_engine(self.project_config["hardwareConfig"], self.engine_fuel_pipe, self.engine_oxidizer_pipe)
 
         self.ecu = sil.EcuSil(
             [self.ecu_eth_iface],
@@ -48,14 +46,11 @@ class EngineSimulation(SimulationBase):
             self.sim_config["ecu_update_rate"],
             self.fuel_tank_dynamics,
             self.oxidizer_tank_dynamics,
-            self.engine_dynamics,
+            None,
             self.igniter_dynamics,
-            None, # self.fuel_pump,
-            None, # self.oxidizer_pump,
+            None,
+            None,
         )
-
-        self.fuel_tank_dynamics.ullage_inlet = self.ox_to_fuel_press_pipe
-        self.oxidizer_tank_dynamics.ullage_outlet = self.ox_to_fuel_press_pipe
 
         self.dynamics_manager = sil.DynamicsManager()
 
@@ -65,7 +60,6 @@ class EngineSimulation(SimulationBase):
         self.dynamics_manager.add_dynamics_component(self.fuel_tank_dynamics)
         self.dynamics_manager.add_dynamics_component(self.oxidizer_tank_dynamics)
         self.dynamics_manager.add_dynamics_component(self.igniter_dynamics)
-        self.dynamics_manager.add_dynamics_component(self.engine_dynamics)
         self.dynamics_manager.add_dynamics_component(self.tank_fuel_pipe)
         self.dynamics_manager.add_dynamics_component(self.engine_fuel_pipe)
         self.dynamics_manager.add_dynamics_component(self.igniter_fuel_pipe)
@@ -74,12 +68,12 @@ class EngineSimulation(SimulationBase):
         self.dynamics_manager.add_dynamics_component(self.igniter_oxidizer_pipe)
         self.dynamics_manager.add_dynamics_component(self.fuel_splitter)
         self.dynamics_manager.add_dynamics_component(self.oxidizer_splitter)
-        self.dynamics_manager.add_dynamics_component(self.ox_to_fuel_press_pipe)
 
         self.logger = sil.Logger([self.eth_network])
         self.logger.dt = self.sim_config["sim_update_rate"]
 
-        self.ecu.update_ecu_config(self.project_config["softwareConfig"]["ecu0"])
+        self.ecu_config = self.project_config["softwareConfig"]["ecu0"]
+        self.ecu.update_ecu_config(self.ecu_config)
 
     def advance_timestep(self):
         self.dynamics_manager.update(self.t, self.dt)
@@ -93,7 +87,7 @@ class EngineSimulation(SimulationBase):
         return True
 
 if __name__ == "__main__":
-    def engine_app():
+    def igniter_app():
         sim_config = {
             "ecu_update_rate": 0.001,
             "sim_update_rate": 0.0005,
@@ -107,7 +101,7 @@ if __name__ == "__main__":
         ignited = False
         pressurized = False
 
-        def tick_callback(sim: EngineSimulation):
+        def tick_callback(sim: IgniterSimulation):
             nonlocal ignited, pressurized
 
             if not ignited and not pressurized and sim.t > 0.5:
@@ -115,16 +109,21 @@ if __name__ == "__main__":
                 sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
                 sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
 
-            if not ignited and sim.t > 3.0:
+            if not ignited and sim.t > 2.0:
                 ignited = True
-                sim.mission_ctrl.send_fire_engine_packet(0)
+                sim.mission_ctrl.send_fire_igniter_packet(0)
 
-            if ignited and sim.t > 20.0:
+            if pressurized and sim.t > 6.0:
+                pressurized = False
+                sim.mission_ctrl.send_set_fuel_tank_packet(0, False)
+                sim.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
+
+            if ignited and sim.t > 10.0:
                 return False
 
             return True
 
-        simulation = EngineSimulation(sim_config)
+        simulation = IgniterSimulation(sim_config)
         build_sim_from_argv(simulation, sys.argv)
 
         sil.simulate_app(
@@ -133,4 +132,4 @@ if __name__ == "__main__":
             simulation.realtime,
         )
 
-    engine_app()
+    igniter_app()

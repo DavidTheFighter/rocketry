@@ -61,3 +61,4 @@ Cargo.lock
 # Python files
 .venv
 *.pyc
+__pycache__/

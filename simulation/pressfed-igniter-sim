@@ -1,2 +1,0 @@
-./build-sil \
-    && python -m pysim.simulation.igniter "../projects/endrega/gen_endrega_config.py" "../projects/endrega/endrega_config.json" $@

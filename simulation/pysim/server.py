@@ -2,7 +2,7 @@ from queue import Empty
 from threading import Thread
 import json
 import time
-from bottle import route, run, response, app
+from bottle import route, run, app
 from bottle_cors_plugin import cors_plugin
 
 app = app()

@@ -1,3 +1,0 @@
-cd software-in-loop \
-    && maturin develop --release \
-    && cd ..

@@ -1,7 +1,4 @@
-import json
-import sys
-
-def generate_config(filename):
+def generate_config():
     config = {}
 
     config["hardwareConfig"] = {
@@ -167,14 +164,4 @@ def generate_config(filename):
         }
     }
 
-    # Write config to file
-    with open(filename, "w") as f:
-        f.write(json.dumps(config, indent=4))
-
     return config
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        generate_config("endrega_config.json")
-    else:
-        generate_config(sys.argv[1])

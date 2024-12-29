@@ -1,6 +1,6 @@
-import time, abc, json, subprocess, typing
+import time, abc, json, subprocess, typing, importlib
 
-from pysim.replay import SimReplay
+from simulation.pysim.replay import SimReplay
 
 class SimulationBase:
     def __init__(
@@ -80,42 +80,20 @@ class SimulationBase:
         replay = SimReplay(self.sim_config["replay_update_rate"], self.logger)
         replay.replay()
 
-def build_sim_from_argv(
-        simulation: SimulationBase,
-        argv: typing.List[str],
-):
+def build_sim_from_argv(simulation: SimulationBase, argv: typing.List[str]):
     realtime = "-r" in argv
 
     if len(argv) < 2:
-        print(f"Usage: python {simulation.__name__} <optional gen script> <config_file>")
+        print(f"Usage: python {simulation.__name__} <config gen script>")
         return
 
-    if len(argv) == 2:
-        project_config_gen_script = None
-        project_config_file = argv[1]
-    else:
-        project_config_gen_script = argv[1]
-        project_config_file = argv[2]
-
-    project_config = build_config(
-        project_config_gen_script,
-        project_config_file,
-    )
+    project_config_gen_module = argv[1]
+    project_config = build_config(project_config_gen_module)
 
     simulation.initialize(project_config, realtime)
 
-def build_config(
-        project_config_gen_script: str,
-        project_config_file: str,
-) -> dict:
-    if project_config_gen_script is not None:
-            subprocess.check_output([
-                "python",
-                project_config_gen_script,
-                project_config_file,
-            ])
+def build_config(project_config_gen_module: str) -> dict:
+    config_gen_module = importlib.import_module(project_config_gen_module)
+    config = config_gen_module.generate_config()
 
-    with open(project_config_file, "r") as f:
-        project_config = json.load(f)
-
-    return project_config
+    return config
