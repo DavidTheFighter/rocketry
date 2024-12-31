@@ -320,15 +320,30 @@
     (property "LCSC" "C7394030" (at 113.665 64.135 0)
       (effects (font (size 1.27 1.27)) hide)
     )
+    (pin "1" (uuid c84fc5cd-2584-4d68-ae7a-d585be088656))
+    (pin "2" (uuid bd19d13a-d464-4775-81ff-eba1d76272d0))
     (pin "3" (uuid 3c5690e5-ba71-4a13-8740-7222a7c1dad2))
     (pin "4" (uuid 40c7eed4-2d2d-454c-b0ef-311a152c5815))
     (pin "5" (uuid c3306cf5-b217-488b-883c-c9a42842bfd7))
-    (pin "1" (uuid c84fc5cd-2584-4d68-ae7a-d585be088656))
-    (pin "2" (uuid bd19d13a-d464-4775-81ff-eba1d76272d0))
     (instances
       (project "ecu-kicad-v0.4"
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/c9de32bf-2057-480e-b155-8b8ac5365133"
           (reference "U25") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/0d407d98-2492-44f6-9025-ec2321b96b9d"
+          (reference "U8") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/72014560-c15a-47f6-8117-d6b3fafff65b"
+          (reference "U11") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3f75929d-dba2-4d08-a984-5e0c5ba9fe13"
+          (reference "U12") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3fe714ca-880f-4160-9f7f-b383c89ee1fe"
+          (reference "U13") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/bcc73691-ee46-4157-94cc-272d1b60695f"
+          (reference "U14") (unit 1)
         )
       )
     )
@@ -343,7 +358,7 @@
     (property "Value" "20K" (at 97.79 60.325 0)
       (effects (font (size 1.27 1.27)) (justify left))
     )
-    (property "Footprint" "" (at 96.52 59.055 0)
+    (property "Footprint" "Capacitor_SMD:C_0402_1005Metric" (at 96.52 59.055 0)
       (effects (font (size 1.27 1.27)) hide)
     )
     (property "Datasheet" "~" (at 96.52 59.055 0)
@@ -358,6 +373,21 @@
       (project "ecu-kicad-v0.4"
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/c9de32bf-2057-480e-b155-8b8ac5365133"
           (reference "R51") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/0d407d98-2492-44f6-9025-ec2321b96b9d"
+          (reference "R10") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/72014560-c15a-47f6-8117-d6b3fafff65b"
+          (reference "R15") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3f75929d-dba2-4d08-a984-5e0c5ba9fe13"
+          (reference "R16") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3fe714ca-880f-4160-9f7f-b383c89ee1fe"
+          (reference "R17") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/bcc73691-ee46-4157-94cc-272d1b60695f"
+          (reference "R18") (unit 1)
         )
       )
     )
@@ -384,6 +414,21 @@
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/c9de32bf-2057-480e-b155-8b8ac5365133"
           (reference "#PWR085") (unit 1)
         )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/0d407d98-2492-44f6-9025-ec2321b96b9d"
+          (reference "#PWR073") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/72014560-c15a-47f6-8117-d6b3fafff65b"
+          (reference "#PWR079") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3f75929d-dba2-4d08-a984-5e0c5ba9fe13"
+          (reference "#PWR089") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3fe714ca-880f-4160-9f7f-b383c89ee1fe"
+          (reference "#PWR093") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/bcc73691-ee46-4157-94cc-272d1b60695f"
+          (reference "#PWR097") (unit 1)
+        )
       )
     )
   )
@@ -409,6 +454,21 @@
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/c9de32bf-2057-480e-b155-8b8ac5365133"
           (reference "#PWR083") (unit 1)
         )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/0d407d98-2492-44f6-9025-ec2321b96b9d"
+          (reference "#PWR057") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/72014560-c15a-47f6-8117-d6b3fafff65b"
+          (reference "#PWR078") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3f75929d-dba2-4d08-a984-5e0c5ba9fe13"
+          (reference "#PWR088") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3fe714ca-880f-4160-9f7f-b383c89ee1fe"
+          (reference "#PWR092") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/bcc73691-ee46-4157-94cc-272d1b60695f"
+          (reference "#PWR096") (unit 1)
+        )
       )
     )
   )
@@ -433,6 +493,21 @@
       (project "ecu-kicad-v0.4"
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/c9de32bf-2057-480e-b155-8b8ac5365133"
           (reference "#PWR084") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/0d407d98-2492-44f6-9025-ec2321b96b9d"
+          (reference "#PWR056") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/72014560-c15a-47f6-8117-d6b3fafff65b"
+          (reference "#PWR075") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3f75929d-dba2-4d08-a984-5e0c5ba9fe13"
+          (reference "#PWR087") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3fe714ca-880f-4160-9f7f-b383c89ee1fe"
+          (reference "#PWR091") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/bcc73691-ee46-4157-94cc-272d1b60695f"
+          (reference "#PWR095") (unit 1)
         )
       )
     )
@@ -463,6 +538,21 @@
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/c9de32bf-2057-480e-b155-8b8ac5365133"
           (reference "C13") (unit 1)
         )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/0d407d98-2492-44f6-9025-ec2321b96b9d"
+          (reference "C43") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/72014560-c15a-47f6-8117-d6b3fafff65b"
+          (reference "C44") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3f75929d-dba2-4d08-a984-5e0c5ba9fe13"
+          (reference "C51") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3fe714ca-880f-4160-9f7f-b383c89ee1fe"
+          (reference "C52") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/bcc73691-ee46-4157-94cc-272d1b60695f"
+          (reference "C53") (unit 1)
+        )
       )
     )
   )
@@ -487,6 +577,21 @@
       (project "ecu-kicad-v0.4"
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/c9de32bf-2057-480e-b155-8b8ac5365133"
           (reference "#PWR082") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/0d407d98-2492-44f6-9025-ec2321b96b9d"
+          (reference "#PWR030") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/72014560-c15a-47f6-8117-d6b3fafff65b"
+          (reference "#PWR074") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3f75929d-dba2-4d08-a984-5e0c5ba9fe13"
+          (reference "#PWR086") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/3fe714ca-880f-4160-9f7f-b383c89ee1fe"
+          (reference "#PWR090") (unit 1)
+        )
+        (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/bcc73691-ee46-4157-94cc-272d1b60695f"
+          (reference "#PWR094") (unit 1)
         )
       )
     )

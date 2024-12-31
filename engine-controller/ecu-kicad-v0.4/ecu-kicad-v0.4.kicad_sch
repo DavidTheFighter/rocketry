@@ -2,7 +2,7 @@
 
   (uuid 36cc65d2-4dd3-4f51-bcce-4252e60c9ae8)
 
-  (paper "A2")
+  (paper "A3")
 
   (lib_symbols
   )
@@ -17,6 +17,26 @@
     )
     (property "Sheetfile" "sensing.kicad_sch" (at 268.605 231.0896 0)
       (effects (font (size 1.27 1.27)) (justify left top))
+    )
+    (pin "TEMP_SEL0" input (at 268.605 213.36 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid 930ec74a-21f5-400b-b297-6985b6360674)
+    )
+    (pin "TEMP_SEL1" input (at 268.605 215.9 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid 1da3c146-1cf7-461c-9857-73ae4a15296d)
+    )
+    (pin "TEMP_SEL3" input (at 268.605 218.44 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid d6c0025c-1145-4d9c-ab82-0c65cca8f0b8)
+    )
+    (pin "TEMP_SEL2" input (at 268.605 223.52 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid 4d50ed37-381c-49be-8c25-b5303f3a8c32)
+    )
+    (pin "THERM_IN" input (at 268.605 226.06 180)
+      (effects (font (size 1.27 1.27)) (justify left))
+      (uuid eb1bc9c8-9d4d-426d-b633-e8c6936ae52c)
     )
     (instances
       (project "ecu-kicad-v0.4"
@@ -42,14 +62,14 @@
     )
   )
 
-  (sheet (at 172.72 215.265) (size 73.66 40.64) (fields_autoplaced)
+  (sheet (at 156.21 144.145) (size 41.91 65.405) (fields_autoplaced)
     (stroke (width 0.1524) (type solid))
     (fill (color 0 0 0 0.0000))
     (uuid 9ead4792-45f5-4116-99cb-935143ec5657)
-    (property "Sheetname" "Microcontroller" (at 172.72 214.5534 0)
+    (property "Sheetname" "Microcontroller" (at 156.21 143.4334 0)
       (effects (font (size 1.27 1.27)) (justify left bottom))
     )
-    (property "Sheetfile" "microcontroller.kicad_sch" (at 172.72 256.4896 0)
+    (property "Sheetfile" "microcontroller.kicad_sch" (at 156.21 210.1346 0)
       (effects (font (size 1.27 1.27)) (justify left top))
     )
     (instances

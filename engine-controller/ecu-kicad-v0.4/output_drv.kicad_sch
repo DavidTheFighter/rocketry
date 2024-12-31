@@ -845,8 +845,8 @@
     (property "LCSC" "C5270767" (at 104.14 76.835 90)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (pin "2" (uuid f2ae68b1-0893-4ecd-90f4-d9bf7b5c1482))
     (pin "1" (uuid 9ec2ca75-fd7e-4fa0-9634-59c3e1a08ab0))
+    (pin "2" (uuid f2ae68b1-0893-4ecd-90f4-d9bf7b5c1482))
     (instances
       (project "ecu-kicad-v0.4"
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/64f49881-3157-4073-b83e-d9cba26a7f27"
@@ -908,11 +908,11 @@
     (pin "1" (uuid 804362a5-708a-4f27-84ab-5281b7f8367e))
     (pin "2" (uuid 08d208cf-624e-41e5-8979-222d9cbb18fa))
     (pin "3" (uuid c158ea63-f19e-4621-ab61-30eae1691096))
-    (pin "8" (uuid 9d48dbec-9414-4797-834b-dbf024682f61))
-    (pin "6" (uuid 6ff99ceb-dc2e-4859-b59f-f574edd69e38))
-    (pin "5" (uuid 210c4a16-7770-4793-ad8f-72a0835589c2))
     (pin "4" (uuid a0f62ff4-22dc-4354-b5af-172a5e87b161))
+    (pin "5" (uuid 210c4a16-7770-4793-ad8f-72a0835589c2))
+    (pin "6" (uuid 6ff99ceb-dc2e-4859-b59f-f574edd69e38))
     (pin "7" (uuid fa1e11a2-6608-4bff-936f-54f3014a1f90))
+    (pin "8" (uuid 9d48dbec-9414-4797-834b-dbf024682f61))
     (instances
       (project "ecu-kicad-v0.4"
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/64f49881-3157-4073-b83e-d9cba26a7f27"
@@ -944,10 +944,10 @@
       (effects (font (size 1.27 1.27)) hide)
     )
     (pin "1" (uuid 2646026d-1a06-4241-bbf8-55d7d05a8cd8))
-    (pin "5" (uuid 223f47ff-35ea-4856-b74d-66fa0455a91e))
-    (pin "4" (uuid f38de173-d23a-4fbe-9af6-6f2c963e385f))
     (pin "2" (uuid d8e35129-0f29-4494-8044-8a8f7371838b))
     (pin "3" (uuid 87d1f777-6a78-4de0-9986-cfdbb167ca2b))
+    (pin "4" (uuid f38de173-d23a-4fbe-9af6-6f2c963e385f))
+    (pin "5" (uuid 223f47ff-35ea-4856-b74d-66fa0455a91e))
     (instances
       (project "ecu-kicad-v0.4"
         (path "/36cc65d2-4dd3-4f51-bcce-4252e60c9ae8/786c8415-1305-4598-963d-843f7f154a96/b1d345e9-2e9c-457a-a0b4-7532a447bfe6"
@@ -978,8 +978,8 @@
     (property "LCSC" "C59135" (at 119.38 71.755 0)
       (effects (font (size 1.27 1.27)) hide)
     )
-    (pin "2" (uuid 41610438-211e-4d50-9971-3ead5419fe8e))
     (pin "1" (uuid 3f7c713c-5f6f-4903-b12b-1d48ff9d1c89))
+    (pin "2" (uuid 41610438-211e-4d50-9971-3ead5419fe8e))
     (pin "3" (uuid e75efc08-8c07-4445-844a-9771ef6f0f65))
     (pin "4" (uuid 815f143f-2906-4c25-b9e8-a37a0046a3fc))
     (pin "5" (uuid afc15e07-9dcf-47dc-80dd-8deb80388072))
