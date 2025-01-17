@@ -24,7 +24,7 @@ def test_igniter_init_state(igniter_sim):
 def test_no_startup_with_no_pressurized_tanks(igniter_sim):
     igniter_sim.advance_timestep()
 
-    igniter_sim.mission_ctrl.send_fire_igniter_packet(0)
+    igniter_sim.mission_ctrl.igniter.fire()
     igniter_sim.advance_timestep()
 
     assert not igniter_sim.simulate_until(lambda s: s.ecu['igniter_state'] != 'Idle', 3.0)
@@ -33,11 +33,11 @@ def test_no_ignition_without_spark(igniter_sim):
     igniter_sim.igniter_dynamics.allow_ignition = False
     igniter_sim.advance_timestep()
 
-    igniter_sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
-    igniter_sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
+    igniter_sim.mission_ctrl.fuel_tank.press()
+    igniter_sim.mission_ctrl.oxidizer_tank.press()
     assert igniter_sim.simulate_until(lambda s: tanks_pressurized(s), 5.0)
 
-    igniter_sim.mission_ctrl.send_fire_igniter_packet(0)
+    igniter_sim.mission_ctrl.igniter.fire()
     assert igniter_sim.simulate_until(lambda s: s.ecu['igniter_state'] == 'Startup', 1.0)
 
     start_t = igniter_sim.t
@@ -50,11 +50,11 @@ def test_no_ignition_without_spark(igniter_sim):
 def test_ignition(igniter_sim):
     igniter_sim.advance_timestep()
 
-    igniter_sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
-    igniter_sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
+    igniter_sim.mission_ctrl.fuel_tank.press()
+    igniter_sim.mission_ctrl.oxidizer_tank.press()
     assert igniter_sim.simulate_until(lambda s: tanks_pressurized(s), 5.0)
 
-    igniter_sim.mission_ctrl.send_fire_igniter_packet(0)
+    igniter_sim.mission_ctrl.igniter.fire()
     assert igniter_sim.simulate_until(lambda s: s.ecu['igniter_state'] == 'Startup', 1.0)
     assert igniter_sim.simulate_until(lambda s: s.ecu['igniter_state'] == 'Firing', 2.0)
     assert igniter_sim.simulate_until(lambda s: s.ecu['igniter_state'] == 'Shutdown', 2.0)
@@ -70,15 +70,15 @@ def test_unstable_pressure_no_ignition(igniter_sim):
 
     igniter_sim.igniter_dynamics.set_combustion_pressure_modifier(combustion_modifier)
 
-    igniter_sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
-    igniter_sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
+    igniter_sim.mission_ctrl.fuel_tank.press()
+    igniter_sim.mission_ctrl.oxidizer_tank.press()
     assert igniter_sim.simulate_until(lambda s: tanks_pressurized(s), 5.0)
 
     def no_ignition_assert(igniter_sim: IgniterSimulation):
         assert igniter_sim.ecu['igniter_state'] != 'Firing'
         assert igniter_sim.igniter_dynamics.chamber_pressure_pa < sil.ATMOSPHERIC_PRESSURE_PA * 1.1
 
-    igniter_sim.mission_ctrl.send_fire_igniter_packet(0)
+    igniter_sim.mission_ctrl.igniter.fire()
     assert igniter_sim.simulate_until_with_assert(
         condition_fn=lambda s: s.ecu['igniter_state'] == 'Shutdown',
         assert_fn=no_ignition_assert,

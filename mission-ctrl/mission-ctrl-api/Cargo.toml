@@ -16,3 +16,6 @@ strum_macros = "0.24"
 serde = "1.0"
 serde_json = "1.0"
 tungstenite = "0.23.0"
+
+[dependencies.big-brother]
+path = "../../big-brother"

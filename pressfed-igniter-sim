@@ -1,2 +1,3 @@
 ./build-sil \
+    && ./build-api \
     && python -m simulation.scenarios.igniter projects.endrega.gen_endrega $@

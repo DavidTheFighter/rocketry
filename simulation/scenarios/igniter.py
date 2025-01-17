@@ -106,17 +106,17 @@ if __name__ == "__main__":
 
             if not ignited and not pressurized and sim.t > 0.5:
                 pressurized = True
-                sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
-                sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
+                sim.mission_ctrl.fuel_tank.press()
+                sim.mission_ctrl.oxidizer_tank.press()
 
             if not ignited and sim.t > 2.0:
                 ignited = True
-                sim.mission_ctrl.send_fire_igniter_packet(0)
+                sim.mission_ctrl.igniter.fire()
 
             if pressurized and sim.t > 6.0:
                 pressurized = False
-                sim.mission_ctrl.send_set_fuel_tank_packet(0, False)
-                sim.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
+                sim.mission_ctrl.fuel_tank.vent()
+                sim.mission_ctrl.oxidizer_tank.vent()
 
             if ignited and sim.t > 10.0:
                 return False

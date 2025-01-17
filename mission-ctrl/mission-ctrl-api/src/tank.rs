@@ -3,7 +3,7 @@ use shared::ecu_hal::{EcuCommand, TankState, TankType};
 
 use crate::CommandHandler;
 
-#[pyclass]
+#[pyclass(unsendable)]
 pub struct Tank {
     pub tank_type: TankType,
     #[pyo3(get, set)]

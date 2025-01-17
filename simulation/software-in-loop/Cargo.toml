@@ -31,3 +31,6 @@ features = ["sil"]
 
 [dependencies.big-brother]
 path = "../../big-brother"
+
+[dependencies.mission-ctrl-api]
+path = "../../mission-ctrl/mission-ctrl-api"

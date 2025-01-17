@@ -1,19 +1,20 @@
-use std::{cell::RefCell, net::UdpSocket, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
 
 use big_brother::{
-    big_brother::{BigBrotherError, MAX_INTERFACE_COUNT, WORKING_BUFFER_SIZE},
+    big_brother::MAX_INTERFACE_COUNT,
     interface::{
         bridge_interface::BridgeInterface, mock_interface::MockInterface, BigBrotherInterface,
     },
 };
 use fcu_rs::FcuBigBrother;
+use mission_ctrl_api::CommandHandler;
 use pyo3::{prelude::*, types::PyList};
 use shared::{
-    comms_hal::{NetworkAddress, Packet},
-    ecu_hal, fcu_hal, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT,
+    comms_hal::NetworkAddress,
+    ecu_hal::TankType, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT,
 };
 
-use crate::network::{SilNetworkIface, SimBridgeIface};
+use crate::network::SilNetworkIface;
 
 #[pyclass(unsendable)]
 pub struct MissionControl {
@@ -22,6 +23,17 @@ pub struct MissionControl {
     _simulation_bridge_iface: Option<Rc<RefCell<BridgeInterface>>>,
     time_since_last_1ms: f32,
     timestamp: f32,
+
+    #[pyo3(get)]
+    pub command_handler: Py<CommandHandler>,
+    #[pyo3(get)]
+    pub fuel_tank: Py<mission_ctrl_api::tank::Tank>,
+    #[pyo3(get)]
+    pub oxidizer_tank: Py<mission_ctrl_api::tank::Tank>,
+    #[pyo3(get)]
+    pub igniter: Py<mission_ctrl_api::igniter::Igniter>,
+    #[pyo3(get)]
+    pub engine: Py<mission_ctrl_api::engine::Engine>,
 }
 
 #[pymethods]
@@ -84,12 +96,33 @@ impl MissionControl {
             big_brother_ifaces_ref,
         )));
 
+        let command_handler = Py::new(py, CommandHandler::from_big_brother(big_brother.clone())).unwrap();
+
         Self {
             _big_brother_ifaces: big_brother_ifaces,
-            _big_brother: big_brother,
+            _big_brother: big_brother.clone(),
             _simulation_bridge_iface: simulation_bridge_iface,
             time_since_last_1ms: 0.0,
             timestamp: 0.0,
+            command_handler: command_handler.clone(),
+            fuel_tank: Py::new(py, mission_ctrl_api::tank::Tank::new(
+                format!("{:?}", TankType::FuelMain),
+                0,
+                command_handler.clone(),
+            )).unwrap(),
+            oxidizer_tank: Py::new(py, mission_ctrl_api::tank::Tank::new(
+                format!("{:?}", TankType::OxidizerMain),
+                0,
+                command_handler.clone(),
+            )).unwrap(),
+            igniter: Py::new(py, mission_ctrl_api::igniter::Igniter::new(
+                0,
+                command_handler.clone(),
+            )).unwrap(),
+            engine: Py::new(py, mission_ctrl_api::engine::Engine::new(
+                0,
+                command_handler.clone(),
+            )).unwrap(),
         }
     }
 
@@ -116,92 +149,5 @@ impl MissionControl {
     }
 
     pub fn post_update(&mut self) {}
-
-    pub fn send_arm_vehicle_packet(&mut self) {
-        let command = fcu_hal::VehicleCommand::Arm {
-            magic_number: fcu_hal::ARMING_MAGIC_NUMBER,
-        };
-        let packet = Packet::VehicleCommand(command);
-        self.send_packet(&packet, NetworkAddress::FlightController);
-    }
-
-    pub fn send_ignite_solid_motor_packet(&mut self) {
-        let command = fcu_hal::VehicleCommand::IgniteSolidMotor {
-            magic_number: fcu_hal::IGNITION_MAGIC_NUMBER,
-        };
-        let packet = Packet::VehicleCommand(command);
-        self.send_packet(&packet, NetworkAddress::FlightController);
-    }
-
-    pub fn send_set_fuel_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
-        let command = match pressurized {
-            true => ecu_hal::EcuCommand::SetTankState((
-                ecu_hal::TankType::FuelMain,
-                ecu_hal::TankState::Pressurized,
-            )),
-            false => ecu_hal::EcuCommand::SetTankState((
-                ecu_hal::TankType::FuelMain,
-                ecu_hal::TankState::Venting,
-            )),
-        };
-
-        let packet = Packet::EcuCommand(command);
-        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
-    }
-
-    pub fn send_set_oxidizer_tank_packet(&mut self, ecu_index: u8, pressurized: bool) {
-        let command = match pressurized {
-            true => ecu_hal::EcuCommand::SetTankState((
-                ecu_hal::TankType::OxidizerMain,
-                ecu_hal::TankState::Pressurized,
-            )),
-            false => ecu_hal::EcuCommand::SetTankState((
-                ecu_hal::TankType::OxidizerMain,
-                ecu_hal::TankState::Venting,
-            )),
-        };
-
-        let packet = Packet::EcuCommand(command);
-        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
-    }
-
-    pub fn send_fire_engine_packet(&mut self, ecu_index: u8) {
-        let command = ecu_hal::EcuCommand::FireEngine;
-        let packet = Packet::EcuCommand(command);
-        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
-    }
-
-    pub fn send_fire_igniter_packet(&mut self, ecu_index: u8) {
-        let command = ecu_hal::EcuCommand::FireIgniter;
-        let packet = Packet::EcuCommand(command);
-        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
-    }
-
-    pub fn send_set_fuel_pump_packet(&mut self, ecu_index: u8, duty: f32) {
-        let command = ecu_hal::EcuCommand::SetPumpDuty((ecu_hal::PumpType::FuelMain, duty));
-        let packet = Packet::EcuCommand(command);
-        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
-    }
-
-    pub fn send_set_oxidizer_pump_packet(&mut self, ecu_index: u8, duty: f32) {
-        let command = ecu_hal::EcuCommand::SetPumpDuty((ecu_hal::PumpType::OxidizerMain, duty));
-        let packet = Packet::EcuCommand(command);
-        self.send_packet(&packet, NetworkAddress::EngineController(ecu_index));
-    }
 }
 
-impl MissionControl {
-    fn send_packet(&mut self, packet: &Packet, destination: NetworkAddress) {
-        if let Err(e) = self
-            ._big_brother
-            .borrow_mut()
-            .send_packet(&packet, destination)
-        {
-            if let BigBrotherError::UnknownNetworkAddress = e {
-                eprintln!("mission_ctrl.rs: Unknown network address");
-            } else {
-                eprintln!("mission_ctrl.rs: Failed to send packet: {:?}", e);
-            }
-        }
-    }
-}

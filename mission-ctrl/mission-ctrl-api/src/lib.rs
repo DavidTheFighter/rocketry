@@ -3,8 +3,9 @@ pub mod igniter;
 pub mod pump;
 pub mod tank;
 
-use std::{net::TcpStream, sync::Mutex};
+use std::{cell::RefCell, error::Error, net::TcpStream, rc::Rc, sync::Mutex};
 
+use big_brother::BigBrother;
 use pyo3::{
     prelude::*,
     types::{PyDict, PyList},
@@ -12,13 +13,20 @@ use pyo3::{
 use serde::Serialize;
 use shared::{
     comms_hal::{NetworkAddress, Packet},
-    ecu_hal::EcuCommand,
+    ecu_hal::EcuCommand, COMMS_NETWORK_MAP_SIZE,
 };
 use tungstenite::{connect, stream::MaybeTlsStream, WebSocket};
 
-#[pyclass]
+pub type CommandHandlerBigBrother = Rc<RefCell<BigBrother<'static, COMMS_NETWORK_MAP_SIZE, Packet, NetworkAddress>>>;
+
+enum CommandHandlerBackend {
+    Websocket(WebSocket<MaybeTlsStream<TcpStream>>),
+    BigBrother(CommandHandlerBigBrother),
+}
+
+#[pyclass(unsendable)]
 pub struct CommandHandler {
-    pub websocket: Mutex<WebSocket<MaybeTlsStream<TcpStream>>>,
+    backend: Mutex<CommandHandlerBackend>,
 }
 
 #[pymethods]
@@ -31,30 +39,23 @@ impl CommandHandler {
         println!("Websocket HTTP code: {}", response.status());
 
         Ok(Self {
-            websocket: Mutex::new(websocket),
+            backend: Mutex::new(CommandHandlerBackend::Websocket(websocket)),
         })
     }
 }
 
 impl CommandHandler {
+    pub fn from_big_brother(big_brother: CommandHandlerBigBrother) -> Self {
+        Self {
+            backend: Mutex::new(CommandHandlerBackend::BigBrother(big_brother)),
+        }
+    }
+
     pub fn send_packet(&self, packet: Packet, destination: NetworkAddress) -> PyResult<()> {
-        let packet_with_address = shared::comms_hal::PacketWithAddress {
-            address: destination,
-            packet,
-        };
-
-        let json_str = serde_json::to_string(&packet_with_address).unwrap();
-
-        self.websocket
+        self.backend
             .lock()
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?
-            .write(tungstenite::Message::Text(json_str))
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?;
-
-        self.websocket
-            .lock()
-            .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?
-            .flush()
+            .send_packet(packet, destination)
             .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?;
 
         Ok(())
@@ -72,24 +73,24 @@ impl CommandHandler {
         self.send_packet(packet, destination)?;
 
         loop {
-            let message = self
-                .websocket
+            let packet_with_address = self
+                .backend
                 .lock()
                 .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?
-                .read()
-                .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?;
+                .recv_packet()
+                .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)));
 
-            if let tungstenite::Message::Text(json_str) = message {
-                let packet_with_address: shared::comms_hal::PacketWithAddress =
-                    serde_json::from_str(&json_str).map_err(|e| {
-                        PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e))
-                    })?;
-
-                if packet_with_address.address == destination {
-                    if callback_fn(&packet_with_address.packet) {
-                        return Ok(packet_with_address.packet);
+            match packet_with_address {
+                Ok(packet_with_address) => {
+                    if packet_with_address.address == destination {
+                        if callback_fn(&packet_with_address.packet) {
+                            return Ok(packet_with_address.packet);
+                        }
                     }
-                }
+                },
+                Err(e) => {
+                    eprintln!("{:?}", e);
+                },
             }
         }
     }
@@ -99,6 +100,70 @@ impl CommandHandler {
             Packet::EcuCommand(command),
             NetworkAddress::EngineController(ecu_index),
         )
+    }
+}
+
+impl CommandHandlerBackend {
+    fn send_packet(&mut self, packet: Packet, destination: NetworkAddress) -> PyResult<()> {
+        match self {
+            Self::Websocket(web_socket) => {
+                web_socket
+                    .write(tungstenite::Message::Text(
+                        serde_json::to_string(&packet)
+                            .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?,
+                    ))
+                    .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?;
+
+                web_socket
+                    .flush()
+                    .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)))?;
+            },
+            Self::BigBrother(big_brother) => {
+                let response = big_brother
+                    .borrow_mut()
+                    .send_packet(&packet, destination)
+                    .map_err(|e| PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e)));
+
+                if let Err(e) = response {
+                    eprintln!("{:?}", e);
+                }
+            },
+        }
+
+        Ok(())
+    }
+
+    fn recv_packet(&mut self) -> Result<shared::comms_hal::PacketWithAddress, Box<dyn Error>> {
+        match self {
+            Self::Websocket(web_socket) => {
+                loop {
+                    let message = web_socket
+                        .read()
+                        .map_err(|e| format!("{:?}", e))?;
+
+                    if let tungstenite::Message::Text(json_str) = message {
+                        let packet_with_address: shared::comms_hal::PacketWithAddress =
+                            serde_json::from_str(&json_str).map_err(|e| {
+                                PyErr::new::<pyo3::exceptions::PyException, _>(format!("{:?}", e))
+                            })?;
+
+                        return Ok(packet_with_address)
+                    }
+                }
+            },
+            Self::BigBrother(big_brother) => {
+                let (packet, remote) = big_brother
+                    .borrow_mut()
+                    .recv_packet()
+                    .map_err(|e| format!("{:?}", e))?
+                    .ok_or("No packet received")?;
+
+                Ok(shared::comms_hal::PacketWithAddress {
+                    packet,
+                    address: remote,
+                })
+            },
+        }
     }
 }
 

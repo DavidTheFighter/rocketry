@@ -38,7 +38,7 @@ def test_tanks_init_state(tank_sim):
 def test_fuel_tank_depress_and_repress(tank_sim):
     tank_sim.advance_timestep()
 
-    tank_sim.mission_ctrl.send_set_fuel_tank_packet(0, False)
+    tank_sim.mission_ctrl.fuel_tank.vent()
 
     last_pressure_pa = tank_sim.fuel_tank_dynamics.tank_pressure_pa * 1.01
     def assert_pressure_decreasing(tank_sim: TankOnlySimulation):
@@ -54,7 +54,7 @@ def test_fuel_tank_depress_and_repress(tank_sim):
     assert tank_sim.ecu['binary_valves']['FuelVentValve'] == True
     assert tank_sim.ecu['binary_valves']['OxidizerVentValve'] == False
 
-    tank_sim.mission_ctrl.send_set_fuel_tank_packet(0, True)
+    tank_sim.mission_ctrl.fuel_tank.press()
 
     def assert_pressure_increasing(tank_sim: TankOnlySimulation):
         nonlocal last_pressure_pa
@@ -71,7 +71,7 @@ def test_fuel_tank_depress_and_repress(tank_sim):
 def test_oxidizer_tank_depress_and_repress(tank_sim):
     tank_sim.advance_timestep()
 
-    tank_sim.mission_ctrl.send_set_oxidizer_tank_packet(0, False)
+    tank_sim.mission_ctrl.oxidizer_tank.vent()
 
     last_pressure_pa = tank_sim.oxidizer_tank_dynamics.tank_pressure_pa * 1.01
     def assert_pressure_decreasing(tank_sim: TankOnlySimulation):
@@ -87,7 +87,7 @@ def test_oxidizer_tank_depress_and_repress(tank_sim):
     assert tank_sim.ecu['binary_valves']['FuelVentValve'] == False
     assert tank_sim.ecu['binary_valves']['OxidizerVentValve'] == True
 
-    tank_sim.mission_ctrl.send_set_oxidizer_tank_packet(0, True)
+    tank_sim.mission_ctrl.oxidizer_tank.press()
 
     def assert_pressure_increasing(tank_sim: TankOnlySimulation):
         nonlocal last_pressure_pa
