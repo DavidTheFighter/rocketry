@@ -10,8 +10,8 @@ use fcu_rs::FcuBigBrother;
 use mission_ctrl_api::CommandHandler;
 use pyo3::{prelude::*, types::PyList};
 use shared::{
-    comms_hal::NetworkAddress,
-    ecu_hal::TankType, REALTIME_SIMULATION_CTRL_PORT, REALTIME_SIMULATION_SIM_PORT,
+    comms_hal::NetworkAddress, ecu_hal::TankType, REALTIME_SIMULATION_CTRL_PORT,
+    REALTIME_SIMULATION_SIM_PORT,
 };
 
 use crate::network::SilNetworkIface;
@@ -96,7 +96,8 @@ impl MissionControl {
             big_brother_ifaces_ref,
         )));
 
-        let command_handler = Py::new(py, CommandHandler::from_big_brother(big_brother.clone())).unwrap();
+        let command_handler =
+            Py::new(py, CommandHandler::from_big_brother(big_brother.clone())).unwrap();
 
         Self {
             _big_brother_ifaces: big_brother_ifaces,
@@ -105,24 +106,34 @@ impl MissionControl {
             time_since_last_1ms: 0.0,
             timestamp: 0.0,
             command_handler: command_handler.clone(),
-            fuel_tank: Py::new(py, mission_ctrl_api::tank::Tank::new(
-                format!("{:?}", TankType::FuelMain),
-                0,
-                command_handler.clone(),
-            )).unwrap(),
-            oxidizer_tank: Py::new(py, mission_ctrl_api::tank::Tank::new(
-                format!("{:?}", TankType::OxidizerMain),
-                0,
-                command_handler.clone(),
-            )).unwrap(),
-            igniter: Py::new(py, mission_ctrl_api::igniter::Igniter::new(
-                0,
-                command_handler.clone(),
-            )).unwrap(),
-            engine: Py::new(py, mission_ctrl_api::engine::Engine::new(
-                0,
-                command_handler.clone(),
-            )).unwrap(),
+            fuel_tank: Py::new(
+                py,
+                mission_ctrl_api::tank::Tank::new(
+                    format!("{:?}", TankType::FuelMain),
+                    0,
+                    command_handler.clone(),
+                ),
+            )
+            .unwrap(),
+            oxidizer_tank: Py::new(
+                py,
+                mission_ctrl_api::tank::Tank::new(
+                    format!("{:?}", TankType::OxidizerMain),
+                    0,
+                    command_handler.clone(),
+                ),
+            )
+            .unwrap(),
+            igniter: Py::new(
+                py,
+                mission_ctrl_api::igniter::Igniter::new(0, command_handler.clone()),
+            )
+            .unwrap(),
+            engine: Py::new(
+                py,
+                mission_ctrl_api::engine::Engine::new(0, command_handler.clone()),
+            )
+            .unwrap(),
         }
     }
 
@@ -150,4 +161,3 @@ impl MissionControl {
 
     pub fn post_update(&mut self) {}
 }
-
